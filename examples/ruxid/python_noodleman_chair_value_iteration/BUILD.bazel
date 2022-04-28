@@ -1,0 +1,29 @@
+# -*- python -*-
+
+load("//tools/skylark:drake_py.bzl", "drake_py_binary")
+load("//tools/lint:lint.bzl", "add_lint_tests")
+
+package(default_visibility = ["//visibility:private"])
+
+drake_py_binary(
+    name = "noodleman_sim_demo_value_iteration_py",
+    srcs = ["noodleman_sim_demo_value_iteration.py"],
+    data = [":model_files"],
+    deps = [
+        "//bindings/pydrake",
+    ],
+)
+
+filegroup(
+    name = "model_files",
+    srcs = [
+       "models/noodleman.sdf",
+       "models/noodleman_v0.sdf",
+       "models/noodleman_v1.sdf",
+       "models/noodleman_model_frame.sdf",
+       "models/chair_v1.sdf",
+       "models/floor.sdf",
+    ],
+)
+
+add_lint_tests()

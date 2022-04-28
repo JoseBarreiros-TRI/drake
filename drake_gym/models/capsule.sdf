@@ -1,0 +1,49 @@
+<?xml version='1.0' ?>
+<!-- Humanoid model 
+Toyota Research Institute-->
+<sdf version='1.6'>
+  <model name='capsule_v1'>
+    <pose>0.0 0.0 0 0 0 0</pose>
+
+    <link name='waist'>
+      <pose>0 0 1.02 0 0 0</pose>
+      <inertial>
+        <mass>12</mass>
+        <pose>0 0 0 0 0 0</pose>
+      </inertial>
+      <visual name="cap_waist">
+        <pose>0 0 0 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.07</radius>
+            <length>0.16</length>
+          </capsule>
+        </geometry>
+        <material>
+          <specular>1 1 0.1 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name='waist2'>
+      <pose>1 0 1.02 0 0 0</pose>
+      <inertial>
+        <mass>12</mass>
+        <pose>0 0 0 0 0 0</pose>
+      </inertial>
+      <visual name="cap_waist">
+        <pose>0 0 0 0 1.5708 0</pose>
+        <geometry>
+          <cylinder>
+            <radius>0.07</radius>
+            <length>0.16</length>
+          </cylinder>
+        </geometry>
+        <material>
+          <specular>1 1 0.1 1</specular>
+        </material>
+      </visual>
+    </link>
+
+  </model>
+</sdf>

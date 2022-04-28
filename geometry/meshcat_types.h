@@ -161,6 +161,7 @@ struct MaterialData {
 struct GeometryData {
   virtual ~GeometryData() = default;
   std::string uuid;
+  std::string uuid2;
 
   // NOLINTNEXTLINE(runtime/references) cpplint disapproves of msgpack choices.
   virtual void msgpack_pack(msgpack::packer<std::stringstream>& o) const = 0;
@@ -208,6 +209,42 @@ struct CylinderGeometryData : public GeometryData {
     PACK_MAP_VAR(o, radialSegments);
   }
 };
+
+
+struct CapsuleGeometryData : public GeometryData {
+  double radiusBottom{};
+  double radiusTop{};
+  double height{};
+  double radialSegments{50};
+  double radius{};
+  double widthSegments{20};
+  double heightSegments{20};
+
+  // NOLINTNEXTLINE(runtime/references) cpplint disapproves of msgpack choices.
+  void msgpack_pack(msgpack::packer<std::stringstream>& o) const override {
+    o.pack_map(11);
+    o.pack("type");
+    o.pack("CylinderGeometry");
+    PACK_MAP_VAR(o, uuid);
+    PACK_MAP_VAR(o, radiusBottom);
+    PACK_MAP_VAR(o, radiusTop);
+    PACK_MAP_VAR(o, height);
+    PACK_MAP_VAR(o, radialSegments);
+    //o.pack("type");
+    o.pack("SphereGeometry");
+    PACK_MAP_VAR(o, uuid2);
+    PACK_MAP_VAR(o, radius);
+    PACK_MAP_VAR(o, widthSegments);
+    PACK_MAP_VAR(o, heightSegments);
+    // o.pack("type");
+    // o.pack("SphereGeometry");
+    // PACK_MAP_VAR(o, uuid);
+    // PACK_MAP_VAR(o, radius);
+    // PACK_MAP_VAR(o, widthSegments);
+    // PACK_MAP_VAR(o, heightSegments);
+  }
+};
+
 
 struct BoxGeometryData : public GeometryData {
   double width{};
