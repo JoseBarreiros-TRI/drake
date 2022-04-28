@@ -5,6 +5,7 @@ a rigid chair.
 """
 import argparse
 import numpy as np
+import pdb
 
 from pydrake.common import FindResourceOrThrow
 from pydrake.geometry import DrakeVisualizer
@@ -37,7 +38,7 @@ def make_noodleman_chair(contact_model, contact_surface_representation,
 
     parser = Parser(plant)
     chair_sdf_file_name = \
-        FindResourceOrThrow("drake/examples/ruxid/models"
+        FindResourceOrThrow("drake/examples/ruxid/python_noodleman_chair/models"
                             "/chair_v1.sdf")
     chair = parser.AddModelFromFile(chair_sdf_file_name, model_name="chair")
     plant.WeldFrames(
@@ -46,7 +47,7 @@ def make_noodleman_chair(contact_model, contact_surface_representation,
         X_PC=p_WChair_fixed
     )
     noodleman_sdf_file_name = \
-        FindResourceOrThrow("drake/examples/ruxid/models"
+        FindResourceOrThrow("drake/examples/ruxid/python_noodleman_chair/models"
                             "/noodleman.sdf")
     parser.AddModelFromFile(noodleman_sdf_file_name)
 
@@ -68,11 +69,13 @@ def make_noodleman_chair(contact_model, contact_surface_representation,
 def simulate_diagram(diagram, chair_noodleman_plant, state_logger,
                      noodleman_init_position, noodleman_init_velocity,
                      simulation_time, target_realtime_rate):
+    #pdb.set_trace()
     q_init_val = np.array([
-        1, 0, 0, 0, noodleman_init_position[0], noodleman_init_position[1],
-        noodleman_init_position[2]
+        1, 0, 0, 
+        0, 0, 0,
+        1.5,1, -0.8
     ])
-    v_init_val = np.hstack((np.zeros(3), noodleman_init_velocity))
+    v_init_val = np.hstack((np.zeros(5), noodleman_init_velocity))
     qv_init_val = np.concatenate((q_init_val, v_init_val))
 
     simulator_config = SimulatorConfig(
@@ -116,21 +119,21 @@ if __name__ == "__main__":
              "If zero, we will use an integrator for a continuous system. "
              "Non-negative. Default 0.001.")
     parser.add_argument(
-        "--ball_initial_position", nargs=3, metavar=('x', 'y', 'z'),
+        "--noodleman_initial_position", nargs=3, metavar=('x', 'y', 'z'),
         default=[0, 0, 0.1],
-        help="Ball's initial position: x, y, z (in meters) in World frame. "
+        help="Noodleman's initial position: x, y, z (in meters) in World frame. "
              "Default: 0 0 0.1")
     parser.add_argument(
         "--target_realtime_rate", type=float, default=1.0,
         help="Target realtime rate. Default 1.0.")
     args = parser.parse_args()
 
-    diagram, ball_paddle_plant, state_logger = make_noodleman_chair(
+    diagram, noodleman_chair_plant, state_logger = make_noodleman_chair(
         args.contact_model, args.contact_surface_representation,
         args.time_step)
     time_samples, state_samples = simulate_diagram(
-        diagram, ball_paddle_plant, state_logger,
-        np.array(args.ball_initial_position),
+        diagram, noodleman_chair_plant, state_logger,
+        np.array(args.noodleman_initial_position),
         np.array([0., 0., 0.]),
         args.simulation_time, args.target_realtime_rate)
     print("\nFinal state variables:")
