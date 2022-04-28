@@ -664,7 +664,11 @@ void DoScalarDependentDefinitions(py::module m, T) {
             cls_doc.set_actuation_vector.doc)
         .def("input_start", &Class::input_start, cls_doc.input_start.doc)
         .def("num_inputs", &Class::num_inputs, cls_doc.num_inputs.doc)
-        .def("effort_limit", &Class::effort_limit, cls_doc.effort_limit.doc);
+        .def("effort_limit", &Class::effort_limit, cls_doc.effort_limit.doc)
+        .def("gear_ratio", &Class::gear_ratio, cls_doc.gear_ratio.doc)
+        .def("default_gear_ratio", &Class::default_gear_ratio, cls_doc.default_gear_ratio.doc)
+        .def("set_default_gear_ratio", &Class::set_default_gear_ratio, cls_doc.set_default_gear_ratio.doc)
+        .def("SetGearRatio", &Class::SetGearRatio, cls_doc.SetGearRatio.doc);
   }
 
   // Force Elements.

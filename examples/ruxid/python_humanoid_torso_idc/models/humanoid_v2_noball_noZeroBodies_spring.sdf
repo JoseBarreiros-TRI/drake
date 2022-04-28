@@ -1,0 +1,1357 @@
+<?xml version='1.0' ?>
+<!-- Humanoid model 
+Toyota Research Institute-->
+<sdf version='1.7'>
+  <model name='humanoid_v1'>
+    <pose>0.0 0.0 0 0 0 0</pose>
+
+    <link name='waist'>
+      <pose>0 0 1.02 0 0 0</pose>
+      <inertial>
+        <mass>12</mass>
+        <pose>0 0 0 0 0 0</pose>
+      </inertial>
+      <visual name="cap_waist">
+        <pose>0 0 0 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.07</radius>
+            <length>0.16</length>
+          </capsule>
+        </geometry>
+        <material>
+          <specular>1 1 0.1 1</specular>
+        </material>
+      </visual>
+      <collision name="col_cap_waist">
+        <pose>0 0 0 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.07</radius>
+            <length>0.16</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>           
+      </collision>
+    </link>
+
+    <link name='torso'>
+      <pose relative_to='waist'>0 0 0.20 0 0 0</pose>
+      <inertial>
+        <mass>16</mass>
+        <pose>0 0 0 0 0 0</pose>
+      </inertial>
+      <visual name="cap_upper_L">
+        <pose>-0.1 0 0.06 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.082</radius>
+            <length>0.16</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <collision name="col_cap_upper_L">
+        <pose>-0.1 0 0.06 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.082</radius>
+            <length>0.16</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>      
+      <visual name="cap_upper_R">
+        <pose>0.1 0 0.06 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.082</radius>
+            <length>0.16</length>
+          </capsule>
+        </geometry>
+      </visual>  
+      <collision name="col_cap_upper_R">
+        <pose>0.1 0 0.06 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.082</radius>
+            <length>0.16</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>      
+      <visual name="cap_lower">
+        <pose>0 0.005 -0.06 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.08</radius>
+            <length>0.18</length>
+          </capsule>
+        </geometry>
+        <material>
+          <specular>1 1 0.1 1</specular>
+        </material>
+      </visual>
+      <collision name="col_cap_lower">
+        <pose>0 0.005 -0.06 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.08</radius>
+            <length>0.18</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
+      <visual name="cap_lower_neck">
+        <pose>0 0 0.15 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.045</radius>
+            <length>0.03</length>
+          </capsule>
+        </geometry>
+      </visual> 
+      <collision name="col_cap_lower_neck">
+        <pose>0 0 0.15 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.045</radius>
+            <length>0.03</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>     
+      </collision>    
+    </link>    
+
+    <link name='head'>
+      <pose relative_to='torso'>0 0 0.35 0 0 0</pose>
+      <inertial>
+        <mass>6.4</mass>
+      </inertial>
+      <visual name="cap_face">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.09</radius>
+            <length>0.09</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <collision name="col_cap_face">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.09</radius>
+            <length>0.09</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
+      <visual name="cap_upper_neck">
+        <pose>0 0 -0.14 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.045</radius>
+            <length>0.03</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <collision name="col_cap_upper_neck">
+        <pose>0 0 -0.14 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.045</radius>
+            <length>0.03</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
+    </link>
+
+    <link name='arm_L'>
+      <pose relative_to='torso'>0.215 0 -0.08 0 0 0</pose>
+      <inertial>
+        <mass>2.4</mass>
+      </inertial>
+      <visual name="cyl_arm">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.045</radius>
+            <length>0.28</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <collision name="col_cyl_arm">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.045</radius>
+            <length>0.28</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>     
+    </link>    
+
+    <link name='forearm_L'>
+      <pose relative_to='arm_L'>0 0 -0.29 0 0 0</pose>
+      <inertial>
+        <mass>1.4</mass>
+      </inertial>
+      <visual name="cyl_arm">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.036</radius>
+            <length>0.25</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <collision name="col_cyl_arm">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.036</radius>
+            <length>0.25</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>    
+    </link>
+
+    <link name='hand_L'>
+      <pose relative_to='forearm_L'>0 0 -0.19 0 0 0</pose>
+      <inertial>
+        <mass>0.5</mass>
+      </inertial>
+      <visual name="ellip_hand">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <ellipsoid>
+            <radii>0.04 0.03 0.065</radii>
+          </ellipsoid>
+        </geometry>
+      </visual>
+      <collision name="col_ellip_hand">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <ellipsoid>
+            <radii>0.04 0.03 0.065</radii>
+          </ellipsoid>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
+    </link>
+
+    <link name='arm_R'>
+      <pose relative_to='torso'>-0.215 0 -0.08 0 0 0</pose>
+      <inertial>
+        <mass>2.4</mass>
+      </inertial>
+      <visual name="cyl_arm">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.045</radius>
+            <length>0.28</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <collision name="col_cyl_arm">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.045</radius>
+            <length>0.28</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
+    </link>    
+
+    <link name='forearm_R'>
+      <pose relative_to='arm_R'>0 0 -0.29 0 0 0</pose>
+      <inertial>
+        <mass>1.4</mass>
+      </inertial>
+      <visual name="cyl_arm">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.036</radius>
+            <length>0.25</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <collision name="col_cyl_arm">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.036</radius>
+            <length>0.25</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
+    </link>
+
+    <link name='hand_R'>
+      <pose relative_to='forearm_R'>0 0 -0.19 0 0 0</pose>
+      <inertial>
+        <mass>0.5</mass>
+      </inertial>
+      <visual name="ellip_hand">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <ellipsoid>
+            <radii>0.04 0.03 0.065</radii>
+          </ellipsoid>
+        </geometry>
+      </visual>
+      <collision name="col_ellip_hand">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <ellipsoid>
+            <radii>0.04 0.03 0.065</radii>
+          </ellipsoid>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
+    </link>
+
+    <link name='hips'>
+      <pose relative_to='waist'>0 0 -0.15 0 0 0</pose>
+      <inertial>
+        <mass>12</mass>
+      </inertial>
+      <visual name="cap_hips">
+        <pose>0 0 0 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.09</radius>
+            <length>0.18</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <collision name="col_cap_hips">
+        <pose>0 0 0 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.09</radius>
+            <length>0.18</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
+    </link>
+
+    <link name='upper_leg_L'>
+      <pose relative_to='hips'>0.09 0 -0.25 0 0 0</pose>
+      <inertial>
+        <mass>8</mass>
+      </inertial>
+      <visual name="cap_uleg">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.075</radius>
+            <length>0.30</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <collision name="col_cap_uleg">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.075</radius>
+            <length>0.30</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
+    </link>
+
+    <link name='lower_leg_L'>
+      <pose relative_to='upper_leg_L'>0 0.0 -0.37 0 0 0</pose>
+      <inertial>
+        <mass>4</mass>
+      </inertial>
+      <visual name="cyl_lleg">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.06</radius>
+            <length>0.35</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <collision name="col_cyl_lleg">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.06</radius>
+            <length>0.35</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>      
+    </link>
+
+    <link name='foot_L'>
+      <pose relative_to='lower_leg_L'>0 0.08 -0.23 0 0 0</pose>
+      <inertial>
+        <mass>1</mass>
+      </inertial>
+      <visual name="sph_ankle">
+        <pose>0 -0.08 0.028 0 0 0</pose>
+        <geometry>
+          <sphere>
+            <radius>0.06</radius>
+          </sphere>
+        </geometry>
+      </visual>
+      <collision name="col_sph_ankle">
+        <pose>0 -0.08 0.028 0 0 0</pose>
+        <geometry>
+          <sphere>
+            <radius>0.06</radius>
+          </sphere>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
+      <visual name="cap1_foot">
+        <pose>-0.03 0.0 -0.004 1.5708 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.03</radius>
+            <length>0.14</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <collision name="col_cap1_foot">
+        <pose>-0.03 0.0 -0.004 1.5708 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.03</radius>
+            <length>0.14</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
+      <visual name="cap2_foot">
+        <pose>0.03 0.0 -0.004 1.5708 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.03</radius>
+            <length>0.14</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <collision name="col_cap2_foot">
+        <pose>0.03 0.0 -0.004 1.5708 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.03</radius>
+            <length>0.14</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
+    </link>
+
+    <link name='toes_L'>
+      <pose relative_to='foot_L'>0 0.1 -0.003 0 0 0</pose>
+      <inertial>
+        <mass>0.2</mass>
+      </inertial>
+      <visual name="cap_toes">
+        <pose>0 0 0 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.027</radius>
+            <length>0.06</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <collision name="col_cap_toes">
+        <pose>0 0 0 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.027</radius>
+            <length>0.06</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
+    </link>
+
+
+
+
+
+    <link name='upper_leg_R'>
+      <pose relative_to='hips'>-0.09 0 -0.25 0 0 0</pose>
+      <inertial>
+        <mass>8</mass>
+      </inertial>
+      <visual name="cap_uleg">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.075</radius>
+            <length>0.30</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <collision name="col_cap_uleg">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.075</radius>
+            <length>0.30</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
+    </link>
+
+    <link name='lower_leg_R'>
+      <pose relative_to='upper_leg_R'>0 0.0 -0.37 0 0 0</pose>
+      <inertial>
+        <mass>4</mass>
+      </inertial>
+      <visual name="cyl_lleg">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.06</radius>
+            <length>0.35</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <collision name="col_cyl_lleg">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.06</radius>
+            <length>0.35</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
+    </link>
+
+    <link name='foot_R'>
+      <pose relative_to='lower_leg_R'>0 0.08 -0.23 0 0 0</pose>
+      <inertial>
+        <mass>1</mass>
+      </inertial>
+      <visual name="sph_ankle">
+        <pose>0 -0.08 0.028 0 0 0</pose>
+        <geometry>
+          <sphere>
+            <radius>0.06</radius>
+          </sphere>
+        </geometry>
+      </visual>
+      <collision name="col_sph_ankle">
+        <pose>0 -0.08 0.028 0 0 0</pose>
+        <geometry>
+          <sphere>
+            <radius>0.06</radius>
+          </sphere>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
+      <visual name="cap1_foot">
+        <pose>-0.03 0.0 -0.004 1.5708 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.03</radius>
+            <length>0.14</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <collision name="col_cap1_foot">
+        <pose>-0.03 0.0 -0.004 1.5708 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.03</radius>
+            <length>0.14</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
+      <visual name="cap2_foot">
+        <pose>0.03 0.0 -0.004 1.5708 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.03</radius>
+            <length>0.14</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <collision name="col_cap2_foot">
+        <pose>0.03 0.0 -0.004 1.5708 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.03</radius>
+            <length>0.14</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
+    </link>
+
+    <link name='toes_R'>
+      <pose relative_to='foot_R'>0 0.1 -0.003 0 0 0</pose>
+      <inertial>
+        <mass>0.2</mass>
+      </inertial>
+      <visual name="cap_toes">
+        <pose>0 0 0 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.027</radius>
+            <length>0.06</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <collision name="col_cap_toes">
+        <pose>0 0 0 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.027</radius>
+            <length>0.06</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.3</drake:mu_dynamic>
+          <drake:mu_static>0.3</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
+    </link>
+
+
+
+
+    <!-- universal joint for neck -->
+    <link name='glue_torso_neck'>
+      <pose relative_to='torso'>0 0.0 0.18 0 0 0</pose>
+      <inertial>
+        <mass>0.1</mass>
+      </inertial>
+    </link>  
+
+    <joint name='neck_joint1' type='revolute'>
+      <parent>torso</parent>
+      <child>glue_torso_neck</child>
+      <pose>0 0 0 0 0 0</pose>
+      <drake:gear_ratio>1 </drake:gear_ratio>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-1.2</lower>
+          <upper>0.5</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>50</spring_stiffness>
+          <damping>5 </damping>
+          <friction>0</friction>
+        </dynamics>
+      </axis>
+    </joint>
+    <joint name='neck_joint2' type='revolute'>
+      <parent>glue_torso_neck</parent>
+      <child>head</child>
+      <pose>0 0 -0.17 0 0 0</pose>
+      <drake:gear_ratio>1 </drake:gear_ratio>
+      <axis>
+        <xyz>0.0 1.0 0.0</xyz>
+        <limit>
+          <lower>-0.6</lower>
+          <upper>0.6</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>100</spring_stiffness>
+          <damping>10 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <!-- universal joint for shoulder L-->
+    <link name='glue_torso_armL'>
+      <pose relative_to='torso'>0.215 0.0 0.07 0 0 0</pose>
+      <inertial>
+        <mass>0.1</mass>
+      </inertial>
+    </link>  
+
+    <joint name='shoulderL_joint1' type='revolute'>
+      <parent>torso</parent>
+      <child>glue_torso_armL</child>
+      <pose>0 0 0 0 0 0 </pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-0.5</lower>
+          <upper>3.1416</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>100</spring_stiffness>
+          <damping>10 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+    <joint name='shoulderL_joint2' type='revolute'>
+      <parent>glue_torso_armL</parent>
+      <child>arm_L</child>
+      <pose>0 0 0.16 0 0 0 </pose>
+      <axis>
+        <xyz>0.0 1.0 0.0</xyz>
+        <limit>
+          <lower>-1.5708</lower>
+          <upper>0.7853</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>100</spring_stiffness>
+          <damping>10 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <!-- revolute joint for elbow L-->
+    <joint name='elbowL_joint' type='revolute'>
+      <parent>arm_L</parent>
+      <child>forearm_L</child>
+      <pose>0 0 0.15 0 0 0 </pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-0.01</lower>
+          <upper>2.3</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>10</spring_stiffness>
+          <damping>1 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <!-- revolute joint for wrist L -->
+    <joint name='wristL_joint' type='revolute'>
+      <parent>forearm_L</parent>
+      <child>hand_L</child>
+      <pose>0 0 0.05 0 0 0 </pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-1.5</lower>
+          <upper>1.5</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>10</spring_stiffness>
+          <damping>1 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+
+   <!-- universal joint for shoulder R-->
+    <link name='glue_torso_armR'>
+      <pose relative_to='torso'>-0.215 0.0 0.07 0 0 0</pose>
+      <inertial>
+        <mass>0.1</mass>
+      </inertial>
+    </link>  
+
+    <joint name='shoulderR_joint1' type='revolute'>
+      <parent>torso</parent>
+      <child>glue_torso_armR</child>
+      <pose>0 0 0 0 0 0 </pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-0.5</lower>
+          <upper>3.1416</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>100</spring_stiffness>
+          <damping>10 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+    <joint name='shoulderR_joint2' type='revolute'>
+      <parent>glue_torso_armR</parent>
+      <child>arm_R</child>
+      <pose>0 0 0.16 0 0 3.1416 </pose>
+      <axis>
+        <xyz>0.0 1.0 0.0</xyz>
+        <limit>
+          <lower>-1.5708</lower>
+          <upper>0.7853</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>100</spring_stiffness>
+          <damping>10 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <!-- revolute joint for elbow R-->
+    <joint name='elbowR_joint' type='revolute'>
+      <parent>arm_R</parent>
+      <child>forearm_R</child>
+      <pose>0 0 0.15 0 0 0 </pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-0.01</lower>
+          <upper>2.3</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>10</spring_stiffness>
+          <damping>1 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <!-- revolute joint for wrist R-->
+    <joint name='wristR_joint' type='revolute'>
+      <parent>forearm_R</parent>
+      <child>hand_R</child>
+      <pose>0 0 0.05 0 0 0 </pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-1.5</lower>
+          <upper>1.5</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>10</spring_stiffness>
+          <damping>1 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <!-- weld for hips and waist link -->
+    <joint name='waist_weld' type='fixed'>
+      <parent>waist</parent>
+      <child>hips</child>
+      <pose>0 0 0 0 0 0</pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+      </axis>
+    </joint>
+
+    <!-- ball joint for torso and waist link -->
+    <link name='glue_torso_waist1'>
+      <pose relative_to='waist'>0 0.0 0.065 0 0 0</pose>
+      <inertial>
+        <mass>0.1</mass>
+      </inertial>
+    </link> 
+
+    <link name='glue_torso_waist2'>
+      <pose relative_to='waist'>0 0.0 0.065 0 0 0</pose>
+      <inertial>
+        <mass>0.1</mass>
+      </inertial>
+    </link> 
+
+    <joint name='torso_joint1' type='revolute'>
+      <parent>waist</parent>
+      <child>glue_torso_waist1</child>
+      <pose>0 0 0 0 0 0</pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-0.2</lower>
+          <upper>0.05</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>250</spring_stiffness>
+          <damping>50 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+    <joint name='torso_joint2' type='revolute'>
+      <parent>glue_torso_waist1</parent>
+      <child>glue_torso_waist2</child>
+      <pose>0 0 0 0 0 0</pose>
+      <axis>
+        <xyz>0.0 1.0 0.0</xyz>
+        <limit>
+          <lower>-0.13</lower>
+          <upper>0.13</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>250</spring_stiffness>
+          <damping>50 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+    <joint name='torso_joint3' type='revolute'>
+      <parent>glue_torso_waist2</parent>
+      <child>torso</child>
+      <pose>0 0 0 0 0 0</pose>
+      <axis>
+        <xyz>0.0 0.0 1.0</xyz>
+        <limit>
+          <lower>-0.3</lower>
+          <upper>0.3</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>250</spring_stiffness>
+          <damping>50 </damping>
+        </dynamics>
+      </axis>
+    </joint>    
+
+    <!-- universal joint for hip L-->
+    <link name='glue_hips_upper_leg_L'>
+      <pose relative_to='hips'>0.08 0.0 -0.07 0 0 0</pose>
+      <inertial>
+        <mass>0.1</mass>
+      </inertial>
+    </link>   
+
+    <joint name='hipL_joint1' type='revolute'>
+      <parent>glue_hips_upper_leg_L</parent>
+      <child>upper_leg_L</child>
+      <pose>0 0 0.18 0 0 3.1416 </pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-1.55</lower>
+          <upper>0.08</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>700</spring_stiffness>
+          <damping>100 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+    <joint name='hipL_joint2' type='revolute'>
+      <parent>hips</parent>
+      <child>glue_hips_upper_leg_L</child>
+      <pose>0.0 0 0 0 0 0 </pose>
+      <axis>
+        <xyz>0.0 1.0 0</xyz>
+        <limit>
+          <lower>-0.15</lower>
+          <upper>0.5</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>700</spring_stiffness>
+          <damping>100 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <!-- revolute joint for knee L -->
+    <joint name='kneeL_joint' type='revolute'>
+      <parent>upper_leg_L</parent>
+      <child>lower_leg_L</child>
+      <pose>0 0 0.21 0 0 3.1416 </pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-0.1</lower>
+          <upper>1.74</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>25</spring_stiffness>
+          <damping>5 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <!-- universal joint for ankle -->
+    <link name='glue_foot_lower_leg_L'>
+      <pose relative_to='lower_leg_L'>0 0.0 -0.22 0 0 0</pose>
+      <inertial>
+        <mass>0.1</mass>
+      </inertial>
+    </link>  
+
+    <joint name='ankleL_joint1' type='revolute'>
+      <parent>glue_foot_lower_leg_L</parent>
+      <child>foot_L</child>
+      <pose>0 -0.1 0 0 0 3.1416</pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-0.2</lower>
+          <upper>0.3</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>100</spring_stiffness>
+          <damping>5 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <joint name='ankleL_joint2' type='revolute'>
+      <parent>lower_leg_L</parent>
+      <child>glue_foot_lower_leg_L</child>
+      <pose>0 0 0 0 0 0</pose>
+      <axis>
+        <xyz>0.0 0.0 1.0</xyz>
+        <limit>
+          <lower>-0.3</lower>
+          <upper>0.7</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>100</spring_stiffness>
+          <damping>5 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <!-- revolute joint for toes L -->
+    <joint name='toesL_joint' type='revolute'>
+      <parent>foot_L</parent>
+      <child>toes_L</child>
+      <pose>0 -0.02 0 0 0 3.1416 </pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-0.15</lower>
+          <upper>0</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>10</spring_stiffness>
+          <damping>1 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+
+
+
+
+
+    <!-- universal joint for hip R-->
+    <link name='glue_hips_upper_leg_R'>
+      <pose relative_to='hips'>-0.08 0.0 -0.07 0 0 0</pose>
+      <inertial>
+        <mass>0.1</mass>
+      </inertial>
+    </link>   
+
+    <joint name='hipR_joint1' type='revolute'>
+      <parent>glue_hips_upper_leg_R</parent>
+      <child>upper_leg_R</child>
+      <pose>0 0 0.18 0 0 3.1416 </pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-1.55</lower>
+          <upper>0.08</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>700</spring_stiffness>
+          <damping>100 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+    <joint name='hipR_joint2' type='revolute'>
+      <parent>hips</parent>
+      <child>glue_hips_upper_leg_R</child>
+      <pose>0.0 0 0 0 0 0 </pose>
+      <axis>
+        <xyz>0.0 1.0 0</xyz>
+        <limit>
+          <lower>-0.15</lower>
+          <upper>0.5</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>700</spring_stiffness>
+          <damping>100 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <!-- revolute joint for knee R -->
+    <joint name='kneeR_joint' type='revolute'>
+      <parent>upper_leg_R</parent>
+      <child>lower_leg_R</child>
+      <pose>0 0 0.21 0 0 3.1416 </pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-0.1</lower>
+          <upper>1.74</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>25</spring_stiffness>
+          <damping>5 </damping>
+        </dynamics> 
+      </axis>
+    </joint>
+
+    <!-- universal joint for ankle -->
+    <link name='glue_foot_lower_leg_R'>
+      <pose relative_to='lower_leg_R'>0 0.0 -0.22 0 0 0</pose>
+      <inertial>
+        <mass>0.1</mass>
+      </inertial>
+    </link>  
+
+    <joint name='ankleR_joint1' type='revolute'>
+      <parent>glue_foot_lower_leg_R</parent>
+      <child>foot_R</child>
+      <pose>0 -0.1 0 0 0 3.1416</pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-0.2</lower>
+          <upper>0.3</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>100</spring_stiffness>
+          <damping>5 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <joint name='ankleR_joint2' type='revolute'>
+      <parent>lower_leg_R</parent>
+      <child>glue_foot_lower_leg_R</child>
+      <pose>0 0 0 0 0 0</pose>
+      <axis>
+        <xyz>0.0 0.0 1.0</xyz>
+        <limit>
+          <lower>-0.3</lower>
+          <upper>0.7</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>100</spring_stiffness>
+          <damping>5 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <!-- revolute joint for toes R -->
+    <joint name='toesR_joint' type='revolute'>
+      <parent>foot_R</parent>
+      <child>toes_R</child>
+      <pose>0 -0.02 0 0 0 3.1416</pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-0.15</lower>
+          <upper>0</upper>
+          <effort>-1.0</effort>
+        </limit>
+        <dynamics>
+          <spring_stiffness>10</spring_stiffness>
+          <damping>1 </damping>
+        </dynamics>
+      </axis>
+    </joint>
+
+  </model>
+</sdf>

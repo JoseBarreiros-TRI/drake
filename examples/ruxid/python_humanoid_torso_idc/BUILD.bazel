@@ -1,0 +1,27 @@
+# -*- python -*-
+
+load("//tools/skylark:drake_py.bzl", "drake_py_binary")
+load("//tools/lint:lint.bzl", "add_lint_tests")
+
+package(default_visibility = ["//visibility:private"])
+
+drake_py_binary(
+    name = "humanoid_torso_idc",
+    srcs = ["humanoid_torso_idc.py"],
+    data = [":model_files"],
+    deps = [
+        "//bindings/pydrake",
+    ],
+)
+
+filegroup(
+    name = "model_files",
+    srcs = [
+       "models/humanoid_v2_noball.sdf",
+       "models/humanoid_v2_noball_noZeroBodies.sdf",
+       "models/humanoid_torso_v2_noball_noZeroBodies_spring.sdf",
+       "models/floor.sdf",
+    ],
+)
+
+add_lint_tests()
