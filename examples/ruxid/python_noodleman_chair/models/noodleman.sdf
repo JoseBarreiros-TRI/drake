@@ -38,10 +38,11 @@ Toyota Research Institute-->
         </geometry>
         <drake:proximity_properties>
           <drake:compliant_hydroelastic/>
-          <drake:hydroelastic_modulus>2.5e6</drake:hydroelastic_modulus>
-          <drake:mesh_resolution_hint>100</drake:mesh_resolution_hint>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
           <drake:mu_dynamic>1.0</drake:mu_dynamic>
           <drake:mu_static>1.0</drake:mu_static>
+          <drake:hunt_crossley_dissipation>1.25</drake:hunt_crossley_dissipation>
         </drake:proximity_properties>        
       </collision>
       <collision name="coll_sph_head">
@@ -53,10 +54,11 @@ Toyota Research Institute-->
         </geometry>
         <drake:proximity_properties>
           <drake:compliant_hydroelastic/>
-          <drake:hydroelastic_modulus>2.5e6</drake:hydroelastic_modulus>
-          <drake:mesh_resolution_hint>100</drake:mesh_resolution_hint>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
           <drake:mu_dynamic>1.0</drake:mu_dynamic>
           <drake:mu_static>1.0</drake:mu_static>
+          <drake:hunt_crossley_dissipation>1.25</drake:hunt_crossley_dissipation>
         </drake:proximity_properties>   
       </collision>
     </link>  
@@ -85,10 +87,11 @@ Toyota Research Institute-->
         </geometry>
         <drake:proximity_properties>
           <drake:compliant_hydroelastic/>
-          <drake:hydroelastic_modulus>2.5e6</drake:hydroelastic_modulus>
-          <drake:mesh_resolution_hint>100</drake:mesh_resolution_hint>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
           <drake:mu_dynamic>1.0</drake:mu_dynamic>
           <drake:mu_static>1.0</drake:mu_static>
+          <drake:hunt_crossley_dissipation>1.25</drake:hunt_crossley_dissipation>
         </drake:proximity_properties>   
       </collision>
     </link>  
@@ -117,10 +120,11 @@ Toyota Research Institute-->
         </geometry>
         <drake:proximity_properties>
           <drake:compliant_hydroelastic/>
-          <drake:hydroelastic_modulus>2.5e6</drake:hydroelastic_modulus>
-          <drake:mesh_resolution_hint>100</drake:mesh_resolution_hint>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
           <drake:mu_dynamic>1.0</drake:mu_dynamic>
           <drake:mu_static>1.0</drake:mu_static>
+          <drake:hunt_crossley_dissipation>1.25</drake:hunt_crossley_dissipation>
         </drake:proximity_properties>   
       </collision>  
     </link>  

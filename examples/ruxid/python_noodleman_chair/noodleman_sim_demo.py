@@ -30,13 +30,27 @@ def make_noodleman_chair(contact_model, contact_surface_representation,
             time_step=time_step,
             contact_model=contact_model,
             contact_surface_representation=contact_surface_representation)
-    # We pose the paddle, so that its top surface is on World's X-Y plane.
+
     p_WChair_fixed = RigidTransform(RollPitchYaw(0, 0, 0),
                                      np.array([0, 0, 0]))
+    p_WFloor_fixed = RigidTransform(RollPitchYaw(0, 0, 0),
+                                     np.array([0, 0, 0]))
+                                    
     builder = DiagramBuilder()
     plant, scene_graph = AddMultibodyPlant(multibody_plant_config, builder)
 
     parser = Parser(plant)
+
+    floor_sdf_file_name = \
+        FindResourceOrThrow("drake/examples/ruxid/python_noodleman_chair/models"
+                            "/floor.sdf")
+    floor=parser.AddModelFromFile(floor_sdf_file_name, model_name="floor")
+    plant.WeldFrames(
+        frame_on_parent_P=plant.world_frame(),
+        frame_on_child_C=plant.GetFrameByName("floor", floor),
+        X_PC=p_WFloor_fixed
+    )
+
     chair_sdf_file_name = \
         FindResourceOrThrow("drake/examples/ruxid/python_noodleman_chair/models"
                             "/chair_v1.sdf")
@@ -70,10 +84,13 @@ def simulate_diagram(diagram, chair_noodleman_plant, state_logger,
                      noodleman_init_position, noodleman_init_velocity,
                      simulation_time, target_realtime_rate):
     #pdb.set_trace()
+    context=chair_noodleman_plant.CreateDefaultContext()
+    print("pos: ",chair_noodleman_plant.GetPositions(context), "vel: ",chair_noodleman_plant.GetVelocities(context))
+
     q_init_val = np.array([
         1, 0, 0, 
         0, 0, 0,
-        1.5,1, -0.8
+        2,1, -0.8
     ])
     v_init_val = np.hstack((np.zeros(5), noodleman_init_velocity))
     qv_init_val = np.concatenate((q_init_val, v_init_val))

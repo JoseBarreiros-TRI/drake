@@ -19,6 +19,7 @@ filegroup(
     srcs = [
        "models/noodleman.sdf",
        "models/chair_v1.sdf",
+       "models/floor.sdf",
     ],
 )
 

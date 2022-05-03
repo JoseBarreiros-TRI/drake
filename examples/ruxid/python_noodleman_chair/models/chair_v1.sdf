@@ -72,6 +72,12 @@ Toyota Research Institute-->
             <size>0.04 0.04 0.4</size>
           </box>
         </geometry>
+        <drake:proximity_properties>
+          <drake:rigid_hydroelastic/>
+          <drake:mesh_resolution_hint>1</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>1.0</drake:mu_dynamic>
+          <drake:mu_static>1.0</drake:mu_static>
+        </drake:proximity_properties>   
       </collision>     
 
       <collision name="col_box_leg2">
@@ -81,6 +87,12 @@ Toyota Research Institute-->
             <size>0.04 0.04 0.4</size>
           </box>
         </geometry>
+        <drake:proximity_properties>
+          <drake:rigid_hydroelastic/>
+          <drake:mesh_resolution_hint>1</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>1.0</drake:mu_dynamic>
+          <drake:mu_static>1.0</drake:mu_static>
+        </drake:proximity_properties>   
       </collision>     
     
       <collision name="col_box_leg3">
@@ -90,6 +102,12 @@ Toyota Research Institute-->
             <size>0.04 0.04 0.4</size>
           </box>
         </geometry>
+        <drake:proximity_properties>
+          <drake:rigid_hydroelastic/>
+          <drake:mesh_resolution_hint>1</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>1.0</drake:mu_dynamic>
+          <drake:mu_static>1.0</drake:mu_static>
+        </drake:proximity_properties>   
       </collision>     
 
       <collision name="col_box_leg4">
@@ -99,6 +117,12 @@ Toyota Research Institute-->
             <size>0.04 0.04 0.4</size>
           </box>
         </geometry>
+        <drake:proximity_properties>
+          <drake:rigid_hydroelastic/>
+          <drake:mesh_resolution_hint>1</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>1.0</drake:mu_dynamic>
+          <drake:mu_static>1.0</drake:mu_static>
+        </drake:proximity_properties>   
       </collision>     
 
       <collision name="col_box_seat">
@@ -108,6 +132,12 @@ Toyota Research Institute-->
             <size>0.45 0.45 0.04</size>
           </box>
         </geometry>
+        <drake:proximity_properties>
+          <drake:rigid_hydroelastic/>
+          <drake:mesh_resolution_hint>1</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>1.0</drake:mu_dynamic>
+          <drake:mu_static>1.0</drake:mu_static>
+        </drake:proximity_properties>   
       </collision>     
 
       <collision name="col_box_back">
@@ -117,6 +147,12 @@ Toyota Research Institute-->
             <size>0.45 0.04 0.45</size>
           </box>
         </geometry>
+        <drake:proximity_properties>
+          <drake:rigid_hydroelastic/>
+          <drake:mesh_resolution_hint>1</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>1.0</drake:mu_dynamic>
+          <drake:mu_static>1.0</drake:mu_static>
+        </drake:proximity_properties>   
       </collision>     
     </link>
   </model>
