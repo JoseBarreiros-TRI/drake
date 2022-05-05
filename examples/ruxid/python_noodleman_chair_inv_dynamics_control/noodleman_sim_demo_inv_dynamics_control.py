@@ -1,7 +1,8 @@
 """
-This is an example for simulating a human through pydrake.
-It reads two simple SDFormat files of a hydroelastic human and
-a rigid chair.
+This is an example for simulating a simplified humanoid (aka. noodleman) through pydrake.
+It reads three simple SDFormat files of a hydroelastic humanoid,
+a rigid chair, and rigid floor.
+It uses an inverse dynamics controller to bring the noodleman from a sitting to standing up position.
 """
 import argparse
 import numpy as np
@@ -21,10 +22,9 @@ from pydrake.systems.analysis import PrintSimulatorStatistics
 from pydrake.systems.framework import DiagramBuilder
 from pydrake.systems.primitives import VectorLogSink
 from pydrake.systems.controllers import InverseDynamicsController
-from pydrake.all import (DiagramBuilder, MultibodyPlant,Parser,
-                         RigidTransform, SceneGraph, Simulator)
+from pydrake.all import (DiagramBuilder,Parser,
+                         RigidTransform, Simulator)
 from pydrake.systems.primitives import ConstantVectorSource
-from pydrake.geometry import SceneGraph
 from pydrake.multibody.tree import WeldJoint
 
 def make_noodleman_chair(contact_model, contact_surface_representation,
@@ -82,12 +82,12 @@ def make_noodleman_chair(contact_model, contact_surface_representation,
     plant.AddJoint(joint)
     plant.Finalize()
 
-    print("\n number of position: ",plant.num_positions(),
+    print("\nnumber of position: ",plant.num_positions(),
         ", number of velocities: ",plant.num_velocities(),
         ", number of actuators: ",plant.num_actuators(),
         ", number of multibody states: ",plant.num_multibody_states(),'\n')
 
-    context=plant.CreateDefaultContext()
+    #Desired state corresponding to a standing up position [tetha0,tetha1,tetha1_dot,tetha2_dot].
     desired_state=np.array([0,0,0,0])
     print("desired state:",desired_state)
     desired_state_source=builder.AddSystem(ConstantVectorSource(desired_state))
@@ -129,7 +129,9 @@ def simulate_diagram(diagram, chair_noodleman_plant, state_logger,
                      noodleman_init_position, noodleman_init_velocity,
                      simulation_time, target_realtime_rate):
 
-    qv_init_val = np.array([1.95, -1.87, 0, 0])
+    #initial position and velocities
+    #qv_init_val = np.array([1.95, -1.87, 0, 0])
+    qv_init_val = np.concatenate((noodleman_init_position, noodleman_init_velocity))
 
     diagram_context = diagram.CreateDefaultContext()
     plant_context = diagram.GetMutableSubsystemContext(chair_noodleman_plant,
@@ -158,9 +160,9 @@ def simulate_diagram(diagram, chair_noodleman_plant, state_logger,
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--simulation_time", type=float, default=2,
+        "--simulation_time", type=float, default=8,
         help="Desired duration of the simulation in seconds. "
-             "Default 0.5.")
+             "Default 8.0.")
     parser.add_argument(
         "--contact_model", type=str, default="hydroelastic_with_fallback",
         help="Contact model. Options are: 'point', 'hydroelastic', "
@@ -177,10 +179,10 @@ if __name__ == "__main__":
              "If zero, we will use an integrator for a continuous system. "
              "Non-negative. Default 0.001.")
     parser.add_argument(
-        "--noodleman_initial_position", nargs=3, metavar=('x', 'y', 'z'),
-        default=[0, 0, 0.1],
-        help="Noodleman's initial position: x, y, z (in meters) in World frame. "
-             "Default: 0 0 0.1")
+        "--noodleman_initial_position", nargs=2, metavar=('tetha1', 'theta2'),
+        default=[1.95, -1.87],
+        help="Noodleman's initial joint position: tetha1, theta2 (in rad). "
+             "Default: 1.95 -1.87. It correspond to a sitting position")
     parser.add_argument(
         "--target_realtime_rate", type=float, default=1.0,
         help="Target realtime rate. Default 1.0.")
@@ -192,7 +194,7 @@ if __name__ == "__main__":
     time_samples, state_samples = simulate_diagram(
         diagram, noodleman_chair_plant, state_logger,
         np.array(args.noodleman_initial_position),
-        np.array([0., 0., 0.]),
+        np.array([0., 0.]),
         args.simulation_time, args.target_realtime_rate)
     print("\nFinal state variables:")
     print(state_samples[:, -1])
