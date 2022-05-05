@@ -18,6 +18,9 @@ filegroup(
     name = "model_files",
     srcs = [
        "models/noodleman.sdf",
+       "models/noodleman_v0.sdf",
+       "models/noodleman_v1.sdf",
+       "models/noodleman_model_frame.sdf",
        "models/chair_v1.sdf",
        "models/floor.sdf",
     ],
