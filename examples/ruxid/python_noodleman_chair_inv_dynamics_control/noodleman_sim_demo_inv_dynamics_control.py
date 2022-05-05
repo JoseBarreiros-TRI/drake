@@ -5,7 +5,6 @@ a rigid chair.
 """
 import argparse
 import numpy as np
-import pdb
 
 from pydrake.common import FindResourceOrThrow
 from pydrake.geometry import DrakeVisualizer
@@ -21,48 +20,13 @@ from pydrake.systems.analysis import SimulatorConfig
 from pydrake.systems.analysis import PrintSimulatorStatistics
 from pydrake.systems.framework import DiagramBuilder
 from pydrake.systems.primitives import VectorLogSink
-
-from pydrake.systems.controllers import (
-    DiscreteTimeLinearQuadraticRegulator,
-    DynamicProgrammingOptions,
-    FiniteHorizonLinearQuadraticRegulator,
-    FiniteHorizonLinearQuadraticRegulatorOptions,
-    FiniteHorizonLinearQuadraticRegulatorResult,
-    FittedValueIteration,
-    InverseDynamicsController,
-    InverseDynamics,
-    LinearQuadraticRegulator,
-    LinearProgrammingApproximateDynamicProgramming,
-    MakeFiniteHorizonLinearQuadraticRegulator,
-    PeriodicBoundaryCondition,
-    PidControlledSystem,
-    PidController,
-)
-from pydrake.all import (Box, DiagramBuilder, DirectCollocation,
-                         DirectTranscription,
-                         FiniteHorizonLinearQuadraticRegulatorOptions,
-                         GraphOfConvexSets, HPolyhedron, LinearSystem,
-                         LogVectorOutput,
-                         MakeFiniteHorizonLinearQuadraticRegulator,
-                         MathematicalProgram, MosekSolver, MultibodyPlant,
-                         MultibodyPositionToGeometryPose, Parser,
-                         PiecewisePolynomial, PlanarSceneGraphVisualizer,
-                         Point, PointCloud, Rgba, RigidTransform,
-                         RotationMatrix, SceneGraph, Simulator, Solve, Sphere,
-                         StartMeshcat, TrajectorySource, Variable, eq)
-from pydrake.systems.primitives import (
-    ConstantVectorSource,
-    ConstantVectorSource_,
-    SymbolicVectorSystem,
-    SymbolicVectorSystem_,
-)
-
+from pydrake.systems.controllers import InverseDynamicsController
+from pydrake.all import (DiagramBuilder, MultibodyPlant,Parser,
+                         RigidTransform, SceneGraph, Simulator)
+from pydrake.systems.primitives import ConstantVectorSource
 from pydrake.geometry import SceneGraph
+from pydrake.multibody.tree import WeldJoint
 
-from pydrake.multibody.tree import (
-    WeldJoint_,
-    WeldJoint,
-)
 def make_noodleman_chair(contact_model, contact_surface_representation,
                      time_step):
     multibody_plant_config = \
@@ -77,10 +41,7 @@ def make_noodleman_chair(contact_model, contact_surface_representation,
                                      np.array([0, 0, 0]))
                                     
     builder = DiagramBuilder()
-    scene_graph=builder.AddSystem(SceneGraph())
-    plant=builder.AddSystem(MultibodyPlant(time_step))
-    plant.RegisterAsSourceForSceneGraph(scene_graph)
-    #plant, scene_graph = AddMultibodyPlant(multibody_plant_config, builder)
+    plant, scene_graph = AddMultibodyPlant(multibody_plant_config, builder)
 
     parser = Parser(plant)
 
@@ -94,34 +55,31 @@ def make_noodleman_chair(contact_model, contact_surface_representation,
         X_PC=p_WFloor_fixed
     )
 
-    # chair_sdf_file_name = \
-    #     FindResourceOrThrow("drake/examples/ruxid/python_noodleman_chair_inv_dynamics_control/models"
-    #                         "/chair_v1.sdf")
-    # chair = parser.AddModelFromFile(chair_sdf_file_name, model_name="chair_v1")
-    # plant.WeldFrames(
-    #     frame_on_parent_P=plant.world_frame(),
-    #     frame_on_child_C=plant.GetFrameByName("chair", chair),
-    #     X_PC=p_WChair_fixed
-    # )
+    chair_sdf_file_name = \
+        FindResourceOrThrow("drake/examples/ruxid/python_noodleman_chair_inv_dynamics_control/models"
+                            "/chair_v1.sdf")
+    chair = parser.AddModelFromFile(chair_sdf_file_name, model_name="chair_v1")
+    plant.WeldFrames(
+        frame_on_parent_P=plant.world_frame(),
+        frame_on_child_C=plant.GetFrameByName("chair", chair),
+        X_PC=p_WChair_fixed
+    )
     noodleman_sdf_file_name = \
         FindResourceOrThrow("drake/examples/ruxid/python_noodleman_chair_inv_dynamics_control/models"
-                            "/noodleman.sdf")
+                            "/noodleman_v1.sdf")
     noodleman=parser.AddModelFromFile(noodleman_sdf_file_name, model_name="noodleman")
     p_WNoodleman_fixed = RigidTransform(RollPitchYaw(0, 0, 0),
-                                     np.array([0, 0, 1.8]))
+                                     np.array([0, 0.6, 0.35]))
+
     # weld the lower leg of the noodleman to the world frame. 
     # The inverse dynamic controller does not work with floating base
-    weld=WeldJoint(
+    joint=WeldJoint(
           name="weld_lower_leg",
           frame_on_parent_P=plant.world_frame(),
-          frame_on_child_C=plant.GetFrameByName("torso", noodleman),
+          frame_on_child_C=plant.GetFrameByName("lower_leg", noodleman),
           X_PC=p_WNoodleman_fixed
         )
-    plant.AddJoint(weld)
-
-    #plant.AddJointActuator("a1",plant.GetJointByName("hip_joint"))
-    #plant.AddJointActuator("a2",plant.GetJointByName("knee_joint"))
-    
+    plant.AddJoint(joint)
     plant.Finalize()
 
     print("\n number of position: ",plant.num_positions(),
@@ -130,19 +88,16 @@ def make_noodleman_chair(contact_model, contact_surface_representation,
         ", number of multibody states: ",plant.num_multibody_states(),'\n')
 
     context=plant.CreateDefaultContext()
-
-    desired_state=np.array([2,-1.5,0,0])
+    desired_state=np.array([0,0,0,0])
     print("desired state:",desired_state)
     desired_state_source=builder.AddSystem(ConstantVectorSource(desired_state))
-
-
 
     ##Create inverse dynamics controller
     U=plant.num_actuators()
 
-    kp = 1
-    ki = 0.1
-    kd = 1
+    kp = 2.8
+    ki = 0.01
+    kd = 2.8
 
     IDC = builder.AddSystem(InverseDynamicsController(robot=plant,
                                         kp=np.ones(U)*kp,
@@ -154,14 +109,8 @@ def make_noodleman_chair(contact_model, contact_surface_representation,
     builder.Connect(plant.get_state_output_port(),IDC.get_input_port_estimated_state())
     builder.Connect(desired_state_source.get_output_port(),IDC.get_input_port_desired_state())
 
-
     constant_zero_torque=builder.AddSystem(ConstantVectorSource(np.zeros(U)))
     builder.Connect(constant_zero_torque.get_output_port(),plant.get_actuation_input_port())
-
-    #pdb.set_trace()
-
-    builder.Connect(plant.get_geometry_poses_output_port(),scene_graph.get_source_pose_port(plant.get_source_id()))
-    builder.Connect(scene_graph.get_query_output_port(),plant.get_geometry_query_input_port())
 
     DrakeVisualizer.AddToBuilder(builder=builder, scene_graph=scene_graph)
     ConnectContactResultsToDrakeVisualizer(builder=builder, plant=plant,
@@ -179,34 +128,23 @@ def make_noodleman_chair(contact_model, contact_surface_representation,
 def simulate_diagram(diagram, chair_noodleman_plant, state_logger,
                      noodleman_init_position, noodleman_init_velocity,
                      simulation_time, target_realtime_rate):
-    #pdb.set_trace()
-    
-    #print("pos: ",chair_noodleman_plant.GetPositions(context), "vel: ",chair_noodleman_plant.GetVelocities(context))
 
-    q_init_val = np.array([
-        1, -1
-    ])
-    #v_init_val = np.zeros(2)
-    #qv_init_val = np.concatenate((q_init_val, v_init_val))
+    qv_init_val = np.array([1.95, -1.87, 0, 0])
 
     diagram_context = diagram.CreateDefaultContext()
     plant_context = diagram.GetMutableSubsystemContext(chair_noodleman_plant,
                                                 diagram_context)
 
-    # plant_context = diagram.GetSubsystemContext(chair_noodleman_plant,
-    #                                             simulator.get_context())
-    # chair_noodleman_plant.SetPositionsAndVelocities(plant_context,
-    #                                             qv_init_val)
+    chair_noodleman_plant.SetPositionsAndVelocities(plant_context,
+                                                 qv_init_val)
     
-    print("Initial state variables_before setting: ", chair_noodleman_plant.GetPositionsAndVelocities(plant_context))
-    chair_noodleman_plant.SetPositions(plant_context,q_init_val)
-
     print("Initial state variables: ", chair_noodleman_plant.GetPositionsAndVelocities(plant_context))
+    
     #setup the simulator
     simulator_config = SimulatorConfig(
                            target_realtime_rate=target_realtime_rate,
                            publish_every_time_step=True)
-    simulator = Simulator(diagram)
+    simulator = Simulator(diagram,diagram_context)
     ApplySimulatorConfig(simulator, simulator_config)
     
     #simulator.get_mutable_context().SetTime(0)
@@ -216,7 +154,6 @@ def simulate_diagram(diagram, chair_noodleman_plant, state_logger,
     simulator.AdvanceTo(boundary_time=simulation_time)
     PrintSimulatorStatistics(simulator)
     return state_log.sample_times(), state_log.data()
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)

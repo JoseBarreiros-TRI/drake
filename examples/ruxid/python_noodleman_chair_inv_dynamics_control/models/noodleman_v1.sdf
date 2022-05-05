@@ -1,0 +1,169 @@
+<?xml version="1.0" ?>
+<!-- Model of a noodle man 
+Toyota Research Institute-->
+<sdf version="1.7">
+
+  <model name='noodleman'>
+    <pose>0.0 0.0 0.0 0 0 0</pose>
+
+    <link name='torso'>
+      <pose>0 0 1.7 0 0 0</pose>
+      <inertial>
+        <mass>40</mass>
+      </inertial>
+      <visual name="cap_torso">
+        <pose>0 0 0.0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.15</radius>
+            <length>0.5</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <visual name="sph_head">
+        <pose>0 0 0.55 0 0 0</pose>
+        <geometry>
+          <sphere>
+            <radius>0.15</radius>
+          </sphere>
+        </geometry>
+      </visual>
+      <collision name="coll_cap_torso">
+        <pose>0 0 0.0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.15</radius>
+            <length>0.5</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>        
+      </collision>
+      <collision name="coll_sph_head">
+        <pose>0 0 0.55 0 0 0</pose>
+        <geometry>
+          <sphere>
+            <radius>0.15</radius>
+          </sphere>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
+    </link>  
+
+    <link name='upper_leg'>
+      <pose>0 0 1 0 0 0</pose>    
+      <inertial>
+        <mass>20</mass>
+      </inertial>
+      <visual name="cap_uleg">
+        <pose>0 0 0.0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.1</radius>
+            <length>0.4</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <collision name="coll_cap_uleg">
+        <pose>0 0 0.0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.1</radius>
+            <length>0.4</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
+    </link>  
+
+    <link name='lower_leg'>
+      <pose>0 0 0.35 0 0 0</pose>
+      <inertial>
+        <mass>10</mass>
+      </inertial>
+      <visual name="cap_lleg">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.1</radius>
+            <length>0.5</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <collision name="coll_cap_lleg">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.1</radius>
+            <length>0.5</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>  
+    </link>  
+
+   <!-- revolute joint for hip: upper_leg link wrt torso-->
+    <joint name='hip_joint' type='revolute'>
+      <parent>upper_leg</parent>
+      <child>torso</child>
+      <pose>0 0 -0.35 0 0 0 </pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-2</lower>
+          <upper>0.1</upper>
+          <effort>100.0</effort>
+        </limit>
+        <dynamics>
+          <friction>0.1</friction>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <!-- revolute joint for knee: lower_leg link wrt upper_leg-->
+    <joint name='knee_joint' type='revolute'>
+      <parent>lower_leg</parent>
+      <child>upper_leg</child>
+      <pose>0 0 -0.3 0 0 0 </pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-0.1</lower>
+          <upper>2</upper>
+          <effort>100.0</effort>
+        </limit>
+        <dynamics>
+          <friction>0.1</friction>
+        </dynamics>
+      </axis>
+    </joint>
+    
+  </model>
+</sdf>
