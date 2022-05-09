@@ -76,6 +76,13 @@ from pydrake.systems.planar_scenegraph_visualizer import (
     ConnectPlanarSceneGraphVisualizer,
 )
 
+from pydrake.all import (
+    AddMultibodyPlantSceneGraph, Cylinder,
+    DiagramBuilder, 
+    FindResourceOrThrow, GeometryInstance, 
+    MakePhongIllustrationProperties,  Parser, RigidTransform, 
+    RotationMatrix)
+
 
 def add_filename_and_parser_argparse_arguments(args_parser):
     """
