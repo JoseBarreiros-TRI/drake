@@ -75,14 +75,12 @@ from pydrake.systems.framework import DiagramBuilder
 from pydrake.systems.planar_scenegraph_visualizer import (
     ConnectPlanarSceneGraphVisualizer,
 )
-
 from pydrake.all import (
     AddMultibodyPlantSceneGraph, Cylinder,
     DiagramBuilder, 
     FindResourceOrThrow, GeometryInstance, 
     MakePhongIllustrationProperties,  Parser, RigidTransform, 
     RotationMatrix)
-
 
 def add_filename_and_parser_argparse_arguments(args_parser):
     """
@@ -280,54 +278,6 @@ def add_triad(
         dest='triad_length', const=1,default=0,
         help="Visualize the frames as triads for all links.")
 
-def AddTriad(source_id,
-             frame_id,
-             scene_graph,
-             length=.25,
-             radius=0.01,
-             opacity=1.,
-             X_FT=RigidTransform(),
-             name="frame"):
-    """
-    Adds illustration geometry representing the coordinate frame, with the
-    x-axis drawn in red, the y-axis in green and the z-axis in blue. The axes
-    point in +x, +y and +z directions, respectively.
-    Args:
-      source_id: The source registered with SceneGraph.
-      frame_id: A geometry::frame_id registered with scene_graph.
-      scene_graph: The SceneGraph with which we will register the geometry.
-      length: the length of each axis in meters.
-      radius: the radius of each axis in meters.
-      opacity: the opacity of the coordinate axes, between 0 and 1.
-      X_FT: a RigidTransform from the triad frame T to the frame_id frame F
-      name: the added geometry will have names name + " x-axis", etc.
-    """
-    # x-axis
-    X_TG = RigidTransform(RotationMatrix.MakeYRotation(np.pi / 2),
-                          [length / 2., 0, 0])
-    geom = GeometryInstance(X_FT.multiply(X_TG), Cylinder(radius, length),
-                            name + " x-axis")
-    geom.set_illustration_properties(
-        MakePhongIllustrationProperties([1, 0, 0, opacity]))
-    scene_graph.RegisterGeometry(source_id, frame_id, geom)
-
-    # y-axis
-    X_TG = RigidTransform(RotationMatrix.MakeXRotation(np.pi / 2),
-                          [0, length / 2., 0])
-    geom = GeometryInstance(X_FT.multiply(X_TG), Cylinder(radius, length),
-                            name + " y-axis")
-    geom.set_illustration_properties(
-        MakePhongIllustrationProperties([0, 1, 0, opacity]))
-    scene_graph.RegisterGeometry(source_id, frame_id, geom)
-
-    # z-axis
-    X_TG = RigidTransform([0, 0, length / 2.])
-    geom = GeometryInstance(X_FT.multiply(X_TG), Cylinder(radius, length),
-                            name + " z-axis")
-    geom.set_illustration_properties(
-        MakePhongIllustrationProperties([0, 0, 1, opacity]))
-    scene_graph.RegisterGeometry(source_id, frame_id, geom)
-
 def parse_visualizers(args_parser, args):
     """
     Parses argparse arguments for visualizers, returning update_visualization,
@@ -337,6 +287,50 @@ def parse_visualizers(args_parser, args):
     underlying ``Meshcat`` instance.  Otherwise, it returns ``None``.
     """
     def update_visualization(plant, scene_graph):
+        def AddTriad(source_id, frame_id,
+            scene_graph, length=.25,
+            radius=0.01, opacity=1.,
+            X_FT=RigidTransform(), name="frame"):
+            """
+            Adds illustration geometry representing the coordinate frame, with the
+            x-axis drawn in red, the y-axis in green and the z-axis in blue. The axes
+            point in +x, +y and +z directions, respectively.
+            Args:
+            source_id: The source registered with SceneGraph.
+            frame_id: A geometry::frame_id registered with scene_graph.
+            scene_graph: The SceneGraph with which we will register the geometry.
+            length: the length of each axis in meters.
+            radius: the radius of each axis in meters.
+            opacity: the opacity of the coordinate axes, between 0 and 1.
+            X_FT: a RigidTransform from the triad frame T to the frame_id frame F
+            name: the added geometry will have names name + " x-axis", etc.
+            """
+            # x-axis
+            X_TG = RigidTransform(RotationMatrix.MakeYRotation(np.pi / 2),
+                                [length / 2., 0, 0])
+            geom = GeometryInstance(X_FT.multiply(X_TG), Cylinder(radius, length),
+                                    name + " x-axis")
+            geom.set_illustration_properties(
+                MakePhongIllustrationProperties([1, 0, 0, opacity]))
+            scene_graph.RegisterGeometry(source_id, frame_id, geom)
+
+            # y-axis
+            X_TG = RigidTransform(RotationMatrix.MakeXRotation(np.pi / 2),
+                                [0, length / 2., 0])
+            geom = GeometryInstance(X_FT.multiply(X_TG), Cylinder(radius, length),
+                                    name + " y-axis")
+            geom.set_illustration_properties(
+                MakePhongIllustrationProperties([0, 1, 0, opacity]))
+            scene_graph.RegisterGeometry(source_id, frame_id, geom)
+
+            # z-axis
+            X_TG = RigidTransform([0, 0, length / 2.])
+            geom = GeometryInstance(X_FT.multiply(X_TG), Cylinder(radius, length),
+                                    name + " z-axis")
+            geom.set_illustration_properties(
+                MakePhongIllustrationProperties([0, 0, 1, opacity]))
+            scene_graph.RegisterGeometry(source_id, frame_id, geom)
+    
         if args.visualize_collisions:
             # Find all the geometries that have not already been marked as
             # 'illustration' (visual) and assume they are collision geometries.
@@ -351,24 +345,15 @@ def parse_visualizers(args_parser, args):
                     scene_graph.AssignRole(
                         source_id, geometry_id, red_illustration)
         
-        #Frame visualizer
-        import pdb
         if args.triad_length!=0:
-            #Find all the geometries and make them 50% translucent. 
-            inspector = scene_graph.model_inspector()
-            source_id = plant.get_source_id()
-            rgba = [1, 0, 0, 0.5]
-            translucent_color = MakePhongIllustrationProperties(rgba)
-            for geometry_id in inspector.GetAllGeometryIds():
-                if inspector.GetIllustrationProperties(geometry_id) is not None:
-                    scene_graph.AssignRole(
-                        source_id, geometry_id, translucent_color)
-
-            #Find all the links and plots the frames using AddTriad()
+            # Visualize frames 
+            # Find all the frames and plots them using AddTriad().
+            # The frames are ploted using the parsed length. 
+            # The world frame is plotted thicker than the rest. 
             length=args.triad_length
+            inspector = scene_graph.model_inspector()
             for i,frame_id in enumerate(inspector.GetAllFrameIds()):
-                #Plots the link frames as triads of parsed lenght, 
-                #the world frame is plotted thicker. 
+                #The world frame is the last in the list
                 if i<len(inspector.GetAllFrameIds())-1:
                     AddTriad(plant.get_source_id(),frame_id,scene_graph,length)      
                 else:
