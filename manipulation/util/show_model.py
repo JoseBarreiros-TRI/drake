@@ -75,12 +75,7 @@ from pydrake.systems.framework import DiagramBuilder
 from pydrake.systems.planar_scenegraph_visualizer import (
     ConnectPlanarSceneGraphVisualizer,
 )
-from pydrake.all import (
-    AddMultibodyPlantSceneGraph, Cylinder,
-    DiagramBuilder, 
-    FindResourceOrThrow, GeometryInstance, 
-    MakePhongIllustrationProperties,  Parser, RigidTransform, 
-    RotationMatrix)
+
 
 def add_filename_and_parser_argparse_arguments(args_parser):
     """
@@ -275,8 +270,74 @@ def add_triad(
     args_parser.add_argument(
         "--visualize_frames", nargs='?',
         type=float,
-        dest='triad_length', const=1,default=0,
-        help="Visualize the frames as triads for all links.")
+        dest="triad_radius",
+        default=0.01,
+        help="Triad radius for frame visualization.",
+    )
+    args_parser.add_argument(
+        "--triad_opacity",
+        type=float,
+        dest="triad_opacity",
+        default=1,
+        help="Triad opacity for frame visualization.",
+    )
+
+
+def add_triad(
+    source_id,
+    frame_id,
+    scene_graph,
+    *,
+    length,
+    radius,
+    opacity,
+    X_FT=RigidTransform(),
+    name="frame",
+):
+    """
+    Adds illustration geometry representing the coordinate frame, with the
+    x-axis drawn in red, the y-axis in green and the z-axis in blue. The axes
+    point in +x, +y and +z directions, respectively.
+    Based on [code permalink](https://github.com/RussTedrake/manipulation/blob/5e5981147079e69f03d1b42707b8db0386dc8824/manipulation/scenarios.py#L367-L414).
+    Args:
+    source_id: The source registered with SceneGraph.
+    frame_id: A geometry::frame_id registered with scene_graph.
+    scene_graph: The SceneGraph with which we will register the geometry.
+    length: the length of each axis in meters.
+    radius: the radius of each axis in meters.
+    opacity: the opacity of the coordinate axes, between 0 and 1.
+    X_FT: a RigidTransform from the triad frame T to the frame_id frame F
+    name: the added geometry will have names name + " x-axis", etc.
+    """
+    # x-axis
+    X_TG = RigidTransform(RotationMatrix.MakeYRotation(np.pi / 2), [length / 2.0, 0, 0])
+    geom = GeometryInstance(
+        X_FT.multiply(X_TG), Cylinder(radius, length), name + " x-axis"
+    )
+    geom.set_illustration_properties(
+        MakePhongIllustrationProperties([1, 0, 0, opacity])
+    )
+    scene_graph.RegisterGeometry(source_id, frame_id, geom)
+
+    # y-axis
+    X_TG = RigidTransform(RotationMatrix.MakeXRotation(np.pi / 2), [0, length / 2.0, 0])
+    geom = GeometryInstance(
+        X_FT.multiply(X_TG), Cylinder(radius, length), name + " y-axis"
+    )
+    geom.set_illustration_properties(
+        MakePhongIllustrationProperties([0, 1, 0, opacity])
+    )
+    scene_graph.RegisterGeometry(source_id, frame_id, geom)
+
+    # z-axis
+    X_TG = RigidTransform([0, 0, length / 2.0])
+    geom = GeometryInstance(
+        X_FT.multiply(X_TG), Cylinder(radius, length), name + " z-axis"
+    )
+    geom.set_illustration_properties(
+        MakePhongIllustrationProperties([0, 0, 1, opacity])
+    )
+    scene_graph.RegisterGeometry(source_id, frame_id, geom)
 
 def parse_visualizers(args_parser, args):
     """
@@ -287,50 +348,6 @@ def parse_visualizers(args_parser, args):
     underlying ``Meshcat`` instance.  Otherwise, it returns ``None``.
     """
     def update_visualization(plant, scene_graph):
-        def AddTriad(source_id, frame_id,
-            scene_graph, length=.25,
-            radius=0.01, opacity=1.,
-            X_FT=RigidTransform(), name="frame"):
-            """
-            Adds illustration geometry representing the coordinate frame, with the
-            x-axis drawn in red, the y-axis in green and the z-axis in blue. The axes
-            point in +x, +y and +z directions, respectively.
-            Args:
-            source_id: The source registered with SceneGraph.
-            frame_id: A geometry::frame_id registered with scene_graph.
-            scene_graph: The SceneGraph with which we will register the geometry.
-            length: the length of each axis in meters.
-            radius: the radius of each axis in meters.
-            opacity: the opacity of the coordinate axes, between 0 and 1.
-            X_FT: a RigidTransform from the triad frame T to the frame_id frame F
-            name: the added geometry will have names name + " x-axis", etc.
-            """
-            # x-axis
-            X_TG = RigidTransform(RotationMatrix.MakeYRotation(np.pi / 2),
-                                [length / 2., 0, 0])
-            geom = GeometryInstance(X_FT.multiply(X_TG), Cylinder(radius, length),
-                                    name + " x-axis")
-            geom.set_illustration_properties(
-                MakePhongIllustrationProperties([1, 0, 0, opacity]))
-            scene_graph.RegisterGeometry(source_id, frame_id, geom)
-
-            # y-axis
-            X_TG = RigidTransform(RotationMatrix.MakeXRotation(np.pi / 2),
-                                [0, length / 2., 0])
-            geom = GeometryInstance(X_FT.multiply(X_TG), Cylinder(radius, length),
-                                    name + " y-axis")
-            geom.set_illustration_properties(
-                MakePhongIllustrationProperties([0, 1, 0, opacity]))
-            scene_graph.RegisterGeometry(source_id, frame_id, geom)
-
-            # z-axis
-            X_TG = RigidTransform([0, 0, length / 2.])
-            geom = GeometryInstance(X_FT.multiply(X_TG), Cylinder(radius, length),
-                                    name + " z-axis")
-            geom.set_illustration_properties(
-                MakePhongIllustrationProperties([0, 0, 1, opacity]))
-            scene_graph.RegisterGeometry(source_id, frame_id, geom)
-    
         if args.visualize_collisions:
             # Find all the geometries that have not already been marked as
             # 'illustration' (visual) and assume they are collision geometries.
@@ -345,19 +362,31 @@ def parse_visualizers(args_parser, args):
                     scene_graph.AssignRole(
                         source_id, geometry_id, red_illustration)
         
-        if args.triad_length!=0:
-            # Visualize frames 
-            # Find all the frames and plots them using AddTriad().
-            # The frames are ploted using the parsed length. 
-            # The world frame is plotted thicker than the rest. 
-            length=args.triad_length
+        if args.visualize_frames:
+            # Visualize frames
+            # Find all the frames and plots them using add_triad().
+            # The frames are ploted using the parsed length.
+            # The world frame is plotted thicker than the rest.
             inspector = scene_graph.model_inspector()
-            for i,frame_id in enumerate(inspector.GetAllFrameIds()):
-                #The world frame is the last in the list
-                if i<len(inspector.GetAllFrameIds())-1:
-                    AddTriad(plant.get_source_id(),frame_id,scene_graph,length)      
+            for frame_id in inspector.GetAllFrameIds():
+                if frame_id == scene_graph.world_frame_id():
+                    add_triad(
+                        plant.get_source_id(),
+                        frame_id,
+                        scene_graph,
+                        length=args.triad_length,
+                        radius=args.triad_radius * 3,
+                        opacity=args.triad_opacity,
+                    )
                 else:
-                    AddTriad(plant.get_source_id(),frame_id,scene_graph,length, radius=0.03)   
+                    add_triad(
+                        plant.get_source_id(),
+                        frame_id,
+                        scene_graph,
+                        length=args.triad_length,
+                        radius=args.triad_radius,
+                        opacity=args.triad_opacity,
+                    )
 
         if args.visualize_frames:
             # Visualize frames
@@ -423,6 +452,7 @@ def main():
     builder = DiagramBuilder()
     plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=0.0)
     # Load the model(s) from specified file.
+    print(filename)
     make_parser(plant).AddAllModelsFromFile(filename)
     update_visualization(plant, scene_graph)
     plant.Finalize()
