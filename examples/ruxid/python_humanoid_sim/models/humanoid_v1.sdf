@@ -339,6 +339,14 @@ Toyota Research Institute-->
           <effort>10.0</effort>
         </limit>
       </axis>
+      <axis2>
+        <xyz>0.0 1.0 0</xyz>
+        <limit>
+          <lower>-0.52</lower>
+          <upper>1.74</upper>
+          <effort>10.0</effort>
+        </limit>
+      </axis2>
     </joint>
 
     <!-- revolute joint for knee L -->
