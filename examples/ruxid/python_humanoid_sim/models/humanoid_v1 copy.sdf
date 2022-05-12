@@ -8,7 +8,7 @@ Toyota Research Institute-->
     <link name='waist'>
       <pose>0 0 0.98 0 0 0</pose>
       <inertial>
-        <mass>12</mass>
+        <mass>100</mass>
         <pose>0 0 0 0 0 0</pose>
       </inertial>
       <visual name="cap_waist">
@@ -28,7 +28,7 @@ Toyota Research Institute-->
     <link name='torso'>
       <pose relative_to='waist'>0 0 0.20 0 0 0</pose>
       <inertial>
-        <mass>16</mass>
+        <mass>100</mass>
         <pose>0 0 0 0 0 0</pose>
       </inertial>
       <visual name="cap_upper_L">
@@ -75,7 +75,7 @@ Toyota Research Institute-->
     <link name='head'>
       <pose relative_to='torso'>0 0 0.35 0 0 0</pose>
       <inertial>
-        <mass>6.4</mass>
+        <mass>100</mass>
       </inertial>
       <visual name="cap_face">
         <pose>0 0 0 0 0 0</pose>
@@ -97,12 +97,12 @@ Toyota Research Institute-->
       </visual>
     </link>
 
-    <link name='arm_L'>
+    <link name='forearm_L'>
       <pose relative_to='torso'>0.215 0 -0.08 0 0 0</pose>
       <inertial>
-        <mass>2.4</mass>
+        <mass>100</mass>
       </inertial>
-      <visual name="cyl_arm">
+      <visual name="cyl_forearm">
         <pose>0 0 0 0 0 0</pose>
         <geometry>
           <capsule>
@@ -113,10 +113,10 @@ Toyota Research Institute-->
       </visual>
     </link>    
 
-    <link name='forearm_L'>
-      <pose relative_to='arm_L'>0 0 -0.29 0 0 0</pose>
+    <link name='arm_L'>
+      <pose relative_to='forearm_L'>0 0 -0.29 0 0 0</pose>
       <inertial>
-        <mass>1.4</mass>
+        <mass>100</mass>
       </inertial>
       <visual name="cyl_arm">
         <pose>0 0 0 0 0 0</pose>
@@ -130,9 +130,9 @@ Toyota Research Institute-->
     </link>
 
     <link name='hand_L'>
-      <pose relative_to='forearm_L'>0 0 -0.19 0 0 0</pose>
+      <pose relative_to='arm_L'>0 0 -0.19 0 0 0</pose>
       <inertial>
-        <mass>0.5</mass>
+        <mass>100</mass>
       </inertial>
       <visual name="ellip_hand">
         <pose>0 0 0 0 0 0</pose>
@@ -147,7 +147,7 @@ Toyota Research Institute-->
     <link name='hips'>
       <pose relative_to='waist'>0 0 -0.15 0 0 0</pose>
       <inertial>
-        <mass>12</mass>
+        <mass>100</mass>
       </inertial>
       <visual name="cap_hips">
         <pose>0 0 0 0 1.5708 0</pose>
@@ -163,7 +163,7 @@ Toyota Research Institute-->
     <link name='upper_leg_L'>
       <pose relative_to='hips'>0.08 0 -0.25 0 0 0</pose>
       <inertial>
-        <mass>8</mass>
+        <mass>100</mass>
       </inertial>
       <visual name="cap_uleg">
         <pose>0 0 0 0 0 0</pose>
@@ -179,7 +179,7 @@ Toyota Research Institute-->
     <link name='lower_leg_L'>
       <pose relative_to='upper_leg_L'>0 0.0 -0.35 0 0 0</pose>
       <inertial>
-        <mass>4</mass>
+        <mass>100</mass>
       </inertial>
       <visual name="cyl_lleg">
         <pose>0 0 0 0 0 0</pose>
@@ -195,7 +195,7 @@ Toyota Research Institute-->
     <link name='foot_L'>
       <pose relative_to='lower_leg_L'>0 0.08 -0.2 0 0 0</pose>
       <inertial>
-        <mass>1</mass>
+        <mass>100</mass>
       </inertial>
       <visual name="sph_ankle">
         <pose>0 -0.08 0.028 0 0 0</pose>
@@ -228,7 +228,7 @@ Toyota Research Institute-->
     <link name='toes_L'>
       <pose relative_to='foot_L'>0 0.1 -0.003 0 0 0</pose>
       <inertial>
-        <mass>0.2</mass>
+        <mass>100</mass>
       </inertial>
       <visual name="cap_toes">
         <pose>0 0 0 0 1.5708 0</pose>
@@ -259,7 +259,7 @@ Toyota Research Institute-->
     <!-- universal joint for shoulder-->
     <joint name='shoulderL_joint' type='universal'>
       <parent>torso</parent>
-      <child>arm_L</child>
+      <child>forearm_L</child>
       <pose>0 0 0.15 0 0 1.5708 </pose>
       <axis>
         <xyz>1.0 0.0 0.0</xyz>
@@ -269,12 +269,20 @@ Toyota Research Institute-->
           <effort>10.0</effort>
         </limit>
       </axis>
+      <axis2>
+        <xyz>0.0 1.0 0</xyz>
+        <limit>
+          <lower>-0.7853</lower>
+          <upper>0.7853</upper>
+          <effort>10.0</effort>
+        </limit>
+      </axis2>
     </joint>
 
     <!-- revolute joint for elbow -->
     <joint name='elbowL_joint' type='revolute'>
-      <parent>arm_L</parent>
-      <child>forearm_L</child>
+      <parent>forearm_L</parent>
+      <child>arm_L</child>
       <pose>0 0 0.15 0 0 0 </pose>
       <axis>
         <xyz>1.0 0.0 0.0</xyz>
@@ -288,7 +296,7 @@ Toyota Research Institute-->
 
     <!-- revolute joint for wrist -->
     <joint name='wristL_joint' type='revolute'>
-      <parent>forearm_L</parent>
+      <parent>arm_L</parent>
       <child>hand_L</child>
       <pose>0 0 0.05 0 0 0 </pose>
       <axis>
@@ -339,6 +347,14 @@ Toyota Research Institute-->
           <effort>10.0</effort>
         </limit>
       </axis>
+      <axis2>
+        <xyz>0.0 1.0 0</xyz>
+        <limit>
+          <lower>-0.52</lower>
+          <upper>1.74</upper>
+          <effort>10.0</effort>
+        </limit>
+      </axis2>
     </joint>
 
     <!-- revolute joint for knee L -->
