@@ -86,6 +86,8 @@ def make_agent_chair(contact_model, contact_surface_representation,
         ", number of velocities: ",plant.num_velocities(),
         ", number of actuators: ",plant.num_actuators(),
         ", number of multibody states: ",plant.num_multibody_states(),'\n')
+    for joint_idx in plant.GetJointIndices(agent):
+            print(plant.get_joint(joint_idx).name())
 
     #Desired state corresponding to a standing up position [tetha0,tetha1,tetha1_dot,tetha2_dot].
     desired_state=np.array([0,0,0,0])
