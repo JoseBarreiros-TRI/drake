@@ -79,6 +79,14 @@ drake_jupyter_py_binary(
 )
 
 drake_jupyter_py_binary(
+    name = "Model_inspector",
+    add_test_rule = 1,
+    deps = [
+        "//bindings/pydrake",
+    ],
+)
+
+drake_jupyter_py_binary(
     name = "mathematical_program_multibody_plant",
     add_test_rule = 1,
     deps = [
