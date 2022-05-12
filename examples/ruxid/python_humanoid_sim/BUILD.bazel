@@ -18,6 +18,8 @@ filegroup(
     name = "model_files",
     srcs = [
        "models/humanoid_v1.sdf",
+       "models/chair_v1.sdf",
+       "models/floor.sdf",
     ],
 )
 
