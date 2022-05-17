@@ -301,7 +301,7 @@ Toyota Research Institute-->
       </axis>
     </joint>
 
-    <!-- ball joint for torso and waist link -->
+    <!-- weld for hips and waist link -->
     <joint name='waist_weld' type='fixed'>
       <parent>hips</parent>
       <child>waist</child>
@@ -364,8 +364,8 @@ Toyota Research Institute-->
       </axis>
     </joint>
 
-    <!-- ball joint for ankle -->
-    <joint name='ankleL_joint' type='ball'>
+    <!-- universal joint for ankle -->
+    <joint name='ankleL_joint' type='universal'>
       <parent>foot_L</parent>
       <child>lower_leg_L</child>
       <pose>0 0 -0.17 0 0 0</pose>

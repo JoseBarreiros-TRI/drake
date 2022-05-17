@@ -18,6 +18,9 @@ Toyota Research Institute-->
             <size>0.04 0.04 0.4</size>
           </box>
         </geometry>
+        <material>
+          <diffuse>0.6 0.4 0.2 1</diffuse>
+        </material>
       </visual>     
 
       <visual name="box_leg2">
@@ -27,6 +30,9 @@ Toyota Research Institute-->
             <size>0.04 0.04 0.4</size>
           </box>
         </geometry>
+        <material>
+          <diffuse>0.6 0.4 0.2 1</diffuse>
+        </material>
       </visual>     
     
       <visual name="box_leg3">
@@ -36,6 +42,9 @@ Toyota Research Institute-->
             <size>0.04 0.04 0.4</size>
           </box>
         </geometry>
+        <material>
+          <diffuse>0.6 0.4 0.2 1</diffuse>
+        </material>
       </visual>     
 
       <visual name="box_leg4">
@@ -45,6 +54,9 @@ Toyota Research Institute-->
             <size>0.04 0.04 0.4</size>
           </box>
         </geometry>
+        <material>
+          <diffuse>0.6 0.4 0.2 1</diffuse>
+        </material>
       </visual>     
 
       <visual name="box_seat">
@@ -54,15 +66,21 @@ Toyota Research Institute-->
             <size>0.45 0.45 0.04</size>
           </box>
         </geometry>
+        <material>
+          <diffuse>0.6 0.4 0.2 1</diffuse>
+        </material>        
       </visual>     
 
       <visual name="box_back">
-        <pose>0 -0.2 0.6 0 0 0</pose>
+        <pose>0 -0.2 0.65 0 0 0</pose>
         <geometry>
           <box>
-            <size>0.45 0.04 0.45</size>
+            <size>0.45 0.04 0.5</size>
           </box>
         </geometry>
+        <material>
+          <diffuse>0.6 0.4 0.2 1</diffuse>
+        </material>
       </visual>     
 
       <collision name="col_box_leg">
