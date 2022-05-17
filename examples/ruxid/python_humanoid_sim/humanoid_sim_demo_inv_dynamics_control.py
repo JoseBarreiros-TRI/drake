@@ -36,9 +36,9 @@ def make_agent_chair(contact_model, contact_surface_representation,
             contact_surface_representation=contact_surface_representation)
 
     p_WChair_fixed = RigidTransform(RollPitchYaw(0, 0, 0),
-                                     np.array([0, 0, 0]))
+                                     np.array([0, 0, -0.02]))
     p_WFloor_fixed = RigidTransform(RollPitchYaw(0, 0, 0),
-                                     np.array([0, 0, 0]))
+                                     np.array([0, 0, -0.02]))
                                     
     builder = DiagramBuilder()
     plant, scene_graph = AddMultibodyPlant(multibody_plant_config, builder)
@@ -66,10 +66,10 @@ def make_agent_chair(contact_model, contact_surface_representation,
     )
     agent_sdf_file_name = \
         FindResourceOrThrow("drake/examples/ruxid/python_humanoid_sim/models"
-                            "/humanoid_v1.sdf")
+                            "/humanoid_v1_noball.sdf")
     agent=parser.AddModelFromFile(agent_sdf_file_name, model_name="humanoid_v1")
     p_WAgent_fixed = RigidTransform(RollPitchYaw(0, 0, 0),
-                                     np.array([0, 0.6, 0.35]))
+                                     np.array([0.1, 0.47, 0]))
 
     # weld the lower leg of the noodleman to the world frame. 
     # The inverse dynamic controller does not work with floating base
@@ -86,11 +86,15 @@ def make_agent_chair(contact_model, contact_surface_representation,
         ", number of velocities: ",plant.num_velocities(),
         ", number of actuators: ",plant.num_actuators(),
         ", number of multibody states: ",plant.num_multibody_states(),'\n')
+    
+    print('joints:')
     for joint_idx in plant.GetJointIndices(agent):
             print(plant.get_joint(joint_idx).name())
 
     #Desired state corresponding to a standing up position [tetha0,tetha1,tetha1_dot,tetha2_dot].
-    desired_state=np.array([0,0,0,0])
+    desired_q=np.zeros(25)
+    desired_v=np.zeros(25)
+    desired_state=np.concatenate((desired_q,desired_v))
     print("desired state:",desired_state)
     desired_state_source=builder.AddSystem(ConstantVectorSource(desired_state))
 
@@ -132,7 +136,22 @@ def simulate_diagram(diagram, plant, state_logger,
                      simulation_time, target_realtime_rate):
 
     #initial position and velocities
-    #qv_init_val = np.array([1.95, -1.87, 0, 0])
+    # agent_init_position=np.array([  0,-0.01,0,
+    #                                 1.5,-1.23,0,
+    #                                 -0.2,0,0,
+    #                                 -0.1,0,0.1,
+    #                                 -0.05,0.6,0.3,
+    #                             ])
+    agent_init_position=np.array([  0,-0.01,0,
+                                    1.5,-1.23,0,
+                                    -0.2,0,0,
+                                    -0.1,0,0.1,
+                                    -0.05,0.6,0.3,
+                                   0.08,-0.1,0.3,
+                                    0,0,-1.3,
+                                    1.6,0,0.1,0,
+                                ])
+    agent_init_velocity=np.zeros(25)
     qv_init_val = np.concatenate((agent_init_position, agent_init_velocity))
 
     diagram_context = diagram.CreateDefaultContext()
