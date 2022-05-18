@@ -2,7 +2,7 @@
 This is an example for simulating a simplified humanoid (aka. noodleman) through pydrake.
 It reads three simple SDFormat files of a hydroelastic humanoid,
 a rigid chair, and rigid floor.
-It uses an inverse dynamics controller to bring the noodleman from a sitting to standing up position.
+It uses a value iteration policy to bring the noodleman from a sitting to standing up position.
 """
 import argparse
 import numpy as np
