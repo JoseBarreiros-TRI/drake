@@ -10,6 +10,7 @@ from matplotlib import cm
 from time import sleep
 import matplotlib.pyplot as plt
 import pdb
+import pickle
 
 from pydrake.common import FindResourceOrThrow
 from pydrake.geometry import DrakeVisualizer
@@ -44,12 +45,14 @@ from pydrake.all import (DiagramBuilder, DiscreteAlgebraicRiccatiEquation,
                          Variables, WrapToSystem, ZeroOrderHold)
 
 def noodleman_chair_plant(contact_model, contact_surface_representation,
-                     time_step):
+                     time_step,add_visualizer=False):
+
     multibody_plant_config = \
         MultibodyPlantConfig(
-            time_step=time_step,
-            contact_model=contact_model,
-            contact_surface_representation=contact_surface_representation)
+            time_step=0,
+            contact_model="hydroelastic", #"hydroelastic_with_fallback"
+            contact_surface_representation='polygon', #"triangle"
+            )
 
     p_WChair_fixed = RigidTransform(RollPitchYaw(0, 0, 0),
                                      np.array([0, 0, 0]))
@@ -57,29 +60,30 @@ def noodleman_chair_plant(contact_model, contact_surface_representation,
                                      np.array([0, 0, 0]))
                                     
     builder = DiagramBuilder()
-    #plant, scene_graph = AddMultibodyPlant(multibody_plant_config, builder)
-    plant, scene_graph = AddMultibodyPlantSceneGraph(builder, 0.0)
+    plant, scene_graph = AddMultibodyPlant(multibody_plant_config, builder)
+    #plant, scene_graph = AddMultibodyPlantSceneGraph(builder, 0.0)
     parser = Parser(plant)
 
-    floor_sdf_file_name = \
-        FindResourceOrThrow("drake/examples/ruxid/python_noodleman_chair_value_iteration/models"
-                            "/floor.sdf")
-    floor=parser.AddModelFromFile(floor_sdf_file_name, model_name="floor")
-    plant.WeldFrames(
-        frame_on_parent_P=plant.world_frame(),
-        frame_on_child_C=plant.GetFrameByName("floor", floor),
-        X_PC=p_WFloor_fixed
-    )
+    # floor_sdf_file_name = \
+    #     FindResourceOrThrow("drake/examples/ruxid/python_noodleman_chair_value_iteration/models"
+    #                         "/floor.sdf")
+    # floor=parser.AddModelFromFile(floor_sdf_file_name, model_name="floor")
+    # plant.WeldFrames(
+    #     frame_on_parent_P=plant.world_frame(),
+    #     frame_on_child_C=plant.GetFrameByName("floor", floor),
+    #     X_PC=p_WFloor_fixed
+    # )
 
-    chair_sdf_file_name = \
-        FindResourceOrThrow("drake/examples/ruxid/python_noodleman_chair_value_iteration/models"
-                            "/chair_v1.sdf")
-    chair = parser.AddModelFromFile(chair_sdf_file_name, model_name="chair_v1")
-    plant.WeldFrames(
-        frame_on_parent_P=plant.world_frame(),
-        frame_on_child_C=plant.GetFrameByName("chair", chair),
-        X_PC=p_WChair_fixed
-    )
+    # chair_sdf_file_name = \
+    #     FindResourceOrThrow("drake/examples/ruxid/python_noodleman_chair_value_iteration/models"
+    #                         "/chair_v1.sdf")
+    # chair = parser.AddModelFromFile(chair_sdf_file_name, model_name="chair_v1")
+    # plant.WeldFrames(
+    #     frame_on_parent_P=plant.world_frame(),
+    #     frame_on_child_C=plant.GetFrameByName("chair", chair),
+    #     X_PC=p_WChair_fixed
+    # )
+
     noodleman_sdf_file_name = \
         FindResourceOrThrow("drake/examples/ruxid/python_noodleman_chair_value_iteration/models"
                             "/noodleman_v1.sdf")
@@ -103,9 +107,8 @@ def noodleman_chair_plant(contact_model, contact_surface_representation,
         ", number of actuators: ",plant.num_actuators(),
         ", number of multibody states: ",plant.num_multibody_states(),'\n')
 
-    DrakeVisualizer.AddToBuilder(builder=builder, scene_graph=scene_graph)
-    ConnectContactResultsToDrakeVisualizer(builder=builder, plant=plant,
-                                           scene_graph=scene_graph)
+    if add_visualizer:
+        DrakeVisualizer.AddToBuilder(builder=builder, scene_graph=scene_graph)
 
     nx = plant.num_positions() + plant.num_velocities()
     state_logger = builder.AddSystem(VectorLogSink(nx))
@@ -113,37 +116,46 @@ def noodleman_chair_plant(contact_model, contact_surface_representation,
                     state_logger.get_input_port())
     
     builder.ExportInput(plant.GetInputPort('noodleman_actuation'))
+    builder.ExportOutput(plant.GetOutputPort('continuous_state'))
 
+    
     diagram = builder.Build()
 
-    return diagram, plant, state_logger, noodleman_idx
+    return diagram, plant, state_logger, noodleman_idx,scene_graph
 
 
 def noodleman_standUp_example(contact_model, contact_surface_representation,
                      time_step,min_time=True, animate=True):
 
-    diagram, plant, state_logger, noodleman_idx = noodleman_chair_plant(contact_model, contact_surface_representation,
-                     time_step)
+    diagram, plant, state_logger, noodleman_idx,sg = noodleman_chair_plant(contact_model, contact_surface_representation,
+                     time_step,add_visualizer=True)
 
-    diagram_context = diagram.CreateDefaultContext()
-    context = diagram.GetMutableSubsystemContext(plant,
-                                                diagram_context)
+    #diagram_context = diagram.CreateDefaultContext()
+    #context = diagram.GetMutableSubsystemContext(plant,
+    #                                            diagram_context)
 
     #print('cont: ',context.has_only_continuous_state()) 
+
     
+
     simulator = Simulator(diagram)#,plant.CreateDefaultContext())
 
-    options = DynamicProgrammingOptions()
+    # simulator_config = SimulatorConfig(
+    #                        target_realtime_rate=1,
+    #                        publish_every_time_step=False)
+    #ApplySimulatorConfig(simulator, simulator_config)
 
-    q1s = np.linspace(0., 2. * np.pi, 5)
-    q2s = np.linspace(0., 2. * np.pi, 5)
-    q1dots = np.linspace(-10., 10., 5)
-    q2dots = np.linspace(-10., 10., 5)
+    options = DynamicProgrammingOptions()
+    n=4
+    q1s = np.linspace(-0.5 * np.pi, 0.5 * np.pi, n)
+    q2s = np.linspace(-0.5 * np.pi, 0.5 * np.pi, n)
+    q1dots = np.linspace(-10., 10., n)
+    q2dots = np.linspace(-10., 10., n)
 
     state_grid = [set(q1s),set(q2s),set(q1dots),set(q2dots)]
     options.periodic_boundary_conditions = [
-        PeriodicBoundaryCondition(0, 0., 2. * np.pi),
-        PeriodicBoundaryCondition(1, 0., 2. * np.pi)
+        PeriodicBoundaryCondition(0, -0.5 * np.pi, 0.5 * np.pi),
+        PeriodicBoundaryCondition(1, -0.5 * np.pi, 0.5 * np.pi)
     ]
     options.discount_factor = .999
     
@@ -159,26 +171,65 @@ def noodleman_standUp_example(contact_model, contact_surface_representation,
     #input_port =system.get_input_port_selection(options.in)
     #print('input port: ',system.get_input_port(options.input_port_index)) 
 
-    input_limit = np.pi*1.5
-    input_grid = [set(np.linspace(-input_limit, input_limit, 5)),set(np.linspace(-input_limit, input_limit, 5))]
+    input_limit = np.pi*0.1
+    nn=4
+    input_grid = [set(np.linspace(-input_limit, input_limit, nn)),set(np.linspace(-input_limit, input_limit, nn))]
     timestep = 0.01
 
     Q1, Q2, Q1dot,Q2dot = np.meshgrid(q1s, q2s, q1dots, q2dots)
     
     #visualize plant and diagram
-    plt.figure()
-    plot_graphviz(plant.GetTopologyGraphvizString())
-    plt.figure()
-    plot_system_graphviz(diagram, max_depth=2)
+    #plt.figure()
+    #plot_graphviz(plant.GetTopologyGraphvizString())
+    #plt.figure()
+    #plot_system_graphviz(diagram, max_depth=2)
     #plt.show()
 
     def simulate(policy):
         # Animate the resulting policy.
-        pass
+        builder = DiagramBuilder()
+        #pdb.set_trace()
+        diagram_, plant, state_logger, noodleman_idx,scene_graph = noodleman_chair_plant(contact_model, contact_surface_representation,
+                     time_step,add_visualizer=True)
+        pendulum = builder.AddSystem(diagram_)
+        #builder.ExportOutput(plant.GetOutputPort('geometry_pose'))
+
+        #wrap = builder.AddSystem(WrapToSystem(4))
+        #wrap.set_interval(0, -1*np.pi, 1*np.pi)
+        #builder.Connect(pendulum.get_output_port(0), wrap.get_input_port(0))
+        vi_policy = builder.AddSystem(policy)
+        builder.Connect(pendulum.get_output_port(0), vi_policy.get_input_port(0))
+        #builder.Connect(wrap.get_output_port(0), vi_policy.get_input_port(0))
+        builder.Connect(vi_policy.get_output_port(0),
+                        pendulum.get_input_port(0))
+
+
+        #pdb.set_trace()
+        #visualizer = builder.AddSystem(DrakeVisualizer())
+        #DrakeVisualizer.AddToBuilder(builder=builder, scene_graph=scene_graph)
+    
+        #builder.Connect(pendulum.get_output_port(0),visualizer.get_input_port(0))
+
+        diagram = builder.Build()
+        plt.figure()
+        plot_system_graphviz(diagram, max_depth=2)
+        plt.show()
+        simulator = Simulator(diagram)
+
+
+       # simulator.get_mutable_context().SetContinuousState([1.0, 0.0,0,0])
+        simulator.set_target_realtime_rate(1.)
+
+        diagram_context = diagram.CreateDefaultContext()
+        plant_context = diagram.GetMutableSubsystemContext(plant,
+                                                diagram_context)
+        plant.SetPositionsAndVelocities(plant_context,np.array([0,0,0,0]))        
+        simulator.Initialize()
+        simulator.AdvanceTo(18.)
+
 
     def min_time_cost(diagram_context):
         plant_context = plant.GetMyContextFromRoot(diagram_context)
-        #context_=context#.GetSubsystemContext('')
         x = plant_context.get_continuous_state_vector().CopyToVector()
         if x.dot(x) < .05:
             return 0.
@@ -186,19 +237,18 @@ def noodleman_standUp_example(contact_model, contact_surface_representation,
 
     def quadratic_regulator_cost(diagram_context):
         #pdb.set_trace()
+        x_desired=np.array([1,-1,0,0])
         plant_context = plant.GetMyContextFromRoot(diagram_context)
-        #context_=context#.GetSubsystemContext('')
         x = plant_context.get_continuous_state_vector().CopyToVector()
         #print(x)
-        idx=plant.GetInputPort('noodleman_actuation').get_index()
-        #idx=InputPortIndex(5) #
+        idx=plant.GetInputPort('noodleman_actuation').get_index()#idx=InputPortIndex(5) #
         u = plant.EvalVectorInput(plant_context, idx).CopyToVector()
         #print(u)
-        return 2 * x.dot(x) + u.dot(u)
+        return 2 * (x-x_desired).dot(x-x_desired) + u.dot(u)
 
     if min_time:
         cost_function = min_time_cost
-        options.convergence_tol = 0.001
+        options.convergence_tol = 0.01
     else:
         cost_function = quadratic_regulator_cost
         options.convergence_tol = 0.1
@@ -207,13 +257,17 @@ def noodleman_standUp_example(contact_model, contact_surface_representation,
                                               state_grid, input_grid, timestep,
                                               options)
 
-    print(cost_to_go)
-    
-    #J = np.reshape(cost_to_go, Q.shape)
 
-    #if animate:
-    #    print('Simulating...')
-    #    simulate(policy)
+
+    #pickle.dump(policy, open( "policy.p", "wb" ) )
+    pickle.dump(cost_to_go, open( "cost_to_go.p", "wb" ) )
+    
+    J = np.reshape(cost_to_go, Q1.shape)
+
+    if animate:
+        #pdb.set_trace()
+        print('Simulating...')
+        simulate(policy)
     # pdb.set_trace()
     # fig = plt.figure(figsize=(9, 4))
     # ax1, ax2 = fig.subplots(1, 2)
