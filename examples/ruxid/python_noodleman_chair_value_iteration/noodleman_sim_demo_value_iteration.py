@@ -131,18 +131,19 @@ def noodleman_standUp_example(contact_model, contact_surface_representation,
 
     #print('cont: ',context.has_only_continuous_state()) 
     
-    simulator = Simulator(plant)#,plant.CreateDefaultContext())
+    simulator = Simulator(diagram)#,plant.CreateDefaultContext())
 
     options = DynamicProgrammingOptions()
 
-    q1s = np.linspace(0., 2. * np.pi, 51)
-    q2s = np.linspace(0., 2. * np.pi, 51)
-    q1dots = np.linspace(-10., 10., 51)
-    q2dots = np.linspace(-10., 10., 51)
+    q1s = np.linspace(0., 2. * np.pi, 5)
+    q2s = np.linspace(0., 2. * np.pi, 5)
+    q1dots = np.linspace(-10., 10., 5)
+    q2dots = np.linspace(-10., 10., 5)
 
     state_grid = [set(q1s),set(q2s),set(q1dots),set(q2dots)]
     options.periodic_boundary_conditions = [
         PeriodicBoundaryCondition(0, 0., 2. * np.pi),
+        PeriodicBoundaryCondition(1, 0., 2. * np.pi)
     ]
     options.discount_factor = .999
     
@@ -152,14 +153,14 @@ def noodleman_standUp_example(contact_model, contact_surface_representation,
         joint_name=plant.get_joint(joint_idx).name()
         print(joint_name)
 
-    options.input_port_index=plant.GetInputPort('noodleman_actuation').get_index() #InputPortIndex(5)
+    options.input_port_index=InputPortIndex(0) #plant.GetInputPort('noodleman_actuation').get_index() #InputPortIndex(5) #
 
-    print(plant.GetInputPort('noodleman_actuation').size())
+    #print(plant.GetInputPort('noodleman_actuation').size())
     #input_port =system.get_input_port_selection(options.in)
     #print('input port: ',system.get_input_port(options.input_port_index)) 
 
     input_limit = np.pi*1.5
-    input_grid = [set(np.linspace(-input_limit, input_limit, 9)),set(np.linspace(-input_limit, input_limit, 9))]
+    input_grid = [set(np.linspace(-input_limit, input_limit, 5)),set(np.linspace(-input_limit, input_limit, 5))]
     timestep = 0.01
 
     Q1, Q2, Q1dot,Q2dot = np.meshgrid(q1s, q2s, q1dots, q2dots)
@@ -169,24 +170,30 @@ def noodleman_standUp_example(contact_model, contact_surface_representation,
     plot_graphviz(plant.GetTopologyGraphvizString())
     plt.figure()
     plot_system_graphviz(diagram, max_depth=2)
-    plt.show()
+    #plt.show()
 
     def simulate(policy):
         # Animate the resulting policy.
         pass
 
-    def min_time_cost(context):
-        x = context.get_continuous_state_vector().CopyToVector()
+    def min_time_cost(diagram_context):
+        plant_context = plant.GetMyContextFromRoot(diagram_context)
+        #context_=context#.GetSubsystemContext('')
+        x = plant_context.get_continuous_state_vector().CopyToVector()
         if x.dot(x) < .05:
             return 0.
         return 1.
 
-    def quadratic_regulator_cost(context):
-        x = context.get_continuous_state_vector().CopyToVector()
-        print(x)
+    def quadratic_regulator_cost(diagram_context):
+        #pdb.set_trace()
+        plant_context = plant.GetMyContextFromRoot(diagram_context)
+        #context_=context#.GetSubsystemContext('')
+        x = plant_context.get_continuous_state_vector().CopyToVector()
+        #print(x)
         idx=plant.GetInputPort('noodleman_actuation').get_index()
-        u = plant.EvalVectorInput(context, idx).CopyToVector()
-        print(u)
+        #idx=InputPortIndex(5) #
+        u = plant.EvalVectorInput(plant_context, idx).CopyToVector()
+        #print(u)
         return 2 * x.dot(x) + u.dot(u)
 
     if min_time:
