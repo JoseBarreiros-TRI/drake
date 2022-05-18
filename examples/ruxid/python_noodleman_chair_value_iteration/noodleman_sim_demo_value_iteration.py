@@ -27,7 +27,7 @@ from pydrake.systems.primitives import VectorLogSink
 from pydrake.all import (DiagramBuilder,Parser,
                          RigidTransform, Simulator)
 from pydrake.multibody.tree import WeldJoint
-
+from pydrake.multibody.plant import AddMultibodyPlantSceneGraph
 from pydrake.multibody.plant import ConnectContactResultsToDrakeVisualizer
 from pydrake.systems.drawing import plot_graphviz, plot_system_graphviz
 
@@ -57,8 +57,8 @@ def noodleman_chair_plant(contact_model, contact_surface_representation,
                                      np.array([0, 0, 0]))
                                     
     builder = DiagramBuilder()
-    plant, scene_graph = AddMultibodyPlant(multibody_plant_config, builder)
-
+    #plant, scene_graph = AddMultibodyPlant(multibody_plant_config, builder)
+    plant, scene_graph = AddMultibodyPlantSceneGraph(builder, 0.0)
     parser = Parser(plant)
 
     floor_sdf_file_name = \
@@ -111,6 +111,9 @@ def noodleman_chair_plant(contact_model, contact_surface_representation,
     state_logger = builder.AddSystem(VectorLogSink(nx))
     builder.Connect(plant.get_state_output_port(),
                     state_logger.get_input_port())
+    
+    builder.ExportInput(plant.GetInputPort('noodleman_actuation'))
+
     diagram = builder.Build()
 
     return diagram, plant, state_logger, noodleman_idx
@@ -119,20 +122,16 @@ def noodleman_chair_plant(contact_model, contact_surface_representation,
 def noodleman_standUp_example(contact_model, contact_surface_representation,
                      time_step,min_time=True, animate=True):
 
-
-
     diagram, plant, state_logger, noodleman_idx = noodleman_chair_plant(contact_model, contact_surface_representation,
                      time_step)
-    #pdb.set_trace()
+
     diagram_context = diagram.CreateDefaultContext()
     context = diagram.GetMutableSubsystemContext(plant,
                                                 diagram_context)
 
-    print('cont: ',context.has_only_continuous_state()) 
+    #print('cont: ',context.has_only_continuous_state()) 
     
-
-    simulator = Simulator(diagram,diagram_context)
-
+    simulator = Simulator(plant)#,plant.CreateDefaultContext())
 
     options = DynamicProgrammingOptions()
 
@@ -147,31 +146,20 @@ def noodleman_standUp_example(contact_model, contact_surface_representation,
     ]
     options.discount_factor = .999
     
-
-
-  
-    
-    print('opt: ',options.assume_non_continuous_states_are_fixed)
-    system = simulator.get_system()
-    #print(joint_name)
-
-    #print(system.GetInputPort('hip_joint_actuation'))
-    #pdb.set_trace()
-    
-    
     
     print('joints:')
     for joint_idx in plant.GetJointIndices(noodleman_idx):
         joint_name=plant.get_joint(joint_idx).name()
         print(joint_name)
 
-    #pdb.set_trace()
-    options.input_port_index=plant.GetInputPort('noodleman_actuation').get_index()
+    options.input_port_index=plant.GetInputPort('noodleman_actuation').get_index() #InputPortIndex(5)
+
+    print(plant.GetInputPort('noodleman_actuation').size())
     #input_port =system.get_input_port_selection(options.in)
     #print('input port: ',system.get_input_port(options.input_port_index)) 
 
-    input_limit = 3.
-    input_grid = [set(np.linspace(-input_limit, input_limit, 9))]
+    input_limit = np.pi*1.5
+    input_grid = [set(np.linspace(-input_limit, input_limit, 9)),set(np.linspace(-input_limit, input_limit, 9))]
     timestep = 0.01
 
     Q1, Q2, Q1dot,Q2dot = np.meshgrid(q1s, q2s, q1dots, q2dots)
@@ -179,14 +167,9 @@ def noodleman_standUp_example(contact_model, contact_surface_representation,
     #visualize plant and diagram
     plt.figure()
     plot_graphviz(plant.GetTopologyGraphvizString())
-
     plt.figure()
     plot_system_graphviz(diagram, max_depth=2)
     plt.show()
-
-    #pdb.set_trace()
-
-
 
     def simulate(policy):
         # Animate the resulting policy.
@@ -194,15 +177,16 @@ def noodleman_standUp_example(contact_model, contact_surface_representation,
 
     def min_time_cost(context):
         x = context.get_continuous_state_vector().CopyToVector()
-        x[0] = x[0] - np.pi
         if x.dot(x) < .05:
             return 0.
         return 1.
 
     def quadratic_regulator_cost(context):
         x = context.get_continuous_state_vector().CopyToVector()
-        x[0] = x[0] - np.pi
-        u = plant.EvalVectorInput(context, 0).CopyToVector()
+        print(x)
+        idx=plant.GetInputPort('noodleman_actuation').get_index()
+        u = plant.EvalVectorInput(context, idx).CopyToVector()
+        print(u)
         return 2 * x.dot(x) + u.dot(u)
 
     if min_time:
@@ -216,65 +200,34 @@ def noodleman_standUp_example(contact_model, contact_surface_representation,
                                               state_grid, input_grid, timestep,
                                               options)
 
-    J = np.reshape(cost_to_go, Q.shape)
+    print(cost_to_go)
+    
+    #J = np.reshape(cost_to_go, Q.shape)
 
     #if animate:
     #    print('Simulating...')
     #    simulate(policy)
-    pdb.set_trace()
-    fig = plt.figure(figsize=(9, 4))
-    ax1, ax2 = fig.subplots(1, 2)
-    ax1.set_xlabel("q")
-    ax1.set_ylabel("qdot")
-    ax1.set_title("Cost-to-Go")
-    ax2.set_xlabel("q")
-    ax2.set_ylabel("qdot")
-    ax2.set_title("Policy")
-    ax1.imshow(J,
-               cmap=cm.jet, aspect='auto',
-               extent=(qbins[0], qbins[-1], qdotbins[-1], qdotbins[0]))
-    ax1.invert_yaxis()
-    Pi = np.reshape(policy.get_output_values(), Q.shape)
-    ax2.imshow(Pi,
-               cmap=cm.jet, aspect='auto',
-               extent=(qbins[0], qbins[-1], qdotbins[-1], qdotbins[0]))
-    ax2.invert_yaxis()
-    plt.show()
-    plt.pause(1)
+    # pdb.set_trace()
+    # fig = plt.figure(figsize=(9, 4))
+    # ax1, ax2 = fig.subplots(1, 2)
+    # ax1.set_xlabel("q")
+    # ax1.set_ylabel("qdot")
+    # ax1.set_title("Cost-to-Go")
+    # ax2.set_xlabel("q")
+    # ax2.set_ylabel("qdot")
+    # ax2.set_title("Policy")
+    # ax1.imshow(J,
+    #            cmap=cm.jet, aspect='auto',
+    #            extent=(qbins[0], qbins[-1], qdotbins[-1], qdotbins[0]))
+    # ax1.invert_yaxis()
+    # Pi = np.reshape(policy.get_output_values(), Q.shape)
+    # ax2.imshow(Pi,
+    #            cmap=cm.jet, aspect='auto',
+    #            extent=(qbins[0], qbins[-1], qdotbins[-1], qdotbins[0]))
+    # ax2.invert_yaxis()
+    # plt.show()
+    # plt.pause(1)
 
-
-
-def simulate_diagram(diagram, chair_noodleman_plant, state_logger,
-                     noodleman_init_position, noodleman_init_velocity,
-                     simulation_time, target_realtime_rate):
-
-    #initial position and velocities
-    #qv_init_val = np.array([1.95, -1.87, 0, 0])
-    qv_init_val = np.concatenate((noodleman_init_position, noodleman_init_velocity))
-
-    diagram_context = diagram.CreateDefaultContext()
-    plant_context = diagram.GetMutableSubsystemContext(chair_noodleman_plant,
-                                                diagram_context)
-
-    chair_noodleman_plant.SetPositionsAndVelocities(plant_context,
-                                                 qv_init_val)
-    
-    print("Initial state variables: ", chair_noodleman_plant.GetPositionsAndVelocities(plant_context))
-    
-    #setup the simulator
-    simulator_config = SimulatorConfig(
-                           target_realtime_rate=target_realtime_rate,
-                           publish_every_time_step=True)
-    simulator = Simulator(diagram,diagram_context)
-    ApplySimulatorConfig(simulator, simulator_config)
-    
-    #simulator.get_mutable_context().SetTime(0)
-    state_log = state_logger.FindMutableLog(simulator.get_mutable_context())
-    state_log.Clear()
-    simulator.Initialize()
-    simulator.AdvanceTo(boundary_time=simulation_time)
-    PrintSimulatorStatistics(simulator)
-    return state_log.sample_times(), state_log.data()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
