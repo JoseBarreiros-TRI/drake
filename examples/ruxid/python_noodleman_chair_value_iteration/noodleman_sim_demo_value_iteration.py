@@ -146,17 +146,17 @@ def noodleman_standUp_example(contact_model, contact_surface_representation,
     #ApplySimulatorConfig(simulator, simulator_config)
 
     options = DynamicProgrammingOptions()
-    n=4
+    n=10
     q1s = np.linspace(-0.5 * np.pi, 0.5 * np.pi, n)
     q2s = np.linspace(-0.5 * np.pi, 0.5 * np.pi, n)
     q1dots = np.linspace(-10., 10., n)
     q2dots = np.linspace(-10., 10., n)
 
     state_grid = [set(q1s),set(q2s),set(q1dots),set(q2dots)]
-    options.periodic_boundary_conditions = [
-        PeriodicBoundaryCondition(0, -0.5 * np.pi, 0.5 * np.pi),
-        PeriodicBoundaryCondition(1, -0.5 * np.pi, 0.5 * np.pi)
-    ]
+    #options.periodic_boundary_conditions = [
+    #    PeriodicBoundaryCondition(0, -0.5 * np.pi, 0.5 * np.pi),
+    #    PeriodicBoundaryCondition(1, -0.5 * np.pi, 0.5 * np.pi)
+    #]
     options.discount_factor = .999
     
     
@@ -171,10 +171,10 @@ def noodleman_standUp_example(contact_model, contact_surface_representation,
     #input_port =system.get_input_port_selection(options.in)
     #print('input port: ',system.get_input_port(options.input_port_index)) 
 
-    input_limit = np.pi*0.1
-    nn=4
+    input_limit = np.pi*1
+    nn=6
     input_grid = [set(np.linspace(-input_limit, input_limit, nn)),set(np.linspace(-input_limit, input_limit, nn))]
-    timestep = 0.01
+    timestep = 0.005
 
     Q1, Q2, Q1dot,Q2dot = np.meshgrid(q1s, q2s, q1dots, q2dots)
     
@@ -244,7 +244,7 @@ def noodleman_standUp_example(contact_model, contact_surface_representation,
         idx=plant.GetInputPort('noodleman_actuation').get_index()#idx=InputPortIndex(5) #
         u = plant.EvalVectorInput(plant_context, idx).CopyToVector()
         #print(u)
-        return 2 * (x-x_desired).dot(x-x_desired) + u.dot(u)
+        return 2 * (x-x_desired).dot(x-x_desired) + 0.1*u.dot(u)
 
     if min_time:
         cost_function = min_time_cost
