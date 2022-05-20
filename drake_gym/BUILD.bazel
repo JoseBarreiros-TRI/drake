@@ -1,0 +1,43 @@
+# -*- python -*-
+
+load("//tools/skylark:drake_py.bzl", "drake_py_binary","drake_py_library")
+load("//tools/lint:lint.bzl", "add_lint_tests")
+
+drake_py_library(
+    name = "drake_gym_py",
+    srcs = ["drake_gym.py"],
+    deps = [
+        "//bindings/pydrake",
+    ],
+    visibility = ["//visibility:public"],
+)
+drake_py_library(
+    name = "scenarios_py",
+    srcs = ["scenarios.py"],
+    deps = [
+        "//bindings/pydrake",
+    ],
+    visibility = ["//visibility:public"],
+)
+drake_py_library(
+    name = "utils_py",
+    srcs = [
+        "__init__.py",
+        "meshcat_cpp_utils.py",
+        "utils.py",
+    ],
+    imports = [".."],
+    visibility = ["//visibility:public"],
+)
+drake_py_binary(
+    name = "test_gym",
+    srcs = ["test_gym.py"],
+    deps = [
+      "drake_gym_py",
+      "scenarios_py",
+      "//bindings/pydrake",
+
+    ],
+)
+
+add_lint_tests()
