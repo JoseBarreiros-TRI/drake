@@ -13,6 +13,7 @@ from pydrake.all import (
     RollPitchYaw,
     SceneGraph,
     Simulator,
+    EventStatus,
 )
 from pydrake.examples.pendulum import PendulumPlant, PendulumGeometry
 
@@ -21,11 +22,8 @@ from scenarios import AddRgbdSensor
 
 import pdb
 
-meshcat = Meshcat()
 
-show = True
-
-def PendulumExample():
+def PendulumEnv(meshcat=None,time_limit=1):
     builder = DiagramBuilder()
     plant = builder.AddSystem(PendulumPlant())
     scene_graph = builder.AddSystem(SceneGraph())
@@ -48,6 +46,14 @@ def PendulumExample():
     diagram = builder.Build()
     simulator = Simulator(diagram)
 
+    # Termination conditions:
+    def monitor(context):
+        if context.get_time() > time_limit:
+            return EventStatus.ReachedTermination(diagram, "time limit")
+        return EventStatus.Succeeded()
+
+    simulator.set_monitor(monitor)
+
     def reward(system, context):
         plant_context = plant.GetMyContextFromRoot(context)
         state = plant_context.get_continuous_state_vector()
@@ -68,14 +74,6 @@ def PendulumExample():
                           ),
                       reward=reward,
                       render_rgb_port_id="camera")
-    check_env(env)
     
-    if show:
-        env.reset()
-        image = env.render(mode='rgb_array')
-        fig, ax = plt.subplots()
-        ax.imshow(image)
-        plt.show()
-
-
-PendulumExample()
+    
+    return env

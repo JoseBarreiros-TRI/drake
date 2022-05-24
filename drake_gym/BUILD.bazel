@@ -32,6 +32,7 @@ drake_py_library(
 drake_py_binary(
     name = "test_gym",
     srcs = ["test_gym.py"],
+    data = [":model_files"],
     deps = [
       "drake_gym_py",
       "scenarios_py",
@@ -39,5 +40,62 @@ drake_py_binary(
 
     ],
 )
+drake_py_binary(
+    name = "test_training",
+    srcs = ["test_training.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
 
+    ],
+)
+drake_py_binary(
+    name = "rl_train_boxflipup",
+    srcs = ["rl_train_boxflipup.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rl_play_boxflipup",
+    srcs = ["rl_play_boxflipup.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rl_train_noodlemanstandup",
+    srcs = ["rl_train_noodlemanstandup.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rl_play_noodlemanstandup",
+    srcs = ["rl_play_noodlemanstandup.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+
+filegroup(
+    name = "model_files",
+    srcs = [
+       "models/planar_bin.sdf",
+       "models/noodleman_v1.sdf",
+    ],
+)
 add_lint_tests()
