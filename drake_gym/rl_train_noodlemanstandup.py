@@ -1,6 +1,7 @@
 import argparse
 import gym
 import os
+import pdb
 
 from stable_baselines3 import A2C, PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv
@@ -17,26 +18,26 @@ parser.add_argument('--test', action='store_true')
 args = parser.parse_args()
 
 observations = "state"
-time_limit = 10 if not args.test else 0.5
+time_limit = 5 if not args.test else 0.5
 zip = "/home/josebarreiros/rl/data/noodlemanStandUp_ppo_{observations}.zip"
 log = "/home/josebarreiros/rl/tmp/noodlemanStandUp/"
-checkpoint_callback = CheckpointCallback(save_freq=1e4, save_path='/home/josebarreiros/tmp/noodlemanStandUp/model_checkpoints/')
+checkpoint_callback = CheckpointCallback(save_freq=20000, save_path='/home/josebarreiros/tmp/noodlemanStandUp/model_checkpoints/')
 
 if __name__ == '__main__':
     num_cpu = 12 if not args.test else 2
-    # env = make_vec_env("NoodlemanStandUp-v0",
-    #                    n_envs=num_cpu,
-    #                    seed=0,
-    #                    vec_env_cls=SubprocVecEnv,
-    #                    env_kwargs={
-    #                        'observations': observations,
-    #                        'time_limit': time_limit,
-    #                    })
+    env = make_vec_env("NoodlemanStandUp-v0",
+                       n_envs=num_cpu,
+                       seed=0,
+                       vec_env_cls=SubprocVecEnv,
+                       env_kwargs={
+                           'observations': observations,
+                           'time_limit': time_limit,
+                       })
     # env = "NoodlemanStandUp-v0"
 
-    meshcat = StartMeshcat()
-    env = gym.make("NoodlemanStandUp-v0", meshcat=meshcat, observations=observations)
-
+    # meshcat = StartMeshcat()
+    # env = gym.make("NoodlemanStandUp-v0", meshcat=meshcat, observations=observations)
+    #pdb.set_trace()
     if args.test:
         model = PPO('MlpPolicy', env, n_steps=4, n_epochs=2, batch_size=8)
     elif os.path.exists(zip):
@@ -46,7 +47,7 @@ if __name__ == '__main__':
 
     new_log = True
     while True:
-        model.learn(total_timesteps=20000 if not args.test else 4,
+        model.learn(total_timesteps=100000 if not args.test else 4,
                     reset_num_timesteps=new_log, callback=[checkpoint_callback] if not args.test else [])
         if args.test:
             break

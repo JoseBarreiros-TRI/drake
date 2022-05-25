@@ -56,7 +56,7 @@ def AddNoodleman(plant):
 def make_noodleman_stand_up_sim(generator,
                     observations="state",
                     meshcat=None,
-                    time_limit=10,debug=False):
+                    time_limit=5,debug=False):
     builder = DiagramBuilder()
     plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=0.001)
 
@@ -64,7 +64,7 @@ def make_noodleman_stand_up_sim(generator,
     plant.Finalize()
     plant.set_name("plant")
     SetTransparency(scene_graph, alpha=0.5, source_id=plant.get_source_id())
-    controller_plant = MultibodyPlant(time_step=0.005)
+    controller_plant = MultibodyPlant(time_step=0.001)
     AddNoodleman(controller_plant)
 
     if meshcat:
@@ -197,7 +197,7 @@ def make_noodleman_stand_up_sim(generator,
     return simulator
 
 
-def NoodlemanStandUpEnv(observations="state", meshcat=None, time_limit=10, debug=False):
+def NoodlemanStandUpEnv(observations="state", meshcat=None, time_limit=5, debug=False):
     simulator = make_noodleman_stand_up_sim(RandomGenerator(),
                                 observations,
                                 meshcat=meshcat,
@@ -217,7 +217,7 @@ def NoodlemanStandUpEnv(observations="state", meshcat=None, time_limit=10, debug
                                                            dtype="float32"))
 
     env = DrakeGymEnv(simulator=simulator,
-                      time_step=0.1,
+                      time_step=0.001,
                       action_space=action_space,
                       observation_space=observation_space,
                       reward="reward",

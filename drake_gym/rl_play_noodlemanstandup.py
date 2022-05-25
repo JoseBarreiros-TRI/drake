@@ -22,13 +22,13 @@ if __name__ == '__main__':
     meshcat = StartMeshcat()
     env = gym.make("NoodlemanStandUp-v0", meshcat=meshcat, observations=observations)
     env.simulator.set_target_realtime_rate(1.0)
-    pdb.set_trace()
+    #pdb.set_trace()
     
     model = PPO.load(zip, env, verbose=1, tensorboard_log=log)
     
     input("Press Enter to continue...")
     obs = env.reset()
-    for i in range(1000):
+    for i in range(100000):
         action, _state = model.predict(obs, deterministic=True)
         obs, reward, done, info = env.step(action)
         env.render()
