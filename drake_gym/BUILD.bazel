@@ -71,8 +71,8 @@ drake_py_binary(
     ],
 )
 drake_py_binary(
-    name = "rl_train_noodlemanstandup",
-    srcs = ["rl_train_noodlemanstandup.py"],
+    name = "rl_train_noodlemanstandup_idc",
+    srcs = ["rl_train_noodlemanstandup_idc.py"],
     data = [":model_files"],
     deps = [
       "drake_gym_py",
@@ -81,8 +81,8 @@ drake_py_binary(
     ],
 )
 drake_py_binary(
-    name = "rl_play_noodlemanstandup",
-    srcs = ["rl_play_noodlemanstandup.py"],
+    name = "rl_play_noodlemanstandup_idc",
+    srcs = ["rl_play_noodlemanstandup_idc.py"],
     data = [":model_files"],
     deps = [
       "drake_gym_py",

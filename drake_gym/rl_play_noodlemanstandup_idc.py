@@ -7,22 +7,25 @@ from stable_baselines3 import A2C, PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.env_util import make_vec_env
 from pydrake.geometry import Meshcat, Cylinder, Rgba, Sphere, StartMeshcat
+from stable_baselines3.common.env_checker import check_env
 
-gym.envs.register(id="NoodlemanStandUp-v0",
-                  entry_point="envs.noodleman_standup:NoodlemanStandUpEnv")
+gym.envs.register(id="NoodlemanStandUpIDC-v0",
+                  entry_point="envs.noodleman_standup_idc:NoodlemanStandUpEnv")
 
 observations = "state"
-zip = "/home/josebarreiros/rl/data/noodlemanStandUp_ppo_{observations}.zip"
-log = "/home/josebarreiros/rl/tmp/noodlemanStandUp/"
-
+zip = "/home/josebarreiros/rl/data/noodlemanStandUpIDC_ppo_{observations}.zip"
+log = "/home/josebarreiros/rl/tmp/noodlemanStandUpIDC/"
+debug=True
 
 if __name__ == '__main__':
 
     # Make a version of the env with meshcat.
     meshcat = StartMeshcat()
-    env = gym.make("NoodlemanStandUp-v0", meshcat=meshcat, observations=observations)
+    env = gym.make("NoodlemanStandUpIDC-v0", meshcat=meshcat, observations=observations,debug=debug)
     env.simulator.set_target_realtime_rate(1.0)
+    
     #pdb.set_trace()
+    check_env(env)
     
     model = PPO.load(zip, env, verbose=1, tensorboard_log=log)
     

@@ -95,9 +95,9 @@ def make_noodleman_stand_up_sim(generator,
 
     ##Create inverse dynamics controller
     N = controller_plant.num_positions()
-    kp = [2.8] * N
-    ki = [0.01] * N
-    kd = [2.8] * N
+    kp = [100] * N
+    ki = [1] * N
+    kd = [20] * N
     controller = builder.AddSystem(
         InverseDynamicsController(controller_plant, kp, ki, kd, False))
     builder.Connect(plant.get_state_output_port(noodleman),
@@ -141,19 +141,24 @@ def make_noodleman_stand_up_sim(generator,
             actions = self.get_input_port(1).Eval(context)
             desired_state=[0,0,0,0]
             pos_error=desired_state[:2]-noodleman_state[:2]
-            #print('state: {s},actions: {a},error: {e}'.format(s=noodleman_state,a=actions,e=pos_error))
-            #pdb.set_trace()
 
-            cost = 2 * pos_error.dot(pos_error)
-            #print('cost1: {c}'.format(c=cost))
-            
+            cost_pos = 2 * pos_error.dot(pos_error)
+
             # noodleman velocity
             cost_vel=noodleman_state[2:].dot(noodleman_state[2:])
             #print('cost2: {c}'.format(c=cost_vel))
-            cost += 0.1 * cost_vel
-            # Add 10 to make rewards positive (to avoid rewarding simulator
-            # crashes).
-            output[0] = 10 - cost
+            cost = cost_pos + 0.01 * cost_vel
+
+            # Add 20 to make rewards positive (to avoid rewarding simulator
+            # crashes).            
+            reward= 17 - cost
+
+            if debug:
+                print('act: {a}, pos: {p}'.format(a=actions,p=noodleman_state[:2]))
+                print('cost: {c}, cost_pos: {cp}, cost_vel: {cv}'.format(c=cost,cp=cost_pos,cv=cost_vel))
+                print('rew: {r}\n'.format(r=reward))
+
+            output[0] = reward
 
     reward = builder.AddSystem(RewardSystem())
     builder.Connect(plant.get_state_output_port(noodleman), reward.get_input_port(0))
@@ -163,16 +168,26 @@ def make_noodleman_stand_up_sim(generator,
     # Set random state distributions.
     uniform_random_1 = Variable(name="uniform_random",
                               type=Variable.Type.RANDOM_UNIFORM)
-    uniform_random_2 = Variable(name="uniform_random",
+    uniform_random_2 = Variable(name="uniform_random2",
                               type=Variable.Type.RANDOM_UNIFORM)                              
     hip_joint = plant.GetJointByName("hip_joint")
     knee_joint = plant.GetJointByName("knee_joint")
 
-    #tetha_hip= hip_joint.get_default_angle()
-    #tetha_knee= knee_joint.get_default_angle()
+    low_hip= hip_joint.position_lower_limit()
+    high_hip= hip_joint.position_upper_limit()
+    low_knee= knee_joint.position_lower_limit()
+    high_knee= knee_joint.position_upper_limit()
 
-    hip_joint.set_random_angle_distribution((uniform_random_1-0.5)*(np.pi))
-    knee_joint.set_random_angle_distribution((uniform_random_2-0.5)*(np.pi))
+    #print(low_hip,' ',high_hip,' ',low_knee,' ',high_knee)
+
+    knee_joint.set_random_angle_distribution((high_knee-low_knee)*uniform_random_2+low_knee)
+    hip_joint.set_random_angle_distribution((high_hip-low_hip)*uniform_random_1+low_hip)
+
+
+    #pdb.set_trace()
+
+    #context = plant.CreateDefaultContext()
+    #print(hip_joint.get_angle(context), ' ',knee_joint.get_angle(context))
 
     diagram = builder.Build()
     simulator = Simulator(diagram)
@@ -190,6 +205,8 @@ def make_noodleman_stand_up_sim(generator,
         plt.figure()
         plot_graphviz(plant.GetTopologyGraphvizString())
         plt.figure()
+        plot_graphviz(controller_plant.GetTopologyGraphvizString())
+        plt.figure()
         plot_system_graphviz(diagram, max_depth=2)
         plt.plot(1)
         plt.show(block=False)
@@ -202,22 +219,27 @@ def NoodlemanStandUpEnv(observations="state", meshcat=None, time_limit=5, debug=
                                 observations,
                                 meshcat=meshcat,
                                 time_limit=time_limit,debug=debug)
-    action_space = gym.spaces.Box(low=np.array([-np.pi/2, -np.pi/2], dtype="float32"),
-                                  high=np.array([np.pi/2, np.pi/2], dtype="float32"))
 
     plant = simulator.get_system().GetSubsystemByName("plant")
 
+    low = np.concatenate(
+        (plant.GetPositionLowerLimits(), plant.GetVelocityLowerLimits()))
+    high = np.concatenate(
+        (plant.GetPositionUpperLimits(), plant.GetVelocityUpperLimits()))
+    # action_space = gym.spaces.Box(low=np.array([-np.pi/2, -np.pi/2], dtype="float64"),
+    #                               high=np.array([np.pi/2, np.pi/2], dtype="float64"))
+    action_space = gym.spaces.Box(low=low[:2], high=high[:2],dtype=np.float64)
+
+    
+
     if observations == "state":
-        low = np.concatenate(
-            (plant.GetPositionLowerLimits(), plant.GetVelocityLowerLimits()))
-        high = np.concatenate(
-            (plant.GetPositionUpperLimits(), plant.GetVelocityUpperLimits()))
-        observation_space = gym.spaces.Box(low=np.asarray(low, dtype="float32"),
+
+        observation_space = gym.spaces.Box(low=np.asarray(low, dtype="float64"),
                                            high=np.asarray(high,
-                                                           dtype="float32"))
+                                                           dtype="float64"),dtype=np.float64)
 
     env = DrakeGymEnv(simulator=simulator,
-                      time_step=0.001,
+                      time_step=0.005,
                       action_space=action_space,
                       observation_space=observation_space,
                       reward="reward",

@@ -139,7 +139,7 @@ Toyota Research Institute-->
         <limit>
           <lower>-2</lower>
           <upper>0.1</upper>
-          <effort>100.0</effort>
+          <effort>10.0</effort>
         </limit>
         <dynamics>
           <friction>0.1</friction>
@@ -157,7 +157,7 @@ Toyota Research Institute-->
         <limit>
           <lower>-0.1</lower>
           <upper>2</upper>
-          <effort>100.0</effort>
+          <effort>10.0</effort>
         </limit>
         <dynamics>
           <friction>0.1</friction>

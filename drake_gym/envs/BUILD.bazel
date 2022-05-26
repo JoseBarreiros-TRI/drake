@@ -29,8 +29,8 @@ drake_python_library(
     ]
 )
 drake_python_library(
-    name = "noodleman_standup",
-    srcs = ["noodleman_standup.py"],
+    name = "noodleman_standup_idc",
+    srcs = ["noodleman_standup_idc.py"],
     data = [
       "models",
     ],
