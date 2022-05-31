@@ -41,3 +41,57 @@ drake_python_library(
       "//scenarios",
     ]
 )
+drake_python_library(
+    name = "noodleman_fbase_standup_pid",
+    srcs = ["noodleman_fbase_standup_pid.py"],
+    data = [
+      "models",
+    ],
+    imports = [".."],
+    visibility = ["//visibility:public"],
+    deps = [
+      "//drake_gym",
+      "//scenarios",
+    ]
+)
+drake_python_library(
+    name = "noodleman_standup_pid",
+    srcs = ["noodleman_standup_pid.py"],
+    data = [
+      "models",
+    ],
+    imports = [".."],
+    visibility = ["//visibility:public"],
+    deps = [
+      "//drake_gym",
+      "//scenarios",
+      "//manipulation",
+    ]
+)
+drake_python_library(
+    name = "noodleman_fbase_standup_torque",
+    srcs = ["noodleman_fbase_standup_torque.py"],
+    data = [
+      "models",
+    ],
+    imports = [".."],
+    visibility = ["//visibility:public"],
+    deps = [
+      "//drake_gym",
+      "//scenarios",
+    ]
+)
+drake_python_library(
+    name = "humanoid_fbase_standup_pid",
+    srcs = ["humanoid_fbase_standup_pid.py"],
+    data = [
+      "models",
+    ],
+    imports = [".."],
+    visibility = ["//visibility:public"],
+    deps = [
+      "//drake_gym",
+      "//scenarios",
+      "//manipulation",
+    ]
+)

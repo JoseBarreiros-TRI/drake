@@ -1,5 +1,6 @@
 import gym
 import numpy as np
+import matplotlib.pyplot as plt
 
 from pydrake.all import (
     AddMultibodyPlantSceneGraph,
@@ -36,7 +37,7 @@ from pydrake.all import (
 from drake_gym import DrakeGymEnv
 from scenarios import AddShape, SetColor, SetTransparency
 from utils import FindResource
-
+from pydrake.systems.drawing import plot_graphviz, plot_system_graphviz
 
 def AddPlanarBinAndSimpleBox(plant,
                              mass=1.0,
@@ -93,7 +94,8 @@ def AddPointFinger(plant):
 def make_box_flipup(generator,
                     observations="state",
                     meshcat=None,
-                    time_limit=10):
+                    time_limit=10,
+                    debug=False):
     builder = DiagramBuilder()
     plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=0.001)
     # TODO(russt): randomize parameters.
@@ -107,7 +109,7 @@ def make_box_flipup(generator,
 
     if meshcat:
         MeshcatVisualizerCpp.AddToBuilder(builder, scene_graph, meshcat)
-        meshcat.Set2dRenderMode(xmin=-.35, xmax=.35, ymin=-0.1, ymax=0.3)
+        #meshcat.Set2dRenderMode(xmin=-.35, xmax=.35, ymin=-0.1, ymax=0.3)
         ContactVisualizer.AddToBuilder(
             builder, plant, meshcat,
             ContactVisualizerParams(radius=0.005, newtons_per_meter=40.0))
@@ -124,6 +126,16 @@ def make_box_flipup(generator,
         controller_vis.set_name("controller meshcat")
 
     controller_plant.Finalize()
+
+    if debug:
+        print("\nPlant. number of position: ",plant.num_positions(),
+            ", number of velocities: ",plant.num_velocities(),
+            ", number of actuators: ",plant.num_actuators(),
+            ", number of multibody states: ",plant.num_multibody_states(),'\n')
+        print("\nController Plant. number of position: ",controller_plant.num_positions(),
+            ", number of velocities: ",controller_plant.num_velocities(),
+            ", number of actuators: ",controller_plant.num_actuators(),
+            ", number of multibody states: ",controller_plant.num_multibody_states(),'\n')
 
     # Stiffness control.  (For a point finger with unit mass, the
     # InverseDynamicsController is identical)
@@ -185,7 +197,14 @@ def make_box_flipup(generator,
             cost += 0.1 * finger_state[2:].dot(finger_state[2:])
             # Add 10 to make rewards positive (to avoid rewarding simulator
             # crashes).
-            output[0] = 10 - cost
+            reward=10-cost
+            if debug:
+                print('act: {a}, ang. from vert.: {p}'.format(a=actions,p=angle_from_vertical))
+                print('cost: {c}'.format(c=cost))
+                print('rew: {r}\n'.format(r=reward))
+
+
+            output[0] = reward
 
     reward = builder.AddSystem(RewardSystem())
     builder.Connect(plant.get_state_output_port(box), reward.get_input_port(0))
@@ -211,14 +230,28 @@ def make_box_flipup(generator,
         return EventStatus.Succeeded()
 
     simulator.set_monitor(monitor)
+
+
+    if debug:
+        #visualize plant and diagram
+        plt.figure()
+        plot_graphviz(plant.GetTopologyGraphvizString())
+        plt.figure()
+        plot_graphviz(controller_plant.GetTopologyGraphvizString())
+        plt.figure()
+        plot_system_graphviz(diagram, max_depth=2)
+        plt.plot(1)
+        plt.show(block=False)
+
     return simulator
 
 
-def BoxFlipUpEnv(observations="state", meshcat=None, time_limit=10):
+def BoxFlipUpEnv(observations="state", meshcat=None, time_limit=10, debug=False):
     simulator = make_box_flipup(RandomGenerator(),
                                 observations,
                                 meshcat=meshcat,
-                                time_limit=time_limit)
+                                time_limit=time_limit,
+                                debug=debug)
     action_space = gym.spaces.Box(low=np.array([-.5, -0.1], dtype="float32"),
                                   high=np.array([.5, 0.6], dtype="float32"))
 

@@ -1,6 +1,7 @@
 import argparse
 import gym
 import os
+import pdb
 
 from stable_baselines3 import A2C, PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv
@@ -8,8 +9,8 @@ from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.callbacks import CheckpointCallback
 from pydrake.geometry import Meshcat, Cylinder, Rgba, Sphere, StartMeshcat
 
-gym.envs.register(id="BoxFlipUp-v0",
-                  entry_point="envs.box_flipup:BoxFlipUpEnv")
+gym.envs.register(id="NoodlemanStandUpTorque-v0",
+                  entry_point="envs.noodleman_standup_torque:NoodlemanStandUpEnv")
 
 parser = argparse.ArgumentParser(
     description='Install ToC and Navigation into book html files.')
@@ -17,16 +18,16 @@ parser.add_argument('--test', action='store_true')
 args = parser.parse_args()
 
 observations = "state"
-time_limit = 10 if not args.test else 0.5
-zip = "/home/josebarreiros/rl/data/box_flipup_ppo_{observations}.zip"
-log = "/home/josebarreiros/rl/tmp/ppo_box_flipup/"
-checkpoint_callback = CheckpointCallback(save_freq=1e4, save_path='/home/josebarreiros/tmp/model_checkpoints/')
+time_limit = 5 if not args.test else 0.5
+zip = "/home/josebarreiros/rl/data/noodlemanStandUpTorque_ppo_{observations}.zip"
+log = "/home/josebarreiros/rl/tmp/noodlemanStandUpTorque/"
+checkpoint_callback = CheckpointCallback(save_freq=20000, save_path='/home/josebarreiros/tmp/noodlemanStandUpTorque/model_checkpoints/')
 debug=True
 
 if __name__ == '__main__':
     num_cpu = 12 if not args.test else 2
     if not debug:
-        env = make_vec_env("BoxFlipUp-v0",
+        env = make_vec_env("NoodlemanStandUpTorque-v0",
                         n_envs=num_cpu,
                         seed=0,
                         vec_env_cls=SubprocVecEnv,
@@ -35,22 +36,24 @@ if __name__ == '__main__':
                             'time_limit': time_limit,
                         })
     else:
+    #env = "NoodlemanStandUp-v0"
         meshcat = StartMeshcat()
-        env = gym.make("BoxFlipUp-v0", meshcat=meshcat, 
+        env = gym.make("NoodlemanStandUpTorque-v0", meshcat=meshcat, 
             observations=observations,time_limit=time_limit, debug=debug)
         input("Press Enter to continue...")
-
+        
+    #pdb.set_trace()
     if args.test:
         model = PPO('MlpPolicy', env, n_steps=4, n_epochs=2, batch_size=8)
     #elif os.path.exists(zip):
-    #    model = PPO.load(zip, env, verbose=1, tensorboard_log=log])
+    #    model = PPO.load(zip, env, verbose=1, tensorboard_log=log)
     else:
         model = PPO('MlpPolicy', env, verbose=1, tensorboard_log=log)
 
     new_log = True
     while True:
-        model.learn(total_timesteps=20000 if not args.test else 4,
-                    reset_num_timesteps=new_log,callback=[checkpoint_callback])
+        model.learn(total_timesteps=100000 if not args.test else 4,
+                    reset_num_timesteps=new_log, callback=[checkpoint_callback] if not args.test else [])
         if args.test:
             break
         model.save(zip)

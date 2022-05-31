@@ -90,12 +90,96 @@ drake_py_binary(
 
     ],
 )
+drake_py_binary(
+    name = "rl_train_noodleman_fbase_standup_pid",
+    srcs = ["rl_train_noodleman_fbase_standup_pid.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
 
+    ],
+)
+drake_py_binary(
+    name = "rl_play_noodleman_fbase_standup_pid",
+    srcs = ["rl_play_noodleman_fbase_standup_pid.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+
+drake_py_binary(
+    name = "rl_train_humanoid_fbase_standup_pid",
+    srcs = ["rl_train_humanoid_fbase_standup_pid.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rl_play_humanoid_fbase_standup_pid",
+    srcs = ["rl_play_humanoid_fbase_standup_pid.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+
+drake_py_binary(
+    name = "rl_train_noodlemanstandup_pid",
+    srcs = ["rl_train_noodlemanstandup_pid.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rl_play_noodlemanstandup_pid",
+    srcs = ["rl_play_noodlemanstandup_pid.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rl_train_noodleman_fbase_standup_torque",
+    srcs = ["rl_train_noodleman_fbase_standup_torque.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rl_play_noodleman_fbase_standup_torque",
+    srcs = ["rl_play_noodleman_fbase_standup_torque.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
 filegroup(
     name = "model_files",
     srcs = [
        "models/planar_bin.sdf",
        "models/noodleman_v1.sdf",
+       "models/noodleman_w_foot_v1.sdf",
+       "models/floor.sdf",
+       "models/humanoid_v2_noball.sdf",
     ],
 )
 add_lint_tests()
