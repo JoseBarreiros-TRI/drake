@@ -107,7 +107,8 @@ def make_noodleman_stand_up_sim(generator,
         plot_graphviz(plant.GetTopologyGraphvizString())
         plt.plot(1)
         plt.show(block=False)
-       
+
+    #pdb.set_trace()   
     ##Create inverse dynamics controller
     Ns = controller_plant.num_multibody_states()
     Nv = controller_plant.num_velocities()
@@ -128,7 +129,7 @@ def make_noodleman_stand_up_sim(generator,
         S[Na+j, joint.velocity_start()] = 1
         j = j+1
 
-    
+    #pdb.set_trace()   
     controller = builder.AddSystem(
         PidController(
             kp=kp, 
@@ -178,14 +179,15 @@ def make_noodleman_stand_up_sim(generator,
 
         def __init__(self):
             LeafSystem.__init__(self)
-            self.DeclareVectorInputPort("noodleman_state", 19)
-            self.DeclareAbstractInputPort("noodleman_poses",AbstractValue.Make([RigidTransform.Identity()]))
-            #self.DeclareVectorInputPort("noodleman_poses", 10)
-            self.DeclareVectorInputPort("actions", 3)
-            self.DeclareVectorOutputPort("reward", 1, self.CalcReward)
-            ##Create inverse dynamics controller
             Ns = controller_plant.num_multibody_states()
             Na = controller_plant.num_actuators()
+            self.DeclareVectorInputPort("noodleman_state", Ns)
+            self.DeclareAbstractInputPort("noodleman_poses",AbstractValue.Make([RigidTransform.Identity()]))
+            #self.DeclareVectorInputPort("noodleman_poses", 10)
+            self.DeclareVectorInputPort("actions", Na)
+            self.DeclareVectorOutputPort("reward", 1, self.CalcReward)
+            ##Create inverse dynamics controller
+
 
             # Select the joint states (and ignore the floating-base states)
             S=np.zeros((Na*2,Ns))
@@ -211,12 +213,38 @@ def make_noodleman_stand_up_sim(generator,
             
             StateView=MakeNamedViewState(plant, "States")
             state=StateView(noodleman_state)
-            #ActuationView=MakeNamedViewActuation(plant, "Actuation")
-            #actuation=ActuationView(actions)
-            
+            if debug:
+                pass
+                #print(state)
 
-            desired_joint_pose=np.array([0,0,0])
-            noodleman_joint_state=np.array([state.ankle_joint_q,state.knee_joint_q,state.hip_joint_q])
+            desired_joint_pose=np.array([0]*25)
+            noodleman_joint_state=np.array([
+                state.hipL_joint2_q,
+                state.hipL_joint1_q,
+                state.kneeL_joint_q,
+                state.ankleL_joint2_q,
+                state.ankleL_joint1_q,
+                state.toesL_joint_q,
+                state.hipR_joint2_q,
+                state.hipR_joint1_q,
+                state.kneeR_joint_q,
+                state.ankleR_joint2_q,
+                state.ankleR_joint1_q,
+                state.toesR_joint_q,
+                state.torso_joint1_q,
+                state.torso_joint2_q,
+                state.torso_joint3_q,
+                state.neck_joint1_q,
+                state.neck_joint2_q,
+                state.shoulderL_joint1_q,
+                state.shoulderL_joint2_q,
+                state.elbowL_joint_q,
+                state.wristL_joint_q,
+                state.shoulderR_joint1_q,
+                state.shoulderR_joint2_q,
+                state.elbowR_joint_q,
+                state.wristR_joint_q,
+                ])
             pos_error=desired_joint_pose-noodleman_joint_state
             
             #pdb.set_trace()
@@ -253,34 +281,22 @@ def make_noodleman_stand_up_sim(generator,
     builder.ExportOutput(reward.get_output_port(), "reward")
 
     # Set random state distributions.
-    uniform_random_1 = Variable(name="uniform_random",
-                              type=Variable.Type.RANDOM_UNIFORM)
-    uniform_random_2 = Variable(name="uniform_random2",
-                              type=Variable.Type.RANDOM_UNIFORM)   
-    uniform_random_3 = Variable(name="uniform_random3",
-                              type=Variable.Type.RANDOM_UNIFORM)                                                            
-    hip_joint = plant.GetJointByName("hip_joint")
-    knee_joint = plant.GetJointByName("knee_joint")
-    ankle_joint = plant.GetJointByName("ankle_joint")
-
-    low_hip= hip_joint.position_lower_limit()
-    high_hip= hip_joint.position_upper_limit()
-    low_knee= knee_joint.position_lower_limit()
-    high_knee= 0.5*knee_joint.position_upper_limit() #to avoid penetration w/ floor at start
-    low_ankle= ankle_joint.position_lower_limit()
-    high_ankle= ankle_joint.position_upper_limit()
-
-    #print(low_hip,' ',high_hip,' ',low_knee,' ',high_knee)
-
-    knee_joint.set_random_angle_distribution((high_knee-low_knee)*uniform_random_1+low_knee)
-    hip_joint.set_random_angle_distribution((high_hip-low_hip)*uniform_random_2+low_hip)
-    ankle_joint.set_random_angle_distribution((high_ankle-low_ankle)*uniform_random_3+low_ankle)
-
-
+    uniform_random=[]
     #pdb.set_trace()
+    for i in range(Na):
+        uniform_random.append(Variable(name="uniform_random{i}".format(i=i),
+                              type=Variable.Type.RANDOM_UNIFORM))
 
-    #context = plant.CreateDefaultContext()
-    #print(hip_joint.get_angle(context), ' ',knee_joint.get_angle(context))
+    for i in range(Na):
+        joint=plant.get_joint(JointIndex(i))   
+        if not "_weld" in joint.name():
+          
+            print(i,' ',joint.name())                                              
+            low_joint= joint.position_lower_limit()
+            high_joint= joint.position_upper_limit()
+
+            joint.set_random_angle_distribution((high_joint-low_joint)*uniform_random[i]+low_joint)
+
 
     diagram = builder.Build()
     simulator = Simulator(diagram)
@@ -332,13 +348,13 @@ def NoodlemanStandUpEnv(observations="state", meshcat=None, time_limit=5, debug=
         (plant.GetPositionLowerLimits(), plant.GetVelocityLowerLimits()))
     high = np.concatenate(
         (plant.GetPositionUpperLimits(), plant.GetVelocityUpperLimits()))
-    action_space = gym.spaces.Box(low=np.array([-np.pi/2, -np.pi/2, -np.pi/2], dtype="float64"),
-                                   high=np.array([np.pi/2, np.pi/2, np.pi/2], dtype="float64"))
+    action_space = gym.spaces.Box(low=np.array([-np.pi/2]*25, dtype="float64"),
+                                   high=np.array([np.pi/2]*25, dtype="float64"))
     
     #action_space = gym.spaces.Box(low=low[:2], high=high[:2],dtype=np.float64)
 
     
-
+    #pdb.set_trace()
     if observations == "state":
 
         observation_space = gym.spaces.Box(low=np.asarray(low, dtype="float64"),

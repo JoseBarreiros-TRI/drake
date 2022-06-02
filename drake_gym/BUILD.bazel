@@ -122,6 +122,17 @@ drake_py_binary(
     ],
 )
 drake_py_binary(
+    name = "test_capsule",
+    srcs = ["test_capsule.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+
+drake_py_binary(
     name = "rl_play_humanoid_fbase_standup_pid",
     srcs = ["rl_play_humanoid_fbase_standup_pid.py"],
     data = [":model_files"],
@@ -180,6 +191,7 @@ filegroup(
        "models/noodleman_w_foot_v1.sdf",
        "models/floor.sdf",
        "models/humanoid_v2_noball.sdf",
+        "models/capsule.sdf",
     ],
 )
 add_lint_tests()

@@ -24,7 +24,7 @@ if __name__ == '__main__':
     env = gym.make("Humanoid_fbase_StandUpPID-v0", meshcat=meshcat, observations=observations,debug=debug)
     env.simulator.set_target_realtime_rate(1.0)
     
-    #pdb.set_trace()
+    pdb.set_trace()
     check_env(env)
     #pdb.set_trace()
     

@@ -286,6 +286,29 @@ class MeshcatShapeReifier : public ShapeReifier {
             .GetAsMatrix4();
   }
 
+  void ImplementGeometry(const Capsule& capsule, void* data) override {
+    DRAKE_DEMAND(data != nullptr);
+    auto& lumped = *static_cast<internal::LumpedObjectData*>(data);
+    auto& mesh = lumped.object.emplace<internal::MeshData>();
+    lumped.object = internal::MeshData();
+
+    auto geometry = std::make_unique<internal::CapsuleGeometryData>();
+
+    geometry->uuid = uuids::to_string((*uuid_generator_)());
+    geometry->uuid2 = uuids::to_string((*uuid_generator_)());
+    geometry->radiusBottom = capsule.radius();
+    geometry->radiusTop = capsule.radius();
+    geometry->height = capsule.length();
+    geometry->radius = capsule.radius();
+    lumped.geometry = std::move(geometry);
+
+
+    // Meshcat cylinders have their long axis in y.
+    Eigen::Map<Eigen::Matrix4d>(mesh.matrix) =
+        RigidTransformd(RotationMatrixd::MakeXRotation(M_PI / 2.0))
+            .GetAsMatrix4();
+  }
+
   void ImplementGeometry(const HalfSpace&, void*) override {
     // TODO(russt): Use PlaneGeometry with fields width, height,
     // widthSegments, heightSegments
@@ -304,10 +327,6 @@ class MeshcatShapeReifier : public ShapeReifier {
     geometry->height = box.depth();
     geometry->depth = box.height();
     lumped.geometry = std::move(geometry);
-  }
-
-  void ImplementGeometry(const Capsule&, void*) override {
-    drake::log()->warn("Meshcat does not display Capsule geometry (yet).");
   }
 
   void ImplementGeometry(const Ellipsoid& ellipsoid, void* data) override {
