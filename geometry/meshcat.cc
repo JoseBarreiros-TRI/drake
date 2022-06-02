@@ -687,9 +687,30 @@ class Meshcat::Impl {
     }
   }
 
+  void SetObjectCapsule(std::string_view path, const Capsule& capsule,
+                        const Rgba& rgba) {
+    std::string cylinder_subpath = path + "/cylinder";
+    std::string top_subpath = path + "/top";
+    std::string bottom_subpath = path + "/bottom";
+
+    SetObject(cylinder_subpath, Cylinder(capsule.radius(), capsule.length()),
+              rgba);
+    SetObject(top_subpath, Sphere(capsule.radius()), rgba);
+    SetObject(bottom_subpath, Sphere(capsule.radius()), rgba);
+
+    SetTransform(top_subpath,
+                 RigidTransformd(Vector3d(0, 0, capsule.length() / 2)));
+    SetTransform(bottom_subpath,
+                 RigidTransformd(Vector3d(0, 0, -capsule.length() / 2)));
+  }
+
   // This function is public via the PIMPL.
   void SetObject(std::string_view path, const Shape& shape, const Rgba& rgba) {
     DRAKE_DEMAND(IsThread(main_thread_id_));
+
+    if(dynamic_cast<Capsule*>(&shape) != nullptr) {
+      SetObjectCapsule(path, shape, rgba);
+    }
 
     uuids::uuid_random_generator uuid_generator{generator_};
     internal::SetObjectData data;
