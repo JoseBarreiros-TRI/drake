@@ -23,10 +23,13 @@ if __name__ == '__main__':
     meshcat = StartMeshcat()
     env = gym.make("Humanoid_fbase_StandUpPID-v0", meshcat=meshcat, observations=observations,debug=debug)
     env.simulator.set_target_realtime_rate(1.0)
-    
     pdb.set_trace()
+    #obs=env.reset()
+    #print(env.observation_space.contains(obs))
+    
+    
     check_env(env)
-    #pdb.set_trace()
+    pdb.set_trace()
     
     model = PPO.load(zip, env, verbose=1, tensorboard_log=log)
     

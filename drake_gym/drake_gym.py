@@ -2,9 +2,10 @@
 
 import gym
 import numpy as np
+import pdb
 from typing import Callable, Union
 import warnings
-
+from pydrake.all import JointIndex
 from pydrake.common import RandomGenerator
 from pydrake.systems.sensors import ImageRgba8U
 from pydrake.systems.framework import (
@@ -16,6 +17,11 @@ from pydrake.systems.framework import (
     PortDataType,
     System,
 )
+from pydrake.common.containers import EqualToDict, namedview, NamedViewBase
+from utils import (FindResource, MakeNamedViewPositions, 
+        MakeNamedViewVelocities,
+        MakeNamedViewState,
+        MakeNamedViewActuation)
 from pydrake.systems.analysis import Simulator, SimulatorStatus
 
 
@@ -35,7 +41,8 @@ class DrakeGymEnv(gym.Env):
                                OutputPortIndex, str],
                  action_port_id: Union[InputPort, InputPortIndex, str] = None,
                  observation_port_id: Union[OutputPortIndex, str] = None,
-                 render_rgb_port_id: Union[OutputPortIndex, str] = None):
+                 render_rgb_port_id: Union[OutputPortIndex, str] = None,
+                 set_home = None):
         """
         Args:
             system: A Drake System
@@ -128,6 +135,8 @@ class DrakeGymEnv(gym.Env):
 
         if self.simulator:
             self._setup()
+        
+        self.set_home=set_home
 
     def _setup(self):
         """Completes the setup once we have a self.simulator."""
@@ -171,6 +180,12 @@ class DrakeGymEnv(gym.Env):
                 PortDataType.kAbstractValued
             assert isinstance(self.render_rgb_port.Allocate().get_value(),
                               ImageRgba8U)
+        
+        #(Maybe) expose plant and make NamedView
+        self.plant = self.simulator.get_system().GetSubsystemByName("plant")
+        self.stateview=MakeNamedViewState(self.plant, "States")
+        
+
 
     def step(self, action):
         """
@@ -187,6 +202,7 @@ class DrakeGymEnv(gym.Env):
         self.action_port.FixValue(context, action)
         catch = False
         try:
+            #print('ts',self.time_step, 'time',time)
             status = self.simulator.AdvanceTo(time + self.time_step)
         except RuntimeError as e:
             if "MultibodyPlant's discrete update solver failed to converge" \
@@ -201,6 +217,12 @@ class DrakeGymEnv(gym.Env):
         done = catch or status.reason() == \
             SimulatorStatus.ReturnReason.kReachedTerminationCondition
         info = dict()
+
+        state=self.stateview(observation)
+        info["NamedView"]=state
+        #print(state)
+        
+        #pdb.set_trace()
 
         return observation, reward, done, info
 
@@ -217,9 +239,22 @@ class DrakeGymEnv(gym.Env):
         context = self.simulator.get_mutable_context()
         context.SetTime(0)
         self.simulator.get_system().SetRandomContext(context, self.generator)
+        #pdb.set_trace()
+        if self.set_home is not None:
+            #print('set home')
+            self.set_home(self.simulator)
         self.simulator.Initialize()
         # Note: The output port will be evaluated without fixing the input port.
         observations = self.observation_port.Eval(context)
+        #print('obs',observations)
+        # plant = self.simulator.get_system().GetSubsystemByName("plant")
+        # contextt=plant.CreateDefaultContext()
+        # for i in range(25):
+        #     joint=plant.get_joint(JointIndex(i))   
+        #     if not "_weld" in joint.name():
+        #         print(joint.get_default_angle())
+        #         print(joint.get_angle(contextt))
+        
         return observations
 
     def render(self, mode='human'):

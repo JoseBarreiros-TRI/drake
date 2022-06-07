@@ -23,6 +23,23 @@ Toyota Research Institute-->
           <specular>1 1 0.1 1</specular>
         </material>
       </visual>
+      <collision name="col_cap_waist">
+        <pose>0 0 0 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.07</radius>
+            <length>0.16</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>           
+      </collision>
     </link>
 
     <link name='torso'>
@@ -40,6 +57,23 @@ Toyota Research Institute-->
           </capsule>
         </geometry>
       </visual>
+      <collision name="col_cap_upper_L">
+        <pose>-0.1 0 0.06 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.082</radius>
+            <length>0.16</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>      
       <visual name="cap_upper_R">
         <pose>0.1 0 0.06 0 1.5708 0</pose>
         <geometry>
@@ -48,7 +82,24 @@ Toyota Research Institute-->
             <length>0.16</length>
           </capsule>
         </geometry>
-      </visual>      
+      </visual>  
+      <collision name="col_cap_upper_R">
+        <pose>0.1 0 0.06 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.082</radius>
+            <length>0.16</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>      
       <visual name="cap_lower">
         <pose>0 0.005 -0.06 0 1.5708 0</pose>
         <geometry>
@@ -61,6 +112,23 @@ Toyota Research Institute-->
           <specular>1 1 0.1 1</specular>
         </material>
       </visual>
+      <collision name="col_cap_lower">
+        <pose>0 0.005 -0.06 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.08</radius>
+            <length>0.18</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
       <visual name="cap_lower_neck">
         <pose>0 0 0.15 0 0 0</pose>
         <geometry>
@@ -69,7 +137,24 @@ Toyota Research Institute-->
             <length>0.03</length>
           </capsule>
         </geometry>
-      </visual>    
+      </visual> 
+      <collision name="col_cap_lower_neck">
+        <pose>0 0 0.15 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.045</radius>
+            <length>0.03</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>     
+      </collision>    
     </link>    
 
     <link name='head'>
@@ -86,6 +171,23 @@ Toyota Research Institute-->
           </capsule>
         </geometry>
       </visual>
+      <collision name="col_cap_face">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.09</radius>
+            <length>0.09</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
       <visual name="cap_upper_neck">
         <pose>0 0 -0.14 0 0 0</pose>
         <geometry>
@@ -95,6 +197,23 @@ Toyota Research Institute-->
           </capsule>
         </geometry>
       </visual>
+      <collision name="col_cap_upper_neck">
+        <pose>0 0 -0.14 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.045</radius>
+            <length>0.03</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
     </link>
 
     <link name='arm_L'>
@@ -111,6 +230,23 @@ Toyota Research Institute-->
           </capsule>
         </geometry>
       </visual>
+      <collision name="col_cyl_arm">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.045</radius>
+            <length>0.28</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>     
     </link>    
 
     <link name='forearm_L'>
@@ -127,6 +263,23 @@ Toyota Research Institute-->
           </capsule>
         </geometry>
       </visual>
+      <collision name="col_cyl_arm">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.036</radius>
+            <length>0.25</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>    
     </link>
 
     <link name='hand_L'>
@@ -142,6 +295,22 @@ Toyota Research Institute-->
           </ellipsoid>
         </geometry>
       </visual>
+      <collision name="col_ellip_hand">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <ellipsoid>
+            <radii>0.04 0.03 0.065</radii>
+          </ellipsoid>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
     </link>
 
     <link name='arm_R'>
@@ -158,6 +327,23 @@ Toyota Research Institute-->
           </capsule>
         </geometry>
       </visual>
+      <collision name="col_cyl_arm">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.045</radius>
+            <length>0.28</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
     </link>    
 
     <link name='forearm_R'>
@@ -174,6 +360,23 @@ Toyota Research Institute-->
           </capsule>
         </geometry>
       </visual>
+      <collision name="col_cyl_arm">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.036</radius>
+            <length>0.25</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
     </link>
 
     <link name='hand_R'>
@@ -189,6 +392,22 @@ Toyota Research Institute-->
           </ellipsoid>
         </geometry>
       </visual>
+      <collision name="col_ellip_hand">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <ellipsoid>
+            <radii>0.04 0.03 0.065</radii>
+          </ellipsoid>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
     </link>
 
     <link name='hips'>
@@ -205,6 +424,23 @@ Toyota Research Institute-->
           </capsule>
         </geometry>
       </visual>
+      <collision name="col_cap_hips">
+        <pose>0 0 0 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.09</radius>
+            <length>0.18</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
     </link>
 
     <link name='upper_leg_L'>
@@ -221,6 +457,23 @@ Toyota Research Institute-->
           </capsule>
         </geometry>
       </visual>
+      <collision name="col_cap_uleg">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.075</radius>
+            <length>0.30</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
     </link>
 
     <link name='lower_leg_L'>
@@ -237,6 +490,23 @@ Toyota Research Institute-->
           </capsule>
         </geometry>
       </visual>
+      <collision name="col_cyl_lleg">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.06</radius>
+            <length>0.35</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>      
     </link>
 
     <link name='foot_L'>
@@ -252,6 +522,22 @@ Toyota Research Institute-->
           </sphere>
         </geometry>
       </visual>
+      <collision name="col_sph_ankle">
+        <pose>0 -0.08 0.028 0 0 0</pose>
+        <geometry>
+          <sphere>
+            <radius>0.06</radius>
+          </sphere>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
       <visual name="cap1_foot">
         <pose>-0.03 0.0 0 1.5708 0 0</pose>
         <geometry>
@@ -261,6 +547,23 @@ Toyota Research Institute-->
           </capsule>
         </geometry>
       </visual>
+      <collision name="col_cap1_foot">
+        <pose>-0.03 0.0 0 1.5708 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.03</radius>
+            <length>0.14</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
       <visual name="cap2_foot">
         <pose>0.03 0.0 0 1.5708 0 0</pose>
         <geometry>
@@ -270,6 +573,23 @@ Toyota Research Institute-->
           </capsule>
         </geometry>
       </visual>
+      <collision name="col_cap2_foot">
+        <pose>0.03 0.0 0 1.5708 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.03</radius>
+            <length>0.14</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
     </link>
 
     <link name='toes_L'>
@@ -286,6 +606,23 @@ Toyota Research Institute-->
           </capsule>
         </geometry>
       </visual>
+      <collision name="col_cap_toes">
+        <pose>0 0 0 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.027</radius>
+            <length>0.06</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
     </link>
 
 
@@ -306,6 +643,23 @@ Toyota Research Institute-->
           </capsule>
         </geometry>
       </visual>
+      <collision name="col_cap_uleg">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.075</radius>
+            <length>0.30</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
     </link>
 
     <link name='lower_leg_R'>
@@ -322,6 +676,23 @@ Toyota Research Institute-->
           </capsule>
         </geometry>
       </visual>
+      <collision name="col_cyl_lleg">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.06</radius>
+            <length>0.35</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
     </link>
 
     <link name='foot_R'>
@@ -337,6 +708,22 @@ Toyota Research Institute-->
           </sphere>
         </geometry>
       </visual>
+      <collision name="col_sph_ankle">
+        <pose>0 -0.08 0.028 0 0 0</pose>
+        <geometry>
+          <sphere>
+            <radius>0.06</radius>
+          </sphere>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
       <visual name="cap1_foot">
         <pose>-0.03 0.0 0 1.5708 0 0</pose>
         <geometry>
@@ -346,6 +733,23 @@ Toyota Research Institute-->
           </capsule>
         </geometry>
       </visual>
+      <collision name="col_cap1_foot">
+        <pose>-0.03 0.0 0 1.5708 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.03</radius>
+            <length>0.14</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
       <visual name="cap2_foot">
         <pose>0.03 0.0 0 1.5708 0 0</pose>
         <geometry>
@@ -355,6 +759,23 @@ Toyota Research Institute-->
           </capsule>
         </geometry>
       </visual>
+      <collision name="col_cap2_foot">
+        <pose>0.03 0.0 0 1.5708 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.03</radius>
+            <length>0.14</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
     </link>
 
     <link name='toes_R'>
@@ -371,6 +792,23 @@ Toyota Research Institute-->
           </capsule>
         </geometry>
       </visual>
+      <collision name="col_cap_toes">
+        <pose>0 0 0 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.027</radius>
+            <length>0.06</length>
+          </capsule>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:compliant_hydroelastic/>
+          <drake:hydroelastic_modulus>2.5e7</drake:hydroelastic_modulus>
+          <drake:mesh_resolution_hint>0.01</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>0.1</drake:mu_dynamic>
+          <drake:mu_static>0.1</drake:mu_static>
+          <drake:hunt_crossley_dissipation>0.25</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>   
+      </collision>
     </link>
 
 

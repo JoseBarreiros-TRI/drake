@@ -36,6 +36,7 @@ from pydrake.all import (
     UnitInertia,
     Variable,
     JointIndex,
+    RandomGenerator,
 )
 from pydrake.common.containers import EqualToDict, namedview, NamedViewBase
 
@@ -58,7 +59,7 @@ def AddFloor(plant):
     plant.WeldFrames(
         plant.world_frame(), plant.GetFrameByName("floor", floor),
         RigidTransform(RollPitchYaw(0, 0, 0),
-                        np.array([0, 0, -0.05]))
+                        np.array([0, 0, 0.0]))
                     )
     return floor
 
@@ -205,9 +206,9 @@ def make_noodleman_stand_up_sim(generator,
 
         def CalcReward(self, context, output):
             
-            torso_body_idx=plant.GetBodyByName('torso').index()
+            torso_body_idx=plant.GetBodyByName('waist').index()
             noodleman_state = self.get_input_port(0).Eval(context)
-            torso_pose=self.get_input_port(1).Eval(context)[torso_body_idx].translation()
+            waist_pose=self.get_input_port(1).Eval(context)[torso_body_idx].translation()
             actions = self.get_input_port(2).Eval(context)
             
             
@@ -249,7 +250,7 @@ def make_noodleman_stand_up_sim(generator,
             
             #pdb.set_trace()
             
-            cost_heigth=(1.7-torso_pose[2])**2
+            cost_heigth=(1.7-waist_pose[2])**2
 
             cost_pos = 2 * pos_error.dot(pos_error)
 
@@ -263,7 +264,7 @@ def make_noodleman_stand_up_sim(generator,
             reward= 27 - cost
 
             if debug:
-                print('torso_pose: ',torso_pose)
+                print('waist_pose: ',waist_pose)
                 print('joint_state: ',noodleman_joint_state)
                 print('act: {a}, j_state: {p}'.format(a=actions,p=noodleman_joint_state))
                 print('cost: {c}, cost_heigth: {ch}, cost_pos: {cp}, cost_vel: {cv}'.format(c=cost,ch=cost_heigth,cp=cost_pos,cv=cost_vel))
@@ -280,26 +281,34 @@ def make_noodleman_stand_up_sim(generator,
     builder.Connect(actions.get_output_port(), reward.get_input_port(2))
     builder.ExportOutput(reward.get_output_port(), "reward")
 
-    # Set random state distributions.
-    uniform_random=[]
-    #pdb.set_trace()
-    for i in range(Na):
-        uniform_random.append(Variable(name="uniform_random{i}".format(i=i),
-                              type=Variable.Type.RANDOM_UNIFORM))
+    # # Set random state distributions.
+    # uniform_random=[]
+    # #pdb.set_trace()
+    # for i in range(Na):
+    #     uniform_random.append(Variable(name="uniform_random{i}".format(i=i),
+    #                           type=Variable.Type.RANDOM_UNIFORM))
 
-    for i in range(Na):
-        joint=plant.get_joint(JointIndex(i))   
-        if not "_weld" in joint.name():
+    # #ccontext=plant.CreateDefaultContext()
+    # for i in range(Na):
+    #     joint=plant.get_mutable_joint(JointIndex(i))   
+    #     if not "_weld" in joint.name():
           
-            print(i,' ',joint.name())                                              
-            low_joint= joint.position_lower_limit()
-            high_joint= joint.position_upper_limit()
+    #         print(i,' ',joint.name())                                              
+    #         low_joint= joint.position_lower_limit()
+    #         high_joint= joint.position_upper_limit()
+    #         print((high_joint-low_joint)*uniform_random[i]+low_joint)
 
-            joint.set_random_angle_distribution((high_joint-low_joint)*uniform_random[i]+low_joint)
+    #         joint.set_random_angle_distribution((high_joint-low_joint)*uniform_random[i]+low_joint)
+    #         #print(joint.get_angle(ccontext))
 
 
     diagram = builder.Build()
+    #pdb.set_trace()
+
+
     simulator = Simulator(diagram)
+
+
 
     # Termination conditions:
     def monitor(context):
@@ -320,19 +329,35 @@ def make_noodleman_stand_up_sim(generator,
         plt.plot(1)
         plt.show(block=False)
     #pdb.set_trace()
-    # context = simulator.get_mutable_context()
-    # plant_context = plant.GetMyContextFromRoot(context)
-    # set_home(plant, plant_context)
-    # #if meshcat:
-    # context2 = controller_plant.CreateDefaultContext()
-    # controller_plant_context = controller_plant.GetMyContextFromRoot(context2)
-    # set_home(controller_plant, controller_plant_context)
+
     return simulator
 
 def set_home(plant, context):
     #pdb.set_trace()
     #print(plant)
-    plant.SetFreeBodyPose(context, plant.GetBodyByName("foot"), RigidTransform([0.5, 0.5, 0.5]))
+    waist=plant.GetBodyByName("waist")
+    
+    Na = plant.num_actuators()
+    for i in range(Na):
+        joint=plant.get_joint(JointIndex(i))   
+        if not "_weld" in joint.name():
+            #print(i,' ',joint.name())                                              
+            low_joint= joint.position_lower_limit()
+            high_joint= joint.position_upper_limit()
+            #pdb.set_trace()
+            #joint.set_default_angle(-0.1)
+            joint.set_angle(context,0.1*np.random.random()*(high_joint-low_joint)+0.1*low_joint)
+            #print(joint.get_angle(context))
+    plant.SetFreeBodyPose(context,waist,RigidTransform([0,0,1.05]))
+            
+
+def set_home2(simulator):
+    #print('setttt')
+    plant = simulator.get_system().GetSubsystemByName("plant")
+    context = simulator.get_mutable_context()
+    plant_context = plant.GetMyContextFromRoot(context)
+    set_home(plant, plant_context)
+
 
 def NoodlemanStandUpEnv(observations="state", meshcat=None, time_limit=5, debug=False):
     simulator = make_noodleman_stand_up_sim(RandomGenerator(),
@@ -341,8 +366,16 @@ def NoodlemanStandUpEnv(observations="state", meshcat=None, time_limit=5, debug=
                                 time_limit=time_limit,debug=debug)
 
     plant = simulator.get_system().GetSubsystemByName("plant")
-    
+    #controller_plant = simulator.get_system().GetSubsystemByName("controller_plant")
 
+
+    context = simulator.get_mutable_context()
+    plant_context = plant.GetMyContextFromRoot(context)
+    set_home(plant, plant_context)
+    # #if meshcat:
+    # context2 = controller_plant.CreateDefaultContext()
+    # controller_plant_context = controller_plant.GetMyContextFromRoot(context2)
+    # set_home(controller_plant, controller_plant_context)
 
     low = np.concatenate(
         (plant.GetPositionLowerLimits(), plant.GetVelocityLowerLimits()))
@@ -358,8 +391,8 @@ def NoodlemanStandUpEnv(observations="state", meshcat=None, time_limit=5, debug=
     if observations == "state":
 
         observation_space = gym.spaces.Box(low=np.asarray(low, dtype="float64"),
-                                           high=np.asarray(high,
-                                                           dtype="float64"),dtype=np.float64)
+                                            high=np.asarray(high, dtype="float64"),
+                                            dtype=np.float64)
 
     env = DrakeGymEnv(simulator=simulator,
                       time_step=0.005,
@@ -367,6 +400,8 @@ def NoodlemanStandUpEnv(observations="state", meshcat=None, time_limit=5, debug=
                       observation_space=observation_space,
                       reward="reward",
                       action_port_id="actions",
-                      observation_port_id="observations")
+                      observation_port_id="observations",
+                      set_home=set_home2,
+                      )
     #pdb.set_trace()
     return env
