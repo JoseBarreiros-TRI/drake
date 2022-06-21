@@ -39,7 +39,7 @@ if __name__ == '__main__':
     #env = "NoodlemanStandUp-v0"
         meshcat = StartMeshcat()
         env = gym.make("Humanoid_fbase_StandUpPID-v0", meshcat=meshcat, 
-            observations=observations,time_limit=time_limit, debug=False)
+            observations=observations,time_limit=time_limit, debug=debug)
         input("Press Enter to continue...")
         
     #pdb.set_trace()

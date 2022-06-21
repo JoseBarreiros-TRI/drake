@@ -24,6 +24,7 @@ from pydrake.all import (
     Parser,
     PassThrough,
     PlanarJoint,
+    ContactModel,
     PrismaticJoint,
     RandomGenerator,
     Rgba,
@@ -66,16 +67,19 @@ def AddFloor(plant):
 def make_noodleman_stand_up_sim(generator,
                     observations="state",
                     meshcat=None,
-                    time_limit=5,debug=False):
+                    time_limit=5,debug=False,contact_model=ContactModel.kPoint):
     builder = DiagramBuilder()
     plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=0.001)
-
+    
+    plant.set_contact_model(contact_model) 
+    
     noodleman = AddNoodleman(plant)
     AddFloor(plant)
     plant.Finalize()
     plant.set_name("plant")
     SetTransparency(scene_graph, alpha=0.5, source_id=plant.get_source_id())
     controller_plant = MultibodyPlant(time_step=0.001)
+    controller_plant.set_contact_model(contact_model) 
     AddNoodleman(controller_plant)
 
     if meshcat:
@@ -114,23 +118,28 @@ def make_noodleman_stand_up_sim(generator,
     Ns = controller_plant.num_multibody_states()
     Nv = controller_plant.num_velocities()
     Na = controller_plant.num_actuators()
+    Nj = controller_plant.num_joints()
+    Np = controller_plant.num_positions()
     kp = [100] * Na
     ki = [0] * Na
     kd = [10] * Na
     # Select the joint states (and ignore the floating-base states)
+    #pdb.set_trace()
     S=np.zeros((Na*2,Ns))
     j=0
     for i in range(plant.num_joints()):
         joint = plant.get_joint(JointIndex(i))
-        #print(joint.num_positions())
-        #pdb.set_trace()
-        if joint.num_positions() != 1:
-            continue
-        S[j, joint.position_start()] = 1
-        S[Na+j, joint.velocity_start()] = 1
-        j = j+1
+        print(joint.name())
+        print('p_i ',joint.position_start(),', v_i ',joint.velocity_start())
 
-    #pdb.set_trace()   
+        #pdb.set_trace()
+        if joint.num_positions() == 1:            
+            S[j, joint.position_start()] = 1
+            S[Na+j, joint.velocity_start()+Np] = 1
+            j = j+1
+        
+    pdb.set_trace()   
+    #print(S.shape)
     controller = builder.AddSystem(
         PidController(
             kp=kp, 
@@ -140,7 +149,7 @@ def make_noodleman_stand_up_sim(generator,
             output_projection=plant.MakeActuationMatrix()[Nv-Na:,:].T)
             )
     
-    builder.Connect(plant.get_state_output_port(noodleman),
+    builder.Connect(plant.get_state_output_port(),
                     controller.get_input_port_estimated_state())
 
     actions = builder.AddSystem(PassThrough(Na))
@@ -153,7 +162,7 @@ def make_noodleman_stand_up_sim(generator,
     builder.Connect(positions_to_state.get_output_port(),
                     controller.get_input_port_desired_state())
     builder.Connect(controller.get_output_port(),
-                    plant.get_actuation_input_port())
+                    plant.get_actuation_input_port(noodleman))
 
     
     if meshcat:
@@ -182,6 +191,7 @@ def make_noodleman_stand_up_sim(generator,
             LeafSystem.__init__(self)
             Ns = controller_plant.num_multibody_states()
             Na = controller_plant.num_actuators()
+            Nj = controller_plant.num_joints()
             self.DeclareVectorInputPort("noodleman_state", Ns)
             self.DeclareAbstractInputPort("noodleman_poses",AbstractValue.Make([RigidTransform.Identity()]))
             #self.DeclareVectorInputPort("noodleman_poses", 10)
@@ -195,30 +205,32 @@ def make_noodleman_stand_up_sim(generator,
             j=0
             for i in range(plant.num_joints()):
                 joint = plant.get_joint(JointIndex(i))
-                #print(joint.num_positions())
+                print(joint.name()," ",joint.num_positions())
                 #pdb.set_trace()
-                if joint.num_positions() != 1:
-                    continue
-                S[j, joint.position_start()] = 1
-                S[Na+j, joint.velocity_start()] = 1
-                j = j+1
-            #self.S=S
+            #     if joint.num_positions() != 1:
+            #         continue
+            #     S[j, joint.position_start()] = 1
+            #     S[Nj+j, joint.velocity_start()] = 1
+            #     print("p_i",joint.position_start(),"v_i",joint.velocity_start())
+            #     j = j+1
+            # self.S=S
+            # pdb.set_trace()
+            self.StateView=MakeNamedViewState(plant, "States")
+            self.desired_joint_pose=np.array([0]*25)
+
 
         def CalcReward(self, context, output):
             
-            torso_body_idx=plant.GetBodyByName('waist').index()
+            waist_body_idx=plant.GetBodyByName('waist').index()
             noodleman_state = self.get_input_port(0).Eval(context)
-            waist_pose=self.get_input_port(1).Eval(context)[torso_body_idx].translation()
+            waist_pose=self.get_input_port(1).Eval(context)[waist_body_idx].translation()
             actions = self.get_input_port(2).Eval(context)
             
             
-            StateView=MakeNamedViewState(plant, "States")
-            state=StateView(noodleman_state)
-            if debug:
-                pass
-                #print(state)
+            #pdb.set_trace()
+            state=self.StateView(noodleman_state)
+            #pdb.set_trace()
 
-            desired_joint_pose=np.array([0]*25)
             noodleman_joint_state=np.array([
                 state.hipL_joint2_q,
                 state.hipL_joint1_q,
@@ -246,7 +258,10 @@ def make_noodleman_stand_up_sim(generator,
                 state.elbowR_joint_q,
                 state.wristR_joint_q,
                 ])
-            pos_error=desired_joint_pose-noodleman_joint_state
+
+
+
+            pos_error=self.desired_joint_pose-noodleman_joint_state
             
             #pdb.set_trace()
             
@@ -345,9 +360,9 @@ def set_home(plant, context):
             low_joint= joint.position_lower_limit()
             high_joint= joint.position_upper_limit()
             #pdb.set_trace()
-            #joint.set_default_angle(-0.1)
-            joint.set_angle(context,0.1*np.random.random()*(high_joint-low_joint)+0.1*low_joint)
-            #print(joint.get_angle(context))
+
+            #joint.set_angle(context,0.1*np.random.random()*(high_joint-low_joint)+0.1*low_joint)
+
     plant.SetFreeBodyPose(context,waist,RigidTransform([0,0,1.05]))
             
 

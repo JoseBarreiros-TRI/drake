@@ -254,7 +254,8 @@ class DrakeGymEnv(gym.Env):
         #     if not "_weld" in joint.name():
         #         print(joint.get_default_angle())
         #         print(joint.get_angle(contextt))
-        
+        state=self.stateview(observations)
+        print(state)
         return observations
 
     def render(self, mode='human'):

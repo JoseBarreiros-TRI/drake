@@ -27,6 +27,10 @@ from pydrake.all import (DiagramBuilder,Parser,
 from pydrake.systems.primitives import ConstantVectorSource
 from pydrake.multibody.tree import WeldJoint
 
+from pydrake.systems.drawing import plot_graphviz, plot_system_graphviz
+import matplotlib.pyplot as plt
+import pdb
+
 def make_agent_chair(contact_model, contact_surface_representation,
                      time_step):
     multibody_plant_config = \
@@ -128,6 +132,13 @@ def make_agent_chair(contact_model, contact_surface_representation,
                     state_logger.get_input_port())
 
     diagram = builder.Build()
+    plt.figure()
+    plot_graphviz(plant.GetTopologyGraphvizString())
+    plt.figure()
+    plot_system_graphviz(diagram, max_depth=2)
+    plt.plot(1)
+    plt.show(block=False)
+    pdb.set_trace()
     return diagram, plant, state_logger, agent
 
 
