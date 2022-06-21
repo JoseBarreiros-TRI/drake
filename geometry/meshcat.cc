@@ -31,7 +31,6 @@
 #include "drake/common/text_logging.h"
 #include "drake/common/unused.h"
 #include "drake/geometry/meshcat_types.h"
-#include "drake/geometry/shape_specification.h"
 
 #ifdef BOOST_VERSION
 # error Drake should be using the non-boost flavor of msgpack.
@@ -297,29 +296,6 @@ class MeshcatShapeReifier : public ShapeReifier {
             .GetAsMatrix4();
   }
 
-  void ImplementGeometry(const Capsule& capsule, void* data) override {
-    DRAKE_DEMAND(data != nullptr);
-    auto& lumped = *static_cast<internal::LumpedObjectData*>(data);
-    auto& mesh = lumped.object.emplace<internal::MeshData>();
-    lumped.object = internal::MeshData();
-
-    auto geometry = std::make_unique<internal::CapsuleGeometryData>();
-
-    geometry->uuid = uuids::to_string((*uuid_generator_)());
-    geometry->uuid2 = uuids::to_string((*uuid_generator_)());
-    geometry->radiusBottom = capsule.radius();
-    geometry->radiusTop = capsule.radius();
-    geometry->height = capsule.length();
-    geometry->radius = capsule.radius();
-    lumped.geometry = std::move(geometry);
-
-
-    // Meshcat cylinders have their long axis in y.
-    Eigen::Map<Eigen::Matrix4d>(mesh.matrix) =
-        RigidTransformd(RotationMatrixd::MakeXRotation(M_PI / 2.0))
-            .GetAsMatrix4();
-  }
-
   void ImplementGeometry(const HalfSpace&, void*) override {
     // TODO(russt): Use PlaneGeometry with fields width, height,
     // widthSegments, heightSegments
@@ -338,6 +314,10 @@ class MeshcatShapeReifier : public ShapeReifier {
     geometry->height = box.depth();
     geometry->depth = box.height();
     lumped.geometry = std::move(geometry);
+  }
+
+  void ImplementGeometry(const Capsule&, void*) override {
+    drake::log()->warn("Meshcat does not display Capsule geometry (yet).");
   }
 
   void ImplementGeometry(const Ellipsoid& ellipsoid, void* data) override {
@@ -721,31 +701,9 @@ class Meshcat::Impl {
     }
   }
 
-  void SetObjectCapsule(std::string_view path, const Capsule& capsule,
-                        const Rgba& rgba) {
-    std::string cylinder_subpath = std::string(path) + "/cylinder";
-    std::string top_subpath = std::string(path) + "/top";
-    std::string bottom_subpath = std::string(path) + "/bottom";
-
-    SetObject(cylinder_subpath, Cylinder(capsule.radius(), capsule.length()),
-              rgba);
-    SetObject(top_subpath, Sphere(capsule.radius()), rgba);
-    SetObject(bottom_subpath, Sphere(capsule.radius()), rgba);
-
-    SetTransform(top_subpath,
-                 RigidTransformd(Eigen::Vector3d(0, 0, capsule.length() / 2)));
-    SetTransform(bottom_subpath,
-                 RigidTransformd(Eigen::Vector3d(0, 0, -capsule.length() / 2)));
-  }
-
   // This function is public via the PIMPL.
   void SetObject(std::string_view path, const Shape& shape, const Rgba& rgba) {
     DRAKE_DEMAND(IsThread(main_thread_id_));
-    //std::cout<<ShapeName(shape);
-    if(ShapeName(shape).name()=="Capsule") {
-      const Capsule* capsule = dynamic_cast<const Capsule*>(&shape);
-      SetObjectCapsule(path, *capsule, rgba);
-    }
 
     uuids::uuid_random_generator uuid_generator{generator_};
     internal::SetObjectData data;
