@@ -292,6 +292,8 @@ def make_environment(contact_model, contact_surface_representation,
     if use_idc:
         builder.Connect(IDC.get_output_port(),
                         gate_controller.get_input_port(0))
+        # builder.Connect(IDC.get_output_port(),
+        #                 plant.get_actuation_input_port(agent))       
     else:
         zero_actuation = builder.AddSystem(ConstantVectorSource([0] * Na))
         builder.Connect(zero_actuation.get_output_port(),
@@ -299,11 +301,7 @@ def make_environment(contact_model, contact_surface_representation,
 
     builder.Connect(gate_controller.get_output_port(),
                     plant.get_actuation_input_port(agent))  
-    # if use_idc: 
-    #     builder.Connect(positions_to_state.get_output_port(),
-    #                     gate_controller.get_input_port(1))
-
-
+                 
     if meshcat:
         positions_to_poses = builder.AddSystem(
             MultibodyPositionToGeometryPose(controller_plant))
