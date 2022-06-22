@@ -52,7 +52,7 @@ box_size=[ 0.35,#0.2+0.1*(np.random.random()-0.5),
          0.35,   #0.2+0.1*(np.random.random()-0.5),
         ]
 box_mass=5
-box_mu=0.5
+box_mu=1.0
 ##
 
 def AddAgent(plant):
@@ -295,9 +295,20 @@ def make_sim(generator,
     simulator.Initialize()
 
     # Termination conditions:
-    def monitor(context):
+    def monitor(context,plant=plant):
+        #pdb.set_trace()
+        plant_context=plant.GetMyContextFromRoot(context)
+        box_body_idx=plant.GetBodyByName('box').index() 
+        body_poses=plant.get_body_poses_output_port().Eval(plant_context)
+        box_pose=body_poses[box_body_idx].translation()
+        #print("b_pose: ", box_pose)
+        # terminate from time and box out of reach
         if context.get_time() > time_limit:
             return EventStatus.ReachedTermination(diagram, "time limit")
+        elif box_pose[1]>0.9:
+            #pdb.set_trace()
+            return EventStatus.ReachedTermination(diagram, "box out of reach")
+        
         return EventStatus.Succeeded()
 
     simulator.set_monitor(monitor)
