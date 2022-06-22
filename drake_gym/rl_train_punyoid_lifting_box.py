@@ -42,6 +42,7 @@ if __name__ == '__main__':
         meshcat = StartMeshcat()
         env = gym.make("PunyoidBoxLifting-v0", meshcat=meshcat, 
             observations=observations,time_limit=time_limit, debug=debug)
+        print("Open tensorboard in another terminal. tensorboard --logdir ",log)
         input("Press Enter to continue...")
         
     if args.test:
