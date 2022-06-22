@@ -30,8 +30,8 @@
         </geometry>
         <drake:proximity_properties>
           <drake:rigid_hydroelastic/>
-          <drake:mu_dynamic> 0.5 </drake:mu_dynamic>
-          <drake:mu_static> 0.5 </drake:mu_static>
+          <drake:mu_dynamic> 1.0 </drake:mu_dynamic>
+          <drake:mu_static> 1.0 </drake:mu_static>
           <drake:hunt_crossley_dissipation>3.0</drake:hunt_crossley_dissipation>
         </drake:proximity_properties>
       </collision>
