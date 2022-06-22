@@ -67,7 +67,7 @@ from pydrake.all import (
     PositionConstraint,
     MultibodyForces,
     Box,
-    StartMeshcat,
+    Meshcat,
 )
 
 box_size=[0.2+0.1*(np.random.random()-0.5),
@@ -466,7 +466,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.meshcat:
-        meshcat_server= StartMeshcat()
+        meshcat_server= Meshcat()
         visualizer=meshcat_server
     else:
         visualizer=None
