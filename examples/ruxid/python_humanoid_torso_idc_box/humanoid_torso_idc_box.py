@@ -371,36 +371,36 @@ def set_home(plant,plant_context):
                     )
     plant.SetFreeBodyPose(plant_context,box,box_pose)
 
-    Np = plant.num_positions()
-    PositionView=MakeNamedViewPositions(plant, "Positions")
+    # Np = plant.num_positions()
+    # PositionView=MakeNamedViewPositions(plant, "Positions")
 
-    default_position=PositionView([0]*Np)
-    default_position.shoulderR_joint1=np.pi/4
-    default_position.shoulderL_joint1=np.pi/4
-    default_position.elbowR_joint=np.pi/4
-    default_position.elbowL_joint=np.pi/4
-    default_position.prismatic_z=0.3
-    #pdb.set_trace()
-    # default_position.box_x=0.0
-    # default_position.box_y=0.1
-    # default_position.box_z=0.15
+    # default_position=PositionView([0]*Np)
+    # default_position.shoulderR_joint1=np.pi/4
+    # default_position.shoulderL_joint1=np.pi/4
+    # default_position.elbowR_joint=np.pi/4
+    # default_position.elbowL_joint=np.pi/4
+    # default_position.prismatic_z=0.3
+    # #pdb.set_trace()
+    # # default_position.box_x=0.0
+    # # default_position.box_y=0.1
+    # # default_position.box_z=0.15
 
-    #add randomness offset to positions
-    random_offset=PositionView([0]*Np)
-    random_offset.shoulderR_joint1=0.3*(np.random.random()-0.5)
-    random_offset.shoulderL_joint1=0.3*(np.random.random()-0.5)
-    random_offset.shoulderR_joint2=0.3*(np.random.random()-0.5)
-    random_offset.shoulderL_joint2=0.3*(np.random.random()-0.5)  
-    random_offset.elbowR_joint=0.3*(np.random.random()-0.5)
-    random_offset.elbowL_joint=0.3*(np.random.random()-0.5)
-    random_offset.torso_joint1=0.2*(np.random.random()-0.5)
-    random_offset.torso_joint2=0.2*(np.random.random()-0.5)
-    random_offset.torso_joint3=0.6*(np.random.random()-0.5)
-    random_offset.prismatic_z=0.2*(np.random.random()-0.5)
+    # #add randomness offset to positions
+    # random_offset=PositionView([0]*Np)
+    # random_offset.shoulderR_joint1=0.3*(np.random.random()-0.5)
+    # random_offset.shoulderL_joint1=0.3*(np.random.random()-0.5)
+    # random_offset.shoulderR_joint2=0.3*(np.random.random()-0.5)
+    # random_offset.shoulderL_joint2=0.3*(np.random.random()-0.5)  
+    # random_offset.elbowR_joint=0.3*(np.random.random()-0.5)
+    # random_offset.elbowL_joint=0.3*(np.random.random()-0.5)
+    # random_offset.torso_joint1=0.2*(np.random.random()-0.5)
+    # random_offset.torso_joint2=0.2*(np.random.random()-0.5)
+    # random_offset.torso_joint3=0.6*(np.random.random()-0.5)
+    # random_offset.prismatic_z=0.2*(np.random.random()-0.5)
 
 
-    # plant.SetPositions(plant_context,
-    #     default_position.__array__()+random_offset.__array__())
+    # # plant.SetPositions(plant_context,
+    # #     default_position.__array__()+random_offset.__array__())
 
 
 def simulate_diagram(diagram, plant, controller_plant, state_logger,
