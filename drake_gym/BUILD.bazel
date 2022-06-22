@@ -164,6 +164,16 @@ drake_py_binary(
     ],
 )
 drake_py_binary(
+    name = "rl_play_punyoid_lifting_box",
+    srcs = ["rl_play_punyoid_lifting_box.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
     name = "rl_train_noodleman_fbase_standup_torque",
     srcs = ["rl_train_noodleman_fbase_standup_torque.py"],
     data = [":model_files"],
@@ -183,6 +193,7 @@ drake_py_binary(
 
     ],
 )
+
 filegroup(
     name = "model_files",
     srcs = [
@@ -191,7 +202,9 @@ filegroup(
        "models/noodleman_w_foot_v1.sdf",
        "models/floor.sdf",
        "models/humanoid_v2_noball.sdf",
-        "models/capsule.sdf",
+       "models/capsule.sdf",
+       "models/floor_v2.sdf",
+       "models/humanoid_torso_v2_noball_noZeroBodies_spring_prismatic.sdf",
     ],
 )
 add_lint_tests()
