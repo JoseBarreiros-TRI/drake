@@ -47,9 +47,12 @@ controller_time_step=0.002
 gym_time_limit=5
 modes=["IDC","torque"]
 control_mode=modes[0]
-box_size=[ 0.2+0.1*(np.random.random()-0.5),
-            0.2+0.1*(np.random.random()-0.5),
-            0.2+0.1*(np.random.random()-0.5) ]
+box_size=[ 0.35,#0.2+0.1*(np.random.random()-0.5),
+        0.35,#0.2+0.1*(np.random.random()-0.5),
+         0.35,   #0.2+0.1*(np.random.random()-0.5),
+        ]
+box_mass=5
+box_mu=0.5
 ##
 
 def AddAgent(plant):
@@ -76,12 +79,12 @@ def AddFloor(plant):
                     )
     return floor
 
-def AddBox(plant, welded=False):
+def AddBox(plant):
     w= box_size[0]
     d= box_size[1]
     h= box_size[2]
-    mass=1 + 1*(np.random.random()-0.5)
-    mu=0.5 + 0.5*(np.random.random()-0.5)
+    mass= box_mass
+    mu= box_mu
     box=AddShape(plant, Box(w,d,h), name="box",mass=mass,mu=mu)
     # parser = Parser(plant)
     # box = parser.AddModelFromFile(FindResource("models/box.sdf"))
@@ -141,7 +144,7 @@ def make_sim(generator,
         MeshcatVisualizerCpp.AddToBuilder(builder, scene_graph, meshcat)
         ContactVisualizer.AddToBuilder(
             builder, plant, meshcat,
-            ContactVisualizerParams(radius=0.005, newtons_per_meter=40.0))
+            ContactVisualizerParams(radius=0.005, newtons_per_meter=500.0))
 
         # Use the controller plant to visualize the set point geometry.
         controller_scene_graph = builder.AddSystem(SceneGraph())
@@ -255,17 +258,29 @@ def make_sim(generator,
             self.DeclareVectorOutputPort("reward", 1, self.CalcReward)
             self.StateView=MakeNamedViewState(plant, "States")
             self.PositionView=MakeNamedViewPositions(plant, "Position")
-            self.ActuationView=MakeNamedViewActuation(plant, "Actuation") 
+            self.ActuationView=MakeNamedViewActuation(plant, "Actuation")
+            self.box_body_idx=plant.GetBodyByName('box').index() 
+            self.desired_box_heigth=0.6
+            #self.Np=plant.num_positions()
 
         def CalcReward(self, context, output):
-            reward=1
+            agent_state = self.get_input_port(0).Eval(context)
+            body_poses=self.get_input_port(1).Eval(context)
+            actions = self.get_input_port(2).Eval(context)
+            box_pose = body_poses[self.box_body_idx].translation()
+            
+            cost_heigth=self.desired_box_heigth-box_pose[2]
+            
+            cost = cost_heigth**2
+            reward=-cost
        
-            # if debug:
-            #     print('torso_pose: ',torso_pose)
-            #     print('joint_state: ',noodleman_joint_state)
-            #     print('act: {a}, j_state: {p}'.format(a=actions,p=noodleman_joint_state))
-            #     print('cost: {c}, cost_heigth: {ch}, cost_pos: {cp}, cost_vel: {cv}'.format(c=cost,ch=cost_heigth,cp=cost_pos,cv=cost_vel))
-            #     print('rew: {r}\n'.format(r=reward))
+            if debug:
+                print('box_pose: ',box_pose)
+                #print('joint_state: ',noodleman_joint_state)
+                #print('act: {a}, j_state: {p}'.format(a=actions,p=noodleman_joint_state))
+                print('cost: {c}, cost_heigth: {ch}'.format(c=cost,
+                        ch=cost_heigth))
+                print('rew: {r}\n'.format(r=reward))
 
             output[0] = reward
 
@@ -277,6 +292,7 @@ def make_sim(generator,
 
     diagram = builder.Build()
     simulator = Simulator(diagram)
+    simulator.Initialize()
 
     # Termination conditions:
     def monitor(context):
@@ -298,73 +314,64 @@ def make_sim(generator,
 
     return simulator
 
-def set_home(plant,plant_context):
+def set_home(simulator,diagram_context,plant_name="plant"):
+    
+    diagram = simulator.get_system()
+    plant=diagram.GetSubsystemByName(plant_name)
+    plant_context = diagram.GetMutableSubsystemContext(plant,
+                                                diagram_context)  
 
     home_positions=[
-        ('shoulderR_joint1',0.3*(np.random.random()-0.5)+np.pi/4),
-        ('shoulderL_joint1',0.3*(np.random.random()-0.5)),
-        ('shoulderR_joint2',0.3*(np.random.random()-0.5)+np.pi/4),
-        ('shoulderR_joint2',0.3*(np.random.random()-0.5)),
-        ('elbowR_joint',0.3*(np.random.random()-0.5)+np.pi/4),
-        ('elbowL_joint',0.3*(np.random.random()-0.5)+np.pi/4),
-        ('torso_joint1',0.3*(np.random.random()-0.5)),
-        ('torso_joint2',0.2*(np.random.random()-0.5)),
+        ('shoulderR_joint1',0.1*(np.random.random()-0.5)+0.1),
+        ('shoulderL_joint1',0.1*(np.random.random()-0.5)+0.1),
+        ('shoulderR_joint2',0.1*(np.random.random()-0.5)-0.2),
+        ('shoulderL_joint2',0.1*(np.random.random()-0.5)-0.2),
+        ('elbowR_joint',0.2*(np.random.random()-0.5)+0.1),
+        ('elbowL_joint',0.2*(np.random.random()-0.5)+0.1),
+        ('torso_joint1',0.2*(np.random.random()-0.5)),
+        ('torso_joint2',0.1*(np.random.random()-0.5)),
         ('torso_joint3',0.2*(np.random.random()-0.5)),
-        ('torso_joint2',0.6*(np.random.random()-0.5)),
         ('prismatic_z',0.2*(np.random.random()-0.5)+0.35),
     ]
 
+    #ensure the positions are within the joint limits
     for pair in home_positions:
         joint = plant.GetJointByName(pair[0])
         if joint.type_name()=="prismatic":
-            joint.set_translation(plant_context,pair[1])
+            joint.set_translation(plant_context,
+                        np.clip(pair[1],
+                            joint.position_lower_limit(),
+                            joint.position_upper_limit()
+                            )
+                        )
         elif joint.type_name()=="revolute":
-            joint.set_angle(plant_context,pair[1])
-
+            joint.set_angle(plant_context,
+                        np.clip(pair[1],
+                            joint.position_lower_limit(),
+                            joint.position_upper_limit()
+                            )
+                        )
     box=plant.GetBodyByName("box")
     
     box_pose = RigidTransform(
                     RollPitchYaw(0, 0, 0),
                     np.array(
                         [
-                            0+0.3*(np.random.random()-0.5), 
+                            0+0.25*(np.random.random()-0.5), 
                             0.4+0.15*(np.random.random()-0.5), 
                             box_size[2]/2+0.005,
                         ])
                     )
     plant.SetFreeBodyPose(plant_context,box,box_pose)
 
-    Np = plant.num_positions()
-    PositionView=MakeNamedViewPositions(plant, "Positions")
-
-    default_position=PositionView([0]*Np)
-    default_position.shoulderR_joint1=np.pi/4
-    default_position.shoulderL_joint1=np.pi/4
-    default_position.elbowR_joint=np.pi/4
-    default_position.elbowL_joint=np.pi/4
-    default_position.prismatic_z=0.3
-
-    #add randomness offset to positions
-    random_offset=PositionView([0]*Np)
-    random_offset.shoulderR_joint1=0.3*(np.random.random()-0.5)
-    random_offset.shoulderL_joint1=0.3*(np.random.random()-0.5)
-    random_offset.shoulderR_joint2=0.3*(np.random.random()-0.5)
-    random_offset.shoulderL_joint2=0.3*(np.random.random()-0.5)  
-    random_offset.elbowR_joint=0.3*(np.random.random()-0.5)
-    random_offset.elbowL_joint=0.3*(np.random.random()-0.5)
-    random_offset.torso_joint1=0.2*(np.random.random()-0.5)
-    random_offset.torso_joint2=0.2*(np.random.random()-0.5)
-    random_offset.torso_joint3=0.6*(np.random.random()-0.5)
-    random_offset.prismatic_z=0.2*(np.random.random()-0.5)
-
 def PunyoidBoxLiftingEnv(observations="state", meshcat=None, time_limit=gym_time_limit, debug=False):
+    
     #Make simulation
     simulator = make_sim(RandomGenerator(),
                             observations,
                             meshcat=meshcat,
                             time_limit=time_limit,
                             debug=debug)
-
     plant = simulator.get_system().GetSubsystemByName("plant")
     
     #Define Action space
@@ -384,31 +391,13 @@ def PunyoidBoxLiftingEnv(observations="state", meshcat=None, time_limit=gym_time
     observation_space = gym.spaces.Box(low=np.asarray(low, dtype="float64"),
                                        high=np.asarray(high, dtype="float64"),
                                        dtype=np.float64)
-    
+
     env = DrakeGymEnv(simulator=simulator,
                       time_step=gym_time_step,
                       action_space=action_space,
                       observation_space=observation_space,
                       reward="reward",
                       action_port_id="actions",
-                      observation_port_id="observations")
+                      observation_port_id="observations",
+                      set_home=set_home)
     return env
-
-# for standalone testing of the environment
-# if __name__ == "__main__":
-
-#     from pydrake.geometry import StartMeshcat
-#     from stable_baselines3.common.env_checker import check_env
-    
-#     # Make a version of the env with meshcat.
-#     meshcat = StartMeshcat()
-#     gym.envs.register(id="PunyoidBoxLifting-v0",
-#                   entry_point="punyoid_lifting_box:PunyoidBoxLiftingEnv")
-
-#     env = gym.make("PunyoidBoxLifting-v0", meshcat=meshcat, observations="state",debug=True)
-#     env.simulator.set_target_realtime_rate(1.0)
-#     pdb.set_trace()
-#     #obs=env.reset()
-#     #print(env.observation_space.contains(obs))
-    
-#     check_env(env)

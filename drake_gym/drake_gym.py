@@ -239,10 +239,11 @@ class DrakeGymEnv(gym.Env):
         context = self.simulator.get_mutable_context()
         context.SetTime(0)
         self.simulator.get_system().SetRandomContext(context, self.generator)
-        #pdb.set_trace()
         if self.set_home is not None:
-            #print('set home')
-            self.set_home(self.simulator)
+            self.set_home(self.simulator,context)
+        else:
+            self.simulator.get_system().SetRandomContext(context, self.generator)
+       
         self.simulator.Initialize()
         # Note: The output port will be evaluated without fixing the input port.
         observations = self.observation_port.Eval(context)
@@ -254,8 +255,9 @@ class DrakeGymEnv(gym.Env):
         #     if not "_weld" in joint.name():
         #         print(joint.get_default_angle())
         #         print(joint.get_angle(contextt))
-        state=self.stateview(observations)
-        print(state)
+        
+        #state=self.stateview(observations)
+        #print(state)
         return observations
 
     def render(self, mode='human'):
