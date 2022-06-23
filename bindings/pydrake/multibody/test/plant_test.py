@@ -58,6 +58,7 @@ from pydrake.multibody.plant import (
     CalcContactFrictionFromSurfaceProperties,
     ConnectContactResultsToDrakeVisualizer,
     ContactModel,
+    ContactSolver,
     ContactResults_,
     ContactResultsToLcmSystem,
     CoulombFriction_,
@@ -2019,6 +2020,16 @@ class TestPlant(unittest.TestCase):
         self.assertTrue(contact_results.num_point_pair_contacts() == 0)
         self.assertIsNone(contact_results.plant())
         copy.copy(contact_results)
+
+    def test_contact_solver(self):
+        plant = MultibodyPlant_[float](0.1)
+        solvers = [
+            ContactSolver.kTami,
+            ContactSolver.kSap,
+        ]
+        for solver in solvers:
+            plant.set_contact_solver(solver)
+            self.assertEqual(plant.get_contact_solver(), solver)
 
     def test_contact_model(self):
         plant = MultibodyPlant_[float](0.1)
