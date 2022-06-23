@@ -94,7 +94,7 @@ def make_agent_chair(contact_model, contact_surface_representation,
         MultibodyPlantConfig(
             time_step=time_step,
             contact_model=contact_model,
-            contact_solver="sap", # "tamsi"
+            contact_solver="sap", # "tamsi" "sap"
             contact_surface_representation=contact_surface_representation)
 
     builder = DiagramBuilder()
@@ -490,7 +490,7 @@ if __name__ == "__main__":
         help="Contact-surface representation for hydroelastics. "
              "Options are: 'triangle' or 'polygon'. Default 'polygon'.")
     parser.add_argument(
-        "--time_step", type=float, default=0.001,
+        "--time_step", type=float, default=0.02,
         help="The fixed time step period (in seconds) of discrete updates "
              "for the multibody plant modeled as a discrete system. "
              "If zero, we will use an integrator for a continuous system. "
