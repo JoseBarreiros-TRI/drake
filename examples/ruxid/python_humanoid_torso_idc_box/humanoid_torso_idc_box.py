@@ -45,12 +45,14 @@ from pydrake.all import (
     MeshcatVisualizerCpp,
     MeshcatVisualizerParams,
     MultibodyPlant,
+    MultibodyPlant_,
     MultibodyPositionToGeometryPose,
     Multiplexer,
     Parser,
     PassThrough,
     PlanarJoint,
     ContactModel,
+    ContactSolver,
     PrismaticJoint,
     RandomGenerator,
     Rgba,
@@ -154,12 +156,13 @@ def add_collision_filters(scene_graph, plant):
 
 def make_environment(contact_model, contact_surface_representation,
                      time_step, meshcat=None):
-
+    #pdb.set_trace()
     multibody_plant_config = \
         MultibodyPlantConfig(
             time_step=time_step,
             contact_model=contact_model,
-            contact_surface_representation=contact_surface_representation)
+            contact_surface_representation=contact_surface_representation,
+            contact_solver="sap")
 
     builder = DiagramBuilder()
 

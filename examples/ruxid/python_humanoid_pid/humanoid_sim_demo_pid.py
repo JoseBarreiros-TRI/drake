@@ -73,7 +73,7 @@ from utils import (FindResource, MakeNamedViewPositions,
 
 def AddNoodleman(plant):
     parser = Parser(plant)
-    noodleman = parser.AddModelFromFile(FindResource("models/humanoid_v2_noball_noZeroBodies_spring.sdf"))
+    noodleman = parser.AddModelFromFile(FindResource("models/humanoid_v2_noball_noZeroBodies.sdf"))
     #noodleman = parser.AddModelFromFile(FindResource("models/humanoid_v2_noball.sdf"))
     return noodleman
 
@@ -94,6 +94,7 @@ def make_agent_chair(contact_model, contact_surface_representation,
         MultibodyPlantConfig(
             time_step=time_step,
             contact_model=contact_model,
+            contact_solver="sap", # "tamsi"
             contact_surface_representation=contact_surface_representation)
 
     builder = DiagramBuilder()
@@ -118,7 +119,7 @@ def make_agent_chair(contact_model, contact_surface_representation,
           frame_on_child_C=plant.GetFrameByName("waist", agent),
           X_PC=p_WAgent_fixed
         )
-    plant.AddJoint(weld)
+    #plant.AddJoint(weld)
     plant.Finalize()
 
 
