@@ -28,6 +28,7 @@ from pydrake.all import (
     Simulator,
     WeldJoint,
     ContactModel,
+    ContactSolver,
 )
 
 from pydrake.systems.drawing import plot_graphviz, plot_system_graphviz
@@ -41,9 +42,9 @@ import pydrake.geometry as mut
 
 
 ## Gym parameters
-sim_time_step=0.001
-gym_time_step=0.005
-controller_time_step=0.002
+sim_time_step=0.005
+gym_time_step=0.01
+controller_time_step=0.01
 gym_time_limit=5
 modes=["IDC","torque"]
 control_mode=modes[0]
@@ -123,7 +124,9 @@ def make_sim(generator,
 
     #set contact model
     contact_model=ContactModel.kPoint
+    contact_solver=ContactSolver.kSap # kTamsi
     plant.set_contact_model(contact_model) 
+    plant.set_contact_solver(contact_solver)
 
     #add assets to the plant
     agent = AddAgent(plant)
@@ -136,7 +139,8 @@ def make_sim(generator,
 
     #add assets to the controller plant
     controller_plant = MultibodyPlant(time_step=controller_time_step)
-    controller_plant.set_contact_model(contact_model)     
+    controller_plant.set_contact_model(contact_model)   
+    controller_plant.set_contact_solver(contact_solver)  
     AddAgent(controller_plant)        
 #    SetTransparency(scene_graph, alpha=0.5, source_id=plant.get_source_id())
 
