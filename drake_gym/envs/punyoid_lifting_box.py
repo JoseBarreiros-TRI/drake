@@ -42,7 +42,7 @@ import pydrake.geometry as mut
 
 
 ## Gym parameters
-sim_time_step=0.005
+sim_time_step=0.0025
 gym_time_step=0.01
 controller_time_step=0.01
 gym_time_limit=5
@@ -264,6 +264,8 @@ def make_sim(generator,
             self.PositionView=MakeNamedViewPositions(plant, "Position")
             self.ActuationView=MakeNamedViewActuation(plant, "Actuation")
             self.box_body_idx=plant.GetBodyByName('box').index() 
+            self.handL_body_idx=plant.GetBodyByName('hand_L').index() 
+            self.handR_body_idx=plant.GetBodyByName('hand_R').index() 
             self.desired_box_heigth=0.6
             #self.Np=plant.num_positions()
 
@@ -272,18 +274,39 @@ def make_sim(generator,
             body_poses=self.get_input_port(1).Eval(context)
             actions = self.get_input_port(2).Eval(context)
             box_pose = body_poses[self.box_body_idx].translation()
+            handL_pose = body_poses[self.handL_body_idx].translation()
+            handR_pose = body_poses[self.handR_body_idx].translation()
             
-            cost_heigth=self.desired_box_heigth-box_pose[2]
+            #pdb.set_trace()
+            box_rotation=body_poses[self.box_body_idx].rotation().matrix()
+            #pose of the middle point of the farthest edge of the box
+            box_L_edge= box_rotation.dot(np.array([box_pose[0]+box_size[0]/2,box_pose[1]+box_size[1]/2,box_pose[2]]))
+            box_R_edge= box_rotation.dot(np.array([box_pose[0]-box_size[0]/2,box_pose[1]+box_size[1]/2,box_pose[2]]))
             
-            cost = cost_heigth**2
-            reward=-cost
+
+            diff_heigth=self.desired_box_heigth-box_pose[2]
+            cost_heigth=diff_heigth**2
+            #distance to the hands
+            diff_Lhand=box_L_edge-handL_pose
+            diff_Rhand=box_R_edge-handR_pose
+            cost_Lhand=diff_Lhand.dot(diff_Lhand)
+            cost_Rhand=diff_Rhand.dot(diff_Rhand)
+
+            cost = cost_Lhand + cost_Rhand + 10*cost_heigth
+            reward=1-cost
        
             if debug:
                 print('box_pose: ',box_pose)
+                print("Ledge: ",box_L_edge)
+                print("Redge: ",box_R_edge)
+                print("Lhand: ",handL_pose)
+                print("Rhand: ",handR_pose)
                 #print('joint_state: ',noodleman_joint_state)
                 #print('act: {a}, j_state: {p}'.format(a=actions,p=noodleman_joint_state))
-                print('cost: {c}, cost_heigth: {ch}'.format(c=cost,
-                        ch=cost_heigth))
+                print('cost: {c}, cost_heigth: {ch}, cost_Lhand: {cl}, cost_Rhand: {cr}'.format(c=cost,
+                        ch=cost_heigth,
+                        cl=cost_Lhand,
+                        cr=cost_Rhand))
                 print('rew: {r}\n'.format(r=reward))
 
             output[0] = reward
