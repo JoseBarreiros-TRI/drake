@@ -42,7 +42,7 @@ import pydrake.geometry as mut
 
 
 ## Gym parameters
-sim_time_step=0.0025
+sim_time_step=0.001
 gym_time_step=0.01
 controller_time_step=0.01
 gym_time_limit=5
@@ -54,11 +54,13 @@ box_size=[ 0.35,#0.2+0.1*(np.random.random()-0.5),
         ]
 box_mass=5
 box_mu=1.0
+contact_model=ContactModel.kPoint
+contact_solver=ContactSolver.kTamsi # kTamsi
 ##
 
 def AddAgent(plant):
     parser = Parser(plant)
-    agent = parser.AddModelFromFile(FindResource("models/humanoid_torso_v2_noball_noZeroBodies_spring_prismatic.sdf"))
+    agent = parser.AddModelFromFile(FindResource("models/humanoid_torso_v2_noball_noZeroBodies_spring_prismatic_v2.sdf"))
     p_WAgent_fixed = RigidTransform(RollPitchYaw(0, 0, 0),
                                      np.array([0, 0, 0])) #0.25
     weld=WeldJoint(
@@ -123,8 +125,6 @@ def make_sim(generator,
     plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=sim_time_step)
 
     #set contact model
-    contact_model=ContactModel.kPoint
-    contact_solver=ContactSolver.kSap # kTamsi
     plant.set_contact_model(contact_model) 
     plant.set_contact_solver(contact_solver)
 
@@ -364,8 +364,8 @@ def set_home(simulator,diagram_context,plant_name="plant"):
         ('shoulderL_joint1',0.1*(np.random.random()-0.5)+0.1),
         ('shoulderR_joint2',0.1*(np.random.random()-0.5)-0.2),
         ('shoulderL_joint2',0.1*(np.random.random()-0.5)-0.2),
-        ('elbowR_joint',0.2*(np.random.random()-0.5)+0.1),
-        ('elbowL_joint',0.2*(np.random.random()-0.5)+0.1),
+        ('elbowR_joint1',0.2*(np.random.random()-0.5)+0.1),
+        ('elbowL_joint1',0.2*(np.random.random()-0.5)+0.1),
         ('torso_joint1',0.2*(np.random.random()-0.5)),
         ('torso_joint2',0.1*(np.random.random()-0.5)),
         ('torso_joint3',0.2*(np.random.random()-0.5)),
