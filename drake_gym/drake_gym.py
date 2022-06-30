@@ -218,8 +218,8 @@ class DrakeGymEnv(gym.Env):
             SimulatorStatus.ReturnReason.kReachedTerminationCondition
         info = dict()
 
-        state=self.stateview(observation)
-        info["NamedView"]=state
+        #state=self.stateview(observation)
+        #info["NamedView"]=state
         #print(state)
         
         #pdb.set_trace()
