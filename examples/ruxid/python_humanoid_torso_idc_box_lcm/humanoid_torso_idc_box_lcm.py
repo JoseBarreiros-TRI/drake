@@ -1,11 +1,34 @@
-import gym
-import pdb
+"""
+This is an example for simulating a simplified humanoid (aka. noodleman) through pydrake.
+It reads three simple SDFormat files of a hydroelastic humanoid,
+a rigid chair, and rigid floor.
+It uses an inverse dynamics controller to bring the noodleman from a sitting to standing up position.
+"""
+import argparse
 import numpy as np
-from scipy.spatial.transform import Rotation as R
-import matplotlib.pyplot as plt
-from pydrake.common.value import AbstractValue
+import pdb
+from pydrake.common import FindResourceOrThrow
+from pydrake.geometry import DrakeVisualizer
 from pydrake.math import RigidTransform
 from pydrake.math import RollPitchYaw
+from pydrake.multibody.parsing import Parser
+from pydrake.multibody.plant import AddMultibodyPlant, AddMultibodyPlantSceneGraph
+from pydrake.multibody.plant import ConnectContactResultsToDrakeVisualizer
+from pydrake.multibody.plant import MultibodyPlantConfig
+from pydrake.systems.analysis import ApplySimulatorConfig
+from pydrake.systems.analysis import Simulator
+from pydrake.systems.analysis import SimulatorConfig
+from pydrake.systems.analysis import PrintSimulatorStatistics
+from pydrake.systems.framework import DiagramBuilder
+from pydrake.systems.primitives import VectorLogSink
+from pydrake.systems.controllers import InverseDynamicsController
+from pydrake.all import (DiagramBuilder,Parser,
+                         RigidTransform, Simulator)
+from pydrake.systems.primitives import ConstantVectorSource
+from pydrake.multibody.tree import WeldJoint, RevoluteJoint, PrismaticJoint
+from pydrake.systems.drawing import plot_graphviz, plot_system_graphviz
+import matplotlib.pyplot as plt
+import pydrake.geometry as mut
 from pydrake.all import (
     AddMultibodyPlantSceneGraph,
     Box,
@@ -14,7 +37,10 @@ from pydrake.all import (
     ContactVisualizerParams,
     DiagramBuilder,
     EventStatus,
+    FixedOffsetFrame,
     InverseDynamicsController,
+    InverseDynamics,
+    PidController,
     LeafSystem,
     MeshcatVisualizerCpp,
     MeshcatVisualizerParams,
@@ -23,28 +49,42 @@ from pydrake.all import (
     Multiplexer,
     Parser,
     PassThrough,
+    PlanarJoint,
+    ContactModel,
+    PrismaticJoint,
     RandomGenerator,
+    Rgba,
     RigidTransform,
+    RotationMatrix,
     SceneGraph,
     Simulator,
-    WeldJoint,
-    ContactModel,
+    SpatialInertia,
+    Sphere,
+    UnitInertia,
+    Variable,
+    JointIndex,
+    RandomGenerator,
+    PositionConstraint,
+    MultibodyForces,
+    Box,
+    Meshcat,
     ContactSolver,
+    LcmSubscriberSystem,
+    DrakeLcm,
 )
+# from pydrake.lcm import DrakeLcm, Subscriber
+from drake import lcmt_header, lcmt_quaternion
 
-from pydrake.systems.drawing import plot_graphviz, plot_system_graphviz
-from drake_gym import DrakeGymEnv
-from scenarios import AddShape, SetColor, SetTransparency
 from utils import (FindResource, MakeNamedViewPositions, 
         MakeNamedViewVelocities,
         MakeNamedViewState,
-        MakeNamedViewActuation)
-import pydrake.geometry as mut
+        MakeNamedViewActuation,
+        AddShape,
+        SetColor
+        )
 
-
-## Gym parameters
+## Env parameters
 sim_time_step=0.001
-gym_time_step=0.01
 controller_time_step=0.01
 gym_time_limit=5
 modes=["IDC","torque"]
@@ -76,7 +116,7 @@ def AddAgent(plant):
 
 def AddFloor(plant):
     parser = Parser(plant)
-    floor = parser.AddModelFromFile(FindResource("models/floor_v2.sdf"))
+    floor = parser.AddModelFromFile(FindResource("models/floor.sdf"))
     plant.WeldFrames(
         plant.world_frame(), plant.GetFrameByName("floor", floor),
         RigidTransform(RollPitchYaw(0, 0, 0),
@@ -91,8 +131,6 @@ def AddBox(plant):
     mass= box_mass
     mu= box_mu
     box=AddShape(plant, Box(w,d,h), name="box",mass=mass,mu=mu)
-    # parser = Parser(plant)
-    # box = parser.AddModelFromFile(FindResource("models/box.sdf"))
     return box
 
 def add_collision_filters(scene_graph, plant):
@@ -119,13 +157,12 @@ def add_collision_filters(scene_graph, plant):
             declaration=mut.CollisionFilterDeclaration().ExcludeWithin(
                 set))
 
-def make_sim(generator,
-                    observations="state",
-                    meshcat=None,
-                    time_limit=5,debug=False):
+def make_environment(meshcat=None, 
+                   debug = False):
+
     builder = DiagramBuilder()
     plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=sim_time_step)
-
+    
     #set contact model
     plant.set_contact_model(contact_model) 
     plant.set_contact_solver(contact_solver)
@@ -251,112 +288,32 @@ def make_sim(generator,
             controller_scene_graph.get_source_pose_port(
                 controller_plant.get_source_id()))
 
-    builder.ExportInput(actions.get_input_port(), "actions")
-    builder.ExportOutput(plant.get_state_output_port(), "observations")
 
-    class RewardSystem(LeafSystem):
+    nx = plant.num_positions() + plant.num_velocities()
+    state_logger = builder.AddSystem(VectorLogSink(nx))
+    builder.Connect(plant.get_state_output_port(),
+                    state_logger.get_input_port())
+
+    #lcm
+    lcm = DrakeLcm()
+    subscriber=builder.AddSystem(LcmSubscriberSystem.Make(
+        channel="test",
+        lcm_type=lcmt_quaternion,
+        lcm=lcm))
+
+    class ProcessLCM(LeafSystem):
 
         def __init__(self):
             LeafSystem.__init__(self)
-            self.DeclareVectorInputPort("state", Ns)
-            self.DeclareAbstractInputPort("body_poses",AbstractValue.Make([RigidTransform.Identity()]))
-            self.DeclareVectorInputPort("actions", Na)
-            self.DeclareVectorOutputPort("reward", 1, self.CalcReward)
-            self.StateView=MakeNamedViewState(plant, "States")
-            self.PositionView=MakeNamedViewPositions(plant, "Position")
-            self.ActuationView=MakeNamedViewActuation(plant, "Actuation")
-            self.box_body_idx=plant.GetBodyByName('box').index() 
-            self.handL_body_idx=plant.GetBodyByName('hand_L').index() 
-            self.handR_body_idx=plant.GetBodyByName('hand_R').index() 
-            self.torso_body_idx=plant.GetBodyByName('torso').index() 
-            self.desired_box_heigth=desired_box_heigth
-            #self.Np=plant.num_positions()
+            self.DeclareAbstractInputPort("state", Ns)
+            self.DeclareVectorOutputPort("actions", Na, self.process)
 
-        def CalcReward(self, context, output):
-            agent_state = self.get_input_port(0).Eval(context)
-            body_poses=self.get_input_port(1).Eval(context)
-            actions = self.get_input_port(2).Eval(context)
-            box_pose = body_poses[self.box_body_idx].translation()
-            handL_pose = body_poses[self.handL_body_idx].translation()
-            handR_pose = body_poses[self.handR_body_idx].translation()
-            torso_pose = body_poses[self.torso_body_idx].translation()
 
-            
-            
-            box_rotation=body_poses[self.box_body_idx].rotation().matrix()
-            box_euler=R.from_dcm(box_rotation).as_euler('zyx', degrees=False)
-            pdb.set_trace()
-            #pose of the middle point of the farthest edge of the box
-            box_L_edge= box_rotation.dot(np.array([box_pose[0]+box_size[0]/2,box_pose[1]+box_size[1]/2,box_pose[2]]))
-            box_R_edge= box_rotation.dot(np.array([box_pose[0]-box_size[0]/2,box_pose[1]+box_size[1]/2,box_pose[2]]))
-            
+        def process(self, context, output):
+            output=np.zeros(Na)
 
-            diff_heigth=self.desired_box_heigth-box_pose[2]
-
-            distance_to_torso=box_pose-torso_pose
-
-            cost_heigth=diff_heigth**2
-            #distance to the hands
-            diff_Lhand=box_L_edge-handL_pose
-            diff_Rhand=box_R_edge-handR_pose
-            cost_Lhand=diff_Lhand.dot(diff_Lhand)
-            cost_Rhand=diff_Rhand.dot(diff_Rhand)
-            cost_torso=distance_to_torso.dot(distance_to_torso)
-            cost_rotation=box_euler[1]**2+box_euler[2]**2 
-
-            cost = cost_Lhand + cost_Rhand + 10*cost_heigth + cost_torso + cost_rotation
-            reward=1.5-cost
-       
-            if debug:
-                print('box_pose: ',box_pose)
-                print("Ledge: ",box_L_edge)
-                print("Redge: ",box_R_edge)
-                print("torso: ", torso_pose)
-                print("Lhand: ",handL_pose)
-                print("Rhand: ",handR_pose)
-                
-                #print('joint_state: ',noodleman_joint_state)
-                #print('act: {a}, j_state: {p}'.format(a=actions,p=noodleman_joint_state))
-                print('cost: {c}, cost_heigth: {ch}, cost_Lhand: {cl}, cost_Rhand: {cr}, cost_torso: {ct}m cost_rotation: {cro}'.format(c=cost,
-                        ch=cost_heigth,
-                        cl=cost_Lhand,
-                        cr=cost_Rhand,
-                        ct= cost_torso,
-                        cro=cost_rotation,
-                        ))
-                print('rew: {r}\n'.format(r=reward))
-            #pdb.set_trace()
-
-            output[0] = reward
-
-    reward = builder.AddSystem(RewardSystem())
-    builder.Connect(plant.get_state_output_port(agent), reward.get_input_port(0))
-    builder.Connect(plant.get_body_poses_output_port(), reward.get_input_port(1))
-    builder.Connect(actions.get_output_port(), reward.get_input_port(2))
-    builder.ExportOutput(reward.get_output_port(), "reward")
 
     diagram = builder.Build()
-    simulator = Simulator(diagram)
-    simulator.Initialize()
-
-    # Termination conditions:
-    def monitor(context,plant=plant):
-        #pdb.set_trace()
-        plant_context=plant.GetMyContextFromRoot(context)
-        box_body_idx=plant.GetBodyByName('box').index() 
-        body_poses=plant.get_body_poses_output_port().Eval(plant_context)
-        box_pose=body_poses[box_body_idx].translation()
-        #print("b_pose: ", box_pose)
-        # terminate from time and box out of reach
-        if context.get_time() > time_limit:
-            return EventStatus.ReachedTermination(diagram, "time limit")
-        elif box_pose[1]>0.9:
-            #pdb.set_trace()
-            return EventStatus.ReachedTermination(diagram, "box out of reach")
-        
-        return EventStatus.Succeeded()
-
-    simulator.set_monitor(monitor)
 
     if debug:
         #visualize plant and diagram
@@ -368,7 +325,7 @@ def make_sim(generator,
         plt.show(block=False)
         #pdb.set_trace()
 
-    return simulator
+    return diagram, plant, controller_plant, state_logger, agent
 
 def set_home(simulator,diagram_context,plant_name="plant"):
     
@@ -420,40 +377,91 @@ def set_home(simulator,diagram_context,plant_name="plant"):
                     )
     plant.SetFreeBodyPose(plant_context,box,box_pose)
 
-def PunyoidBoxLiftingEnv(observations="state", meshcat=None, time_limit=gym_time_limit, debug=False):
-    
-    #Make simulation
-    simulator = make_sim(RandomGenerator(),
-                            observations,
-                            meshcat=meshcat,
-                            time_limit=time_limit,
-                            debug=debug)
-    plant = simulator.get_system().GetSubsystemByName("plant")
-    
-    #Define Action space
-    Na=plant.num_actuators()
-    low = plant.GetPositionLowerLimits()[:Na]
-    high = plant.GetPositionUpperLimits()[:Na]
-    # StateView=MakeNamedViewState(plant, "States")
-    # PositionView=MakeNamedViewPositions(plant, "Position")
-    # ActuationView=MakeNamedViewActuation(plant, "Actuation")
-    action_space = gym.spaces.Box(low=np.asarray(low, dtype="float64"), high=np.asarray(high, dtype="float64"),dtype=np.float64)
-     
-    #Define observation space 
-    low = np.concatenate(
-        (plant.GetPositionLowerLimits(), plant.GetVelocityLowerLimits()))
-    high = np.concatenate(
-        (plant.GetPositionUpperLimits(), plant.GetVelocityUpperLimits()))
-    observation_space = gym.spaces.Box(low=np.asarray(low, dtype="float64"),
-                                       high=np.asarray(high, dtype="float64"),
-                                       dtype=np.float64)
+def simulate_diagram(diagram, plant, controller_plant, state_logger,
+                       simulation_time, target_realtime_rate):
 
-    env = DrakeGymEnv(simulator=simulator,
-                      time_step=gym_time_step,
-                      action_space=action_space,
-                      observation_space=observation_space,
-                      reward="reward",
-                      action_port_id="actions",
-                      observation_port_id="observations",
-                      set_home=set_home)
-    return env
+    diagram_context = diagram.CreateDefaultContext()
+    plant_context = diagram.GetMutableSubsystemContext(plant,
+                                                diagram_context)    
+    
+    
+    #setup the simulator
+    simulator_config = SimulatorConfig(
+                           target_realtime_rate=target_realtime_rate,
+                           publish_every_time_step=True)
+    
+
+
+    simulator = Simulator(diagram)
+    ApplySimulatorConfig(simulator, simulator_config)
+
+
+
+    print("Initial state variables: ", plant.GetPositionsAndVelocities(plant_context))
+   
+    state_log = state_logger.FindMutableLog(simulator.get_mutable_context())
+    state_log.Clear()
+    simulator.Initialize()
+
+    context = simulator.get_mutable_context()
+    context.SetTime(0)
+    set_home(simulator, context)
+
+    #pdb.set_trace()
+    adv_step=0.1
+    time=0
+    for i in range(int(simulation_time/adv_step)):
+        time+=adv_step
+        simulator.AdvanceTo(time)
+        PrintSimulatorStatistics(simulator)    
+        input("Press Enter to continue...")
+    return state_log.sample_times(), state_log.data()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--simulation_time", type=float, default=4,
+        help="Desired duration of the simulation in seconds. "
+             "Default 8.0.")
+    parser.add_argument(
+        "--contact_model", type=str, default="hydroelastic_with_fallback",
+        help="Contact model. Options are: 'point', 'hydroelastic', "
+             "'hydroelastic_with_fallback'. "
+             "Default 'hydroelastic_with_fallback'")
+    parser.add_argument(
+        "--contact_surface_representation", type=str, default="polygon",
+        help="Contact-surface representation for hydroelastics. "
+             "Options are: 'triangle' or 'polygon'. Default 'polygon'.")
+    parser.add_argument(
+        "--time_step", type=float, default=0.001,
+        help="The fixed time step period (in seconds) of discrete updates "
+             "for the multibody plant modeled as a discrete system. "
+             "If zero, we will use an integrator for a continuous system. "
+             "Non-negative. Default 0.001.")
+    parser.add_argument(
+        "--target_realtime_rate", type=float, default=1.0,
+        help="Target realtime rate. Default 1.0.")
+    parser.add_argument(
+        "--meshcat", action="store_true",
+        help="If set, visualize in meshcat. Use DrakeVisualizer otherwise")        
+    parser.add_argument('--debug', action='store_true')
+    args = parser.parse_args()
+
+    if args.meshcat:
+        meshcat_server= Meshcat()
+        visualizer=meshcat_server
+    else:
+        visualizer=None
+
+    input("Press Enter to continue...")
+
+    diagram, plant, controller_plant,state_logger,agent_idx = make_environment(
+        meshcat=visualizer, debug=args.debug)
+    
+    time_samples, state_samples = simulate_diagram(
+        diagram, plant, controller_plant, state_logger,
+        args.simulation_time, 
+        args.target_realtime_rate)
+    
+    print("\nFinal state variables:")
+    print(state_samples[:, -1])
