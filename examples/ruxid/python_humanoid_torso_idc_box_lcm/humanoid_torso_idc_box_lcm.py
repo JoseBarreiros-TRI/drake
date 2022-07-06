@@ -7,6 +7,9 @@ It uses an inverse dynamics controller to bring the noodleman from a sitting to 
 import argparse
 import numpy as np
 import pdb
+import cv2
+import time
+import mediapipe as mp
 from pydrake.common import FindResourceOrThrow
 from pydrake.geometry import DrakeVisualizer
 from pydrake.math import RigidTransform
@@ -87,17 +90,19 @@ from utils import (FindResource, MakeNamedViewPositions,
 sim_time_step=0.001
 controller_time_step=0.01
 gym_time_limit=5
+teleop_freq=0.3
 modes=["IDC","torque"]
 control_mode=modes[0]
-box_size=[ 0.35,#0.2+0.1*(np.random.random()-0.5),
-        0.35,#0.2+0.1*(np.random.random()-0.5),
-         0.35,   #0.2+0.1*(np.random.random()-0.5),
+box_size=[ 0.4,#0.2+0.1*(np.random.random()-0.5),
+        0.4,#0.2+0.1*(np.random.random()-0.5),
+         0.4,   #0.2+0.1*(np.random.random()-0.5),
         ]
-box_mass=5
+box_mass=3
 box_mu=1.0
 contact_model=ContactModel.kPoint
 contact_solver=ContactSolver.kTamsi # kTamsi
 desired_box_heigth=0.6 #0.8
+camera_index=0
 ##
 
 def AddAgent(plant):
@@ -294,24 +299,166 @@ def make_environment(meshcat=None,
     builder.Connect(plant.get_state_output_port(),
                     state_logger.get_input_port())
 
-    #lcm
-    lcm = DrakeLcm()
-    subscriber=builder.AddSystem(LcmSubscriberSystem.Make(
-        channel="test",
-        lcm_type=lcmt_quaternion,
-        lcm=lcm))
+    #mediapipe
+    class MediapipeController:
+        def __init__(self,camera_port):
+            self.mp_drawing = mp.solutions.drawing_utils
+            self.mp_drawing_styles = mp.solutions.drawing_styles
+            self.mp_pose = mp.solutions.pose
+            # For webcam input:
+            self.cap = cv2.VideoCapture(camera_port)
+            self.pose=self.mp_pose.Pose(
+                min_detection_confidence=0.5,
+                min_tracking_confidence=0.5,
+                static_image_mode=False,
+                model_complexity=2,
+            )
+            # self.pose=self.mp_pose.Pose(
+            #     static_image_mode=True,
+            #     model_complexity=2,
+            #     enable_segmentation=True,
+            #     min_detection_confidence=0.5) 
+            #pdb.set_trace()
+            time.sleep(1)
 
-    class ProcessLCM(LeafSystem):
+        def process_frame(self):
+            #pdb.set_trace()
+            # with self.pose as pose:
+            if self.cap.isOpened():
+                success, image = self.cap.read()
+                if not success:
+                    print("Ignoring empty camera frame.")
+                    # If loading a video, use 'break' instead of 'continue'.
+
+                # To improve performance, optionally mark the image as not writeable to
+                # pass by reference.
+                image.flags.writeable = False
+                image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                results = self.pose.process(image)
+                
+                # Draw the pose annotation on the image.
+                image.flags.writeable = True
+                image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+                self.mp_drawing.draw_landmarks(
+                    image,
+                    results.pose_landmarks,
+                    self.mp_pose.POSE_CONNECTIONS,
+                    landmark_drawing_spec=self.mp_drawing_styles.get_default_pose_landmarks_style())
+                # Flip the image horizontally for a selfie-view display.
+                cv2.imshow('MediaPipe Pose', cv2.flip(image, 1))
+                cv2.waitKey(1) 
+            return results.pose_world_landmarks.landmark
+
+    class MediapipeTeleop(LeafSystem):
 
         def __init__(self):
             LeafSystem.__init__(self)
-            self.DeclareAbstractInputPort("state", Ns)
-            self.DeclareVectorOutputPort("actions", Na, self.process)
+            self.DeclareVectorOutputPort("actions", Na, self.get_actions)
+            self.TeleopManager=MediapipeController(camera_index)
+            self.landmark_by_name=self.TeleopManager.mp_pose.PoseLandmark
+            self.freq_ms=teleop_freq*1000
+            self.last_time_step=0
+            self.ActuationView=MakeNamedViewActuation(controller_plant, "Actuation")
+            self.actuation_matrix=controller_plant.MakeActuationMatrix()
+            ac=ActuationView(np.zeros(Na))
+            ac.prismatic_z=0.1
+            #pdb.set_trace()
+            self.last_actions=ac.__array__()#.dot(self.actuation_matrix.T)   
+            #acc=np.zeros(Na)
+            #acc[0]=0.4
 
+            #self.last_actions=acc
 
-        def process(self, context, output):
-            output=np.zeros(Na)
+        def landmark_to_vec(self,landmark_origin, landmark_end):
+            v=(np.array([landmark_end.x,landmark_end.y,landmark_end.z])-
+                np.array([landmark_origin.x,landmark_origin.y,landmark_origin.z]))
+            return v
 
+        def get_elbow_angle(self,results,side):
+            #pdb.set_trace()
+            if side=="RIGHT":
+                v1=self.landmark_to_vec(results[self.landmark_by_name.RIGHT_SHOULDER],
+                            results[self.landmark_by_name.RIGHT_ELBOW])
+                v2=self.landmark_to_vec(results[self.landmark_by_name.RIGHT_WRIST],
+                            results[self.landmark_by_name.RIGHT_ELBOW])
+            elif side=="LEFT":
+                v1=self.landmark_to_vec(results[self.landmark_by_name.LEFT_SHOULDER],
+                            results[self.landmark_by_name.LEFT_ELBOW])
+                v2=self.landmark_to_vec(results[self.landmark_by_name.LEFT_WRIST],
+                            results[self.landmark_by_name.LEFT_ELBOW])
+
+            ang=np.arccos(np.dot(v1,v2)/(np.linalg.norm(v1)*np.linalg.norm(v2)))
+
+            return np.pi-ang
+
+        def get_shoulder_angles(self,results,side):
+
+            if side=="RIGHT":
+                c=self.landmark_to_vec(results[self.landmark_by_name.RIGHT_SHOULDER],
+                        results[self.landmark_by_name.RIGHT_ELBOW])  
+                cc=np.array([-c[1],-c[2],-c[0]])
+            elif side=="LEFT":    
+                c=self.landmark_to_vec(results[self.landmark_by_name.LEFT_SHOULDER],
+                        results[self.landmark_by_name.LEFT_ELBOW])  
+                cc=np.array([-c[1],-c[2],c[0]])
+
+            # print("r_shoulder: ",v_landmark(results[landmark_by_name.RIGHT_SHOULDER]))
+            # print("l_shoulder: ",v_landmark(results[landmark_by_name.LEFT_SHOULDER]))
+            # print("r_hip: ",v_landmark(results[landmark_by_name.RIGHT_HIP]))
+            # print("r_elbow: ",v_landmark(results[landmark_by_name.RIGHT_ELBOW]))
+            # print("l_elbow: ",v_landmark(results[landmark_by_name.LEFT_ELBOW]))
+
+            
+            tetha=np.arctan(cc[1]/cc[0])
+            psi=np.arccos(cc[2]/np.linalg.norm(cc))
+            tetha1=np.arccos(cc[0]/(np.linalg.norm(cc)*np.sin(psi)))
+            j1=np.pi-tetha1
+            j2=psi-np.pi/2
+
+            # print("tetha:",tetha)
+            # print("tetha_1:",tetha1)
+            # print("psi:",psi)
+            # print("j1:",j1)
+            # print("j2:",j2)
+            #pdb.set_trace()
+
+            return [j1,j2]
+        
+        def landmarks_to_actions(self, landmarks,context):
+            angs_shoulderR=self.get_shoulder_angles(landmarks,"RIGHT")
+            ang_elbowR=self.get_elbow_angle(landmarks,"RIGHT")
+            angs_shoulderL=self.get_shoulder_angles(landmarks,"LEFT")
+            ang_elbowL=self.get_elbow_angle(landmarks,"LEFT")
+
+            actions=ActuationView(self.last_actions)
+            actions.shoulderR_joint1=angs_shoulderR[0]
+            actions.shoulderR_joint2=angs_shoulderR[1]+0.15
+            actions.elbowR_joint1=ang_elbowR
+
+            actions.shoulderL_joint1=angs_shoulderL[0]
+            actions.shoulderL_joint2=angs_shoulderL[1]+0.2
+            actions.elbowL_joint1=ang_elbowL
+            #print("shoulder: ",-ang_shoulder)
+            #print("elbow: ",np.pi-ang_elbow )
+            return actions.__array__()#.dot(self.actuation_matrix.T)
+
+        def get_actions(self, context, output):
+            time = context.get_time()
+            #print("time: ", time)
+            actions=self.last_actions
+            if (time*1000)%self.freq_ms == 0:
+                self.last_time_step=time+self.freq_ms*0.001
+                #print(time, self.last_time_step)
+                landmarks=self.TeleopManager.process_frame()
+                actions=self.landmarks_to_actions(landmarks,context)
+                self.last_actions=actions
+            #print(actions)
+            
+            output.set_value(actions.dot(self.actuation_matrix.T) )
+
+    teleop=builder.AddSystem(MediapipeTeleop())
+    builder.Connect(teleop.get_output_port(),
+                actions.get_input_port())
 
     diagram = builder.Build()
 
@@ -344,7 +491,7 @@ def set_home(simulator,diagram_context,plant_name="plant"):
         ('torso_joint1',0.2*(np.random.random()-0.5)),
         ('torso_joint2',0.1*(np.random.random()-0.5)),
         ('torso_joint3',0.2*(np.random.random()-0.5)),
-        ('prismatic_z',0.2*(np.random.random()-0.5)+0.35),
+        ('prismatic_z',0.1*(np.random.random()-0.5)+0.2),
     ]
 
     #ensure the positions are within the joint limits
@@ -370,8 +517,8 @@ def set_home(simulator,diagram_context,plant_name="plant"):
                     RollPitchYaw(0, 0.1, 0),
                     np.array(
                         [
-                            0+0.25*(np.random.random()-0.5), 
-                            0.4+0.15*(np.random.random()-0.5), 
+                            0+0.1*(np.random.random()-0.5), 
+                            0.3+0.1*(np.random.random()-0.5), 
                             box_size[2]/2+0.005,
                         ])
                     )
@@ -413,14 +560,14 @@ def simulate_diagram(diagram, plant, controller_plant, state_logger,
     for i in range(int(simulation_time/adv_step)):
         time+=adv_step
         simulator.AdvanceTo(time)
-        PrintSimulatorStatistics(simulator)    
-        input("Press Enter to continue...")
+        #PrintSimulatorStatistics(simulator)    
+        #input("Press Enter to continue...")
     return state_log.sample_times(), state_log.data()
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--simulation_time", type=float, default=4,
+        "--simulation_time", type=float, default=100,
         help="Desired duration of the simulation in seconds. "
              "Default 8.0.")
     parser.add_argument(
@@ -439,7 +586,7 @@ if __name__ == "__main__":
              "If zero, we will use an integrator for a continuous system. "
              "Non-negative. Default 0.001.")
     parser.add_argument(
-        "--target_realtime_rate", type=float, default=1.0,
+        "--target_realtime_rate", type=float, default=0.9,
         help="Target realtime rate. Default 1.0.")
     parser.add_argument(
         "--meshcat", action="store_true",
