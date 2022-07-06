@@ -55,7 +55,7 @@ box_size=[ 0.35,#0.2+0.1*(np.random.random()-0.5),
         ]
 box_mass=5
 box_mu=1.0
-contact_model=ContactModel.kPoint
+contact_model=ContactModel.kHydroelasticWithFallback#kHydroelastic#kPoint
 contact_solver=ContactSolver.kTamsi # kTamsi
 desired_box_heigth=0.6 #0.8
 ##
@@ -90,9 +90,12 @@ def AddBox(plant):
     h= box_size[2]
     mass= box_mass
     mu= box_mu
-    box=AddShape(plant, Box(w,d,h), name="box",mass=mass,mu=mu)
-    # parser = Parser(plant)
-    # box = parser.AddModelFromFile(FindResource("models/box.sdf"))
+    if contact_model==ContactModel.kHydroelastic or contact_model==ContactModel.kHydroelasticWithFallback:
+        parser = Parser(plant)
+        box = parser.AddModelFromFile(FindResource("models/box.sdf"))
+    else:
+        box=AddShape(plant, Box(w,d,h), name="box",mass=mass,mu=mu)
+
     return box
 
 def add_collision_filters(scene_graph, plant):
@@ -285,7 +288,7 @@ def make_sim(generator,
             
             box_rotation=body_poses[self.box_body_idx].rotation().matrix()
             box_euler=R.from_dcm(box_rotation).as_euler('zyx', degrees=False)
-            pdb.set_trace()
+            #pdb.set_trace()
             #pose of the middle point of the farthest edge of the box
             box_L_edge= box_rotation.dot(np.array([box_pose[0]+box_size[0]/2,box_pose[1]+box_size[1]/2,box_pose[2]]))
             box_R_edge= box_rotation.dot(np.array([box_pose[0]-box_size[0]/2,box_pose[1]+box_size[1]/2,box_pose[2]]))

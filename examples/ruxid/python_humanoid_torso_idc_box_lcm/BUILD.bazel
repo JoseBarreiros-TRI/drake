@@ -22,6 +22,30 @@ drake_py_binary(
     ],
 )
 
+drake_py_binary(
+    name = "mediapipe_test",
+    srcs = ["mediapipe_test.py"],
+    deps = [
+        "//bindings/pydrake",
+    ],
+)
+
+drake_py_binary(
+    name = "mediapipe_test2",
+    srcs = ["mediapipe_test2.py"],
+    deps = [
+        "//bindings/pydrake",
+    ],
+)
+
+drake_py_binary(
+    name = "mediapipe_test_video",
+    srcs = ["mediapipe_test_video.py"],
+    deps = [
+        "//bindings/pydrake",
+    ],
+)
+
 filegroup(
     name = "model_files",
     srcs = [

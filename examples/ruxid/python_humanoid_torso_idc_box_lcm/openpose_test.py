@@ -2,9 +2,11 @@ import sys
 import cv2
 import os
 from sys import platform
-import openpose as op
+import pdb
 
-dir_path = os.path.dirname(os.path.realpath(__file__))
+# import openpose as op
+from openpose import pyopenpose as op
+dir_path = '/home/josebarreiros/openpose/models/'
 sys.path.append('usr/local/python')
 
 
@@ -20,32 +22,43 @@ def set_params():
         params["scale_gap"] = 0.3
         params["scale_number"] = 1
         params["render_threshold"] = 0.05
-        # If GPU version is built, and multiple GPUs are available, set the ID here
-        params["num_gpu_start"] = 0
-        params["disable_blending"] = False
+        # # If GPU version is built, and multiple GPUs are available, set the ID here
+        # params["num_gpu_start"] = 0
+        # params["disable_blending"] = False
         # Ensure you point to the correct path where models are located
-        params["default_model_folder"] = dir_path + "/../../../models/"
+        params["model_folder"] = dir_path # + "/../../../models/"
         return params
 
 def main():
 
 
         params = set_params()
+        
+        opWrapper = op.WrapperPython(op.ThreadManagerMode.Synchronous)
+        opWrapper.configure(params)
+        opWrapper.execute()
+        #pdb.set_trace()
 
         #Constructing OpenPose object allocates GPU memory
         openpose = op.OpenPose(params)
 
         #Opening OpenCV stream
-        stream = cv2.VideoCapture(1)
+        stream = cv2.VideoCapture(0)
 
         font = cv2.FONT_HERSHEY_SIMPLEX
 
         while True:
 
                 ret,img = stream.read()
+                datum = op.Datum()
+                datum.cvInputData = img
+                opWrapper.emplaceAndPop(op.VectorDatum([datum]))
+
+
 
                 # Output keypoints and the image with the human skeleton blended on it
-                keypoints, output_image = openpose.forward(img, True)
+                keypoints= datum.poseKeyPoints
+                output_image= datum.cvOutputData 
 
                 # Print the human pose keypoints, i.e., a [#people x #keypoints x 3]-dimensional numpy object with the keypoints of all the people on that image
                 if len(keypoints)>0:
