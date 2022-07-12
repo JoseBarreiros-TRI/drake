@@ -348,7 +348,7 @@ def set_home(plant,plant_context):
         ('torso_joint2',0.2*(np.random.random()-0.5)),
         ('torso_joint3',0.2*(np.random.random()-0.5)),
         ('torso_joint2',0.6*(np.random.random()-0.5)),
-        ('prismatic_z',0.2*(np.random.random()-0.5)+0.35),
+        ('prismatic_z',0.2*(np.random.random()-0.5)+0.45),
     ]
 
     for pair in home_positions:
@@ -366,7 +366,7 @@ def set_home(plant,plant_context):
                         [
                             0+0.3*(np.random.random()-0.5), 
                             0.4+0.15*(np.random.random()-0.5), 
-                            box_size[2]/2+0.005,
+                            box_size[2]/2+0.015,
                         ])
                     )
     plant.SetFreeBodyPose(plant_context,box,box_pose)

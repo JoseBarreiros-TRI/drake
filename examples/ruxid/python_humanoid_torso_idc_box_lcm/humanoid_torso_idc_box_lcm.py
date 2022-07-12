@@ -88,7 +88,7 @@ from utils import (FindResource, MakeNamedViewPositions,
         )
 
 ## Env parameters
-sim_time_step=0.025
+sim_time_step=0.010
 controller_time_step=0.01
 # gym_time_limit=5
 teleop_freq=0.3
@@ -101,9 +101,9 @@ box_size=[ 0.35,#0.2+0.1*(np.random.random()-0.5),
 box_mass=2
 box_mu=10.0
 contact_model=ContactModel.kHydroelasticWithFallback#kPoint
-contact_solver=ContactSolver.kSap#kTamsi # kTamsi
+contact_solver=ContactSolver.kSap#Tamsi # kTamsi
 desired_box_heigth=0.6 #0.8
-camera_index=0
+camera_index=-1
 stereo_ZED=True
 ##
 
@@ -501,19 +501,19 @@ def make_environment(meshcat=None,
             angs_elbowL=self.get_elbow_angle(landmarks,"LEFT",angs_shoulderL[2],angs_shoulderL[3])
 
             actions=ActuationView(self.last_actions)
-            actions.shoulderR_joint1=angs_shoulderR[0]
-            actions.shoulderR_joint2=angs_shoulderR[1]+0.15
+            #actions.shoulderR_joint1=angs_shoulderR[0]
+            #actions.shoulderR_joint2=angs_shoulderR[1]+0.15
             #actions.elbowR_joint1=angs_elbowR[0]
             #actions.elbowR_joint2=angs_elbowR[1]
-            actions.elbowR_joint1=angs_elbowR[2]
-            actions.elbowR_joint2=0.2*angs_elbowR[2]
+            #actions.elbowR_joint1=angs_elbowR[2]
+            #actions.elbowR_joint2=0.2*angs_elbowR[2]
 
-            actions.shoulderL_joint1=angs_shoulderL[0]
-            actions.shoulderL_joint2=angs_shoulderL[1]+0.2
+            #actions.shoulderL_joint1=angs_shoulderL[0]
+            #actions.shoulderL_joint2=angs_shoulderL[1]+0.2
             #actions.elbowL_joint1=angs_elbowL[0]
             #actions.elbowL_joint2=angs_elbowL[1]
-            actions.elbowL_joint1=angs_elbowL[2]
-            actions.elbowL_joint2=0.2*angs_elbowL[2]
+            #actions.elbowL_joint1=angs_elbowL[2]
+            #actions.elbowL_joint2=0.2*angs_elbowL[2]
             #print("shoulder: ",-ang_shoulder)
             #print("elbow: ",np.pi-ang_elbow )
             return actions.__array__()#.dot(self.actuation_matrix.T)

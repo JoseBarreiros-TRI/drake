@@ -11,10 +11,10 @@
         <mass>0.1</mass>
       </inertial>
       <visual name="visual">
-        <pose>0 0 -2.5e-2 0 0 0</pose>
+        <pose>0 0 -0.75 0 0 0</pose>
         <geometry>
           <box>
-            <size>10 10 5.0e-2</size>
+            <size>10 10 1</size>
           </box>
         </geometry>
         <material>
@@ -22,17 +22,20 @@
         </material>
       </visual>
       <collision name="collision">
-        <pose>0 0 -2.5e-2 0 0 0</pose>
+        <pose>0 0 -0.75 0 0 0</pose>
         <geometry>
           <box>
-            <size>10 10 5.0e-2</size>
+            <size>10 10 1</size>
           </box>
         </geometry>
         <drake:proximity_properties>
-          <drake:rigid_hydroelastic/>
+          <drake:compliant_hydroelastic/>
           <drake:mu_dynamic> 0.5 </drake:mu_dynamic>
           <drake:mu_static> 0.5 </drake:mu_static>
+          <drake:mesh_resolution_hint>10</drake:mesh_resolution_hint>
+          <drake:hydroelastic_modulus>2.5e6</drake:hydroelastic_modulus>
           <drake:hunt_crossley_dissipation>1.0</drake:hunt_crossley_dissipation>
+          <drake:dissipation_timescale>0.1</drake:dissipation_timescale>
         </drake:proximity_properties>
       </collision>
     </link>
