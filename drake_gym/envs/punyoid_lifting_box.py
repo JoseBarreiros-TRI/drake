@@ -55,9 +55,9 @@ box_size=[ 0.35,#0.2+0.1*(np.random.random()-0.5),
         ]
 box_mass=5
 box_mu=1.0
-contact_model=ContactModel.kHydroelasticWithFallback#kHydroelastic#kPoint
+contact_model=ContactModel.kPoint#kHydroelasticWithFallback#kHydroelastic#kPoint
 contact_solver=ContactSolver.kTamsi # kTamsi
-desired_box_heigth=0.6 #0.8
+desired_box_heigth=0.7 #0.8
 ##
 
 def AddAgent(plant):
@@ -255,7 +255,37 @@ def make_sim(generator,
                 controller_plant.get_source_id()))
 
     builder.ExportInput(actions.get_input_port(), "actions")
-    builder.ExportOutput(plant.get_state_output_port(), "observations")
+
+    class observation_publisher(LeafSystem):
+
+        def __init__(self):
+            LeafSystem.__init__(self)
+            Nss = plant.num_multibody_states()
+            self.DeclareVectorInputPort("plant_states", Nss)
+            self.DeclareAbstractInputPort("body_poses",AbstractValue.Make([RigidTransform.Identity()]))
+            self.DeclareVectorOutputPort("observations", Nss+6, self.CalcObs)
+            self.box_body_idx=plant.GetBodyByName('box').index()
+
+        def CalcObs(self, context,output):
+            plant_state = self.get_input_port(0).Eval(context)
+            body_poses=self.get_input_port(1).Eval(context)
+   
+            box_pose = body_poses[self.box_body_idx].translation()
+ 
+            box_rotation=body_poses[self.box_body_idx].rotation().matrix()
+            #pose of the middle point of the farthest edge of the box
+            box_L_edge= box_rotation.dot(np.array([box_pose[0]+box_size[0]/2,box_pose[1]+box_size[1]/2,box_pose[2]]))
+            box_R_edge= box_rotation.dot(np.array([box_pose[0]-box_size[0]/2,box_pose[1]+box_size[1]/2,box_pose[2]]))
+            #pdb.set_trace()
+            extension=np.concatenate((box_L_edge,box_R_edge))
+            extended_observations=np.concatenate((plant_state,extension))      
+            output.set_value(extended_observations)
+
+    obs_pub=builder.AddSystem(observation_publisher())
+
+    builder.Connect(plant.get_state_output_port(),obs_pub.get_input_port(0))
+    builder.Connect(plant.get_body_poses_output_port(), obs_pub.get_input_port(1))
+    builder.ExportOutput(obs_pub.get_output_port(), "observations")
 
     class RewardSystem(LeafSystem):
 
@@ -444,9 +474,9 @@ def PunyoidBoxLiftingEnv(observations="state", meshcat=None, time_limit=gym_time
      
     #Define observation space 
     low = np.concatenate(
-        (plant.GetPositionLowerLimits(), plant.GetVelocityLowerLimits()))
+        (plant.GetPositionLowerLimits(), plant.GetVelocityLowerLimits(),np.array([-np.inf]*6)))
     high = np.concatenate(
-        (plant.GetPositionUpperLimits(), plant.GetVelocityUpperLimits()))
+        (plant.GetPositionUpperLimits(), plant.GetVelocityUpperLimits(),np.array([np.inf]*6)))
     observation_space = gym.spaces.Box(low=np.asarray(low, dtype="float64"),
                                        high=np.asarray(high, dtype="float64"),
                                        dtype=np.float64)

@@ -13,7 +13,7 @@ import os.path
 
 #pdb.set_trace()
 dir='/home/josebarreiros/drake/examples/ruxid/python_humanoid_torso_idc_box_lcm/'
-fname=dir+'media/side.mp4'
+fname=dir+'media/up_elbow.mp4'
 print(os.path.isfile(fname) )
 
 
@@ -48,7 +48,7 @@ class MediapipeController:
       if self.cap.isOpened():
           success, image = self.cap.read()
           
-          image=cv2.flip(image, 1)
+          #image=cv2.flip(image, 1)
 
 
           if not success:
@@ -78,8 +78,8 @@ class MediapipeController:
           # angle=elbow_angle(results.pose_world_landmarks.landmark,self.landmark_names)       
           # cv2.putText(image,str(np.degrees(angle)),(150, 250),
           #       cv2.FONT_HERSHEY_SIMPLEX, 0.5, 255)
-
-          angle=shoulder_angle(results.pose_world_landmarks.landmark,self.landmark_names,side="LEFT")       
+          angle=elbow_angle(results.pose_world_landmarks.landmark,self.landmark_names,side="RIGHT")  
+          #angle=shoulder_angle(results.pose_world_landmarks.landmark,self.landmark_names,side="RIGHT")       
           # cv2.putText(image,str(np.degrees(angle)),(150, 350),
           #       cv2.FONT_HERSHEY_SIMPLEX, 0.5, 255)
 
@@ -99,15 +99,39 @@ def landmark_to_vec(landmark_origin, landmark_end):
 def angle_between_vectors(v1,v2):
   return np.arccos( np.dot(v1,v2) / ( np.linalg.norm(v1)*np.linalg.norm(v2) ) )
 
-def elbow_angle(results,landmark_by_name):
-  #pdb.set_trace()
-  c=landmark_to_vec(results[landmark_by_name.RIGHT_SHOULDER],
-            results[landmark_by_name.RIGHT_ELBOW])
-  d=landmark_to_vec(results[landmark_by_name.RIGHT_ELBOW],
+def elbow_angle(results,landmark_by_name,side):
+ 
+
+  
+  if side=="RIGHT":
+    c=landmark_to_vec(results[landmark_by_name.RIGHT_SHOULDER],
+                results[landmark_by_name.RIGHT_ELBOW]) 
+    cc=np.array([-c[1],-c[2],-c[0]])
+    d=landmark_to_vec(results[landmark_by_name.RIGHT_ELBOW],
               results[landmark_by_name.RIGHT_WRIST])
+  angle=np.arccos(np.dot(c,d)/(np.linalg.norm(c)*np.linalg.norm(d)))
+  print("angle: ",angle)
+
+  psi=np.arccos(cc[2]/np.linalg.norm(cc))
+  tetha=np.arccos(cc[0]/(np.linalg.norm(cc)*np.sin(psi)))
   
-  
-  return 1#np.arccos(np.dot(c,d))
+  Rz=np.array([
+    [np.cos(psi), -np.sin(psi), 0],
+    [np.sin(psi), np.cos(psi), 0],
+    [0, 0, 1],
+  ])
+  Ry=np.array([
+    [np.cos(tetha), 0, np.sin(tetha)],
+    [0,1 , 0],
+    [-np.sin(tetha), 0, np.cos(tetha)],
+  ])
+  #pdb.set_trace()
+  d_=Rz@Ry@d
+  psi_elb=np.arccos(d_[2]/np.linalg.norm(d_))
+  tetha_elb=np.arccos(d_[0]/(np.linalg.norm(d_)*np.sin(psi_elb)))
+  print("tetha_elb:",tetha_elb)
+  print("psi_elb:",psi_elb)
+  return 1#
 
 def v_landmark(landmark):
   return [landmark.x,landmark.y,landmark.z]

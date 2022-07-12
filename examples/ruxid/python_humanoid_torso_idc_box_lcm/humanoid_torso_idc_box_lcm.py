@@ -10,6 +10,7 @@ import pdb
 import cv2
 import time
 import mediapipe as mp
+import queue, threading
 from pydrake.common import FindResourceOrThrow
 from pydrake.geometry import DrakeVisualizer
 from pydrake.math import RigidTransform
@@ -87,22 +88,23 @@ from utils import (FindResource, MakeNamedViewPositions,
         )
 
 ## Env parameters
-sim_time_step=0.001
+sim_time_step=0.025
 controller_time_step=0.01
-gym_time_limit=5
+# gym_time_limit=5
 teleop_freq=0.3
 modes=["IDC","torque"]
 control_mode=modes[0]
-box_size=[ 0.4,#0.2+0.1*(np.random.random()-0.5),
-        0.4,#0.2+0.1*(np.random.random()-0.5),
-         0.4,   #0.2+0.1*(np.random.random()-0.5),
+box_size=[ 0.35,#0.2+0.1*(np.random.random()-0.5),
+        0.35,#0.2+0.1*(np.random.random()-0.5),
+         0.35,   #0.2+0.1*(np.random.random()-0.5),
         ]
-box_mass=3
-box_mu=1.0
-contact_model=ContactModel.kPoint
-contact_solver=ContactSolver.kTamsi # kTamsi
+box_mass=2
+box_mu=10.0
+contact_model=ContactModel.kHydroelasticWithFallback#kPoint
+contact_solver=ContactSolver.kSap#kTamsi # kTamsi
 desired_box_heigth=0.6 #0.8
 camera_index=0
+stereo_ZED=True
 ##
 
 def AddAgent(plant):
@@ -135,7 +137,12 @@ def AddBox(plant):
     h= box_size[2]
     mass= box_mass
     mu= box_mu
-    box=AddShape(plant, Box(w,d,h), name="box",mass=mass,mu=mu)
+    if contact_model==ContactModel.kHydroelastic or contact_model==ContactModel.kHydroelasticWithFallback:
+        parser = Parser(plant)
+        box = parser.AddModelFromFile(FindResource("models/box.sdf"))
+    else:
+        box=AddShape(plant, Box(w,d,h), name="box",mass=mass,mu=mu)
+
     return box
 
 def add_collision_filters(scene_graph, plant):
@@ -299,6 +306,44 @@ def make_environment(meshcat=None,
     builder.Connect(plant.get_state_output_port(),
                     state_logger.get_input_port())
 
+    # bufferless VideoCapture
+    class VideoCapture:
+
+        def __init__(self, name):
+            self.cap = cv2.VideoCapture(name)
+            success=0
+            while success == 0:
+                success, frame = self.cap.read()
+            
+            self.im_shape=frame.shape
+            self.q = queue.Queue()
+            t = threading.Thread(target=self._reader)
+            t.daemon = True
+            t.start()
+
+        # read frames as soon as they are available, keeping only most recent one
+        def _reader(self):
+            while True:
+                ret, frame = self.cap.read()
+                if not ret:
+                    break
+                if not self.q.empty():
+                    try:
+                        self.q.get_nowait()   # discard previous (unprocessed) frame
+                    except queue.Empty:
+                        pass
+                if stereo_ZED:
+                    #for L stereo
+                    imageL=frame[:,:int(self.im_shape[1]/2),:].copy()
+                    self.q.put(imageL)
+                else:
+                    self.q.put(frame)
+        def read(self):
+            return 1,self.q.get()
+        
+        def isOpened(self):
+            return self.cap.isOpened()
+
     #mediapipe
     class MediapipeController:
         def __init__(self,camera_port):
@@ -306,7 +351,8 @@ def make_environment(meshcat=None,
             self.mp_drawing_styles = mp.solutions.drawing_styles
             self.mp_pose = mp.solutions.pose
             # For webcam input:
-            self.cap = cv2.VideoCapture(camera_port)
+            #self.cap = cv2.VideoCapture(camera_port)
+            self.cap = VideoCapture(camera_port)
             self.pose=self.mp_pose.Pose(
                 min_detection_confidence=0.5,
                 min_tracking_confidence=0.5,
@@ -374,22 +420,46 @@ def make_environment(meshcat=None,
                 np.array([landmark_origin.x,landmark_origin.y,landmark_origin.z]))
             return v
 
-        def get_elbow_angle(self,results,side):
+        def get_elbow_angle(self,results,side, shoulder_tetha,shoulder_psi):
             #pdb.set_trace()
             if side=="RIGHT":
-                v1=self.landmark_to_vec(results[self.landmark_by_name.RIGHT_SHOULDER],
+                c=self.landmark_to_vec(results[self.landmark_by_name.RIGHT_SHOULDER],
                             results[self.landmark_by_name.RIGHT_ELBOW])
-                v2=self.landmark_to_vec(results[self.landmark_by_name.RIGHT_WRIST],
+                d=self.landmark_to_vec(results[self.landmark_by_name.RIGHT_ELBOW],
+                            results[self.landmark_by_name.RIGHT_WRIST])
+                d_=self.landmark_to_vec(results[self.landmark_by_name.RIGHT_WRIST],
                             results[self.landmark_by_name.RIGHT_ELBOW])
+            
             elif side=="LEFT":
-                v1=self.landmark_to_vec(results[self.landmark_by_name.LEFT_SHOULDER],
+                c=self.landmark_to_vec(results[self.landmark_by_name.LEFT_SHOULDER],
                             results[self.landmark_by_name.LEFT_ELBOW])
-                v2=self.landmark_to_vec(results[self.landmark_by_name.LEFT_WRIST],
+                d=self.landmark_to_vec(results[self.landmark_by_name.LEFT_ELBOW],
+                            results[self.landmark_by_name.LEFT_WRIST])
+                d_=self.landmark_to_vec(results[self.landmark_by_name.LEFT_WRIST],
                             results[self.landmark_by_name.LEFT_ELBOW])
 
-            ang=np.arccos(np.dot(v1,v2)/(np.linalg.norm(v1)*np.linalg.norm(v2)))
+            ang=np.arccos(np.dot(c,d_)/(np.linalg.norm(c)*np.linalg.norm(d_)))
 
-            return np.pi-ang
+            Rz=np.array([
+                [np.cos(shoulder_psi), -np.sin(shoulder_psi), 0],
+                [np.sin(shoulder_psi), np.cos(shoulder_psi), 0],
+                [0, 0, 1],
+            ])
+            Ry=np.array([
+                [np.cos(shoulder_tetha), 0, np.sin(shoulder_tetha)],
+                [0,1 , 0],
+                [-np.sin(shoulder_tetha), 0, np.cos(shoulder_tetha)],
+            ])
+            #pdb.set_trace()
+            d_=Rz@Ry@d
+            psi_elb=np.arccos(d_[2]/np.linalg.norm(d_))
+            tetha_elb=np.arccos(d_[0]/(np.linalg.norm(d_)*np.sin(psi_elb)))
+            #print("tetha_elb:",tetha_elb)
+            #print("psi_elb:",psi_elb)
+
+            j1=np.pi -psi_elb
+            j2=tetha_elb - 0.9
+            return [j1,j2,np.pi-ang]
 
         def get_shoulder_angles(self,results,side):
 
@@ -422,22 +492,28 @@ def make_environment(meshcat=None,
             # print("j2:",j2)
             #pdb.set_trace()
 
-            return [j1,j2]
+            return [j1,j2,tetha1,psi]
         
         def landmarks_to_actions(self, landmarks,context):
             angs_shoulderR=self.get_shoulder_angles(landmarks,"RIGHT")
-            ang_elbowR=self.get_elbow_angle(landmarks,"RIGHT")
+            angs_elbowR=self.get_elbow_angle(landmarks,"RIGHT",angs_shoulderR[2],angs_shoulderR[3])
             angs_shoulderL=self.get_shoulder_angles(landmarks,"LEFT")
-            ang_elbowL=self.get_elbow_angle(landmarks,"LEFT")
+            angs_elbowL=self.get_elbow_angle(landmarks,"LEFT",angs_shoulderL[2],angs_shoulderL[3])
 
             actions=ActuationView(self.last_actions)
             actions.shoulderR_joint1=angs_shoulderR[0]
             actions.shoulderR_joint2=angs_shoulderR[1]+0.15
-            actions.elbowR_joint1=ang_elbowR
+            #actions.elbowR_joint1=angs_elbowR[0]
+            #actions.elbowR_joint2=angs_elbowR[1]
+            actions.elbowR_joint1=angs_elbowR[2]
+            actions.elbowR_joint2=0.2*angs_elbowR[2]
 
             actions.shoulderL_joint1=angs_shoulderL[0]
             actions.shoulderL_joint2=angs_shoulderL[1]+0.2
-            actions.elbowL_joint1=ang_elbowL
+            #actions.elbowL_joint1=angs_elbowL[0]
+            #actions.elbowL_joint2=angs_elbowL[1]
+            actions.elbowL_joint1=angs_elbowL[2]
+            actions.elbowL_joint2=0.2*angs_elbowL[2]
             #print("shoulder: ",-ang_shoulder)
             #print("elbow: ",np.pi-ang_elbow )
             return actions.__array__()#.dot(self.actuation_matrix.T)
@@ -567,7 +643,7 @@ def simulate_diagram(diagram, plant, controller_plant, state_logger,
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--simulation_time", type=float, default=100,
+        "--simulation_time", type=float, default=1000,
         help="Desired duration of the simulation in seconds. "
              "Default 8.0.")
     parser.add_argument(
@@ -586,7 +662,7 @@ if __name__ == "__main__":
              "If zero, we will use an integrator for a continuous system. "
              "Non-negative. Default 0.001.")
     parser.add_argument(
-        "--target_realtime_rate", type=float, default=0.9,
+        "--target_realtime_rate", type=float, default=1.0,
         help="Target realtime rate. Default 1.0.")
     parser.add_argument(
         "--meshcat", action="store_true",
