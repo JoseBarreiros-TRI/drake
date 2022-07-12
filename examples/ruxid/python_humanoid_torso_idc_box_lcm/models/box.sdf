@@ -8,13 +8,13 @@
       <pose>0 0 0 0 0 0</pose>
       <inertial>
         <pose>0 0 0 0 0 0</pose>
-        <mass>0.5</mass>
+        <mass>2</mass>
       </inertial>
       <visual name="visual">
         <pose>0 0 0 0 0 0</pose>
         <geometry>
           <box>
-            <size>0.3 0.3 0.3</size>
+            <size>0.35 0.35 0.35</size>
           </box>
         </geometry>
         <material>
@@ -25,14 +25,14 @@
         <pose>0 0 0 0 0 0</pose>
         <geometry>
           <box>
-            <size>0.3 0.3 0.3</size>
+            <size>0.35 0.35 0.35</size>
           </box>
         </geometry>
         <drake:proximity_properties>
           <drake:rigid_hydroelastic/>
-          <drake:mu_dynamic> 0.5 </drake:mu_dynamic>
-          <drake:mu_static> 0.5 </drake:mu_static>
-          <drake:hunt_crossley_dissipation>3.0</drake:hunt_crossley_dissipation>
+          <drake:mu_dynamic> 1 </drake:mu_dynamic>
+          <drake:mu_static> 1 </drake:mu_static>
+          <drake:hunt_crossley_dissipation>150</drake:hunt_crossley_dissipation>
         </drake:proximity_properties>
       </collision>
     </link>

@@ -39,6 +39,14 @@ drake_py_binary(
 )
 
 drake_py_binary(
+    name = "mediapipe_test_stereo",
+    srcs = ["mediapipe_test_stereo.py"],
+    deps = [
+        "//bindings/pydrake",
+    ],
+)
+
+drake_py_binary(
     name = "mediapipe_test_video",
     srcs = ["mediapipe_test_video.py"],
     deps = [
