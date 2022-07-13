@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<sdf version="1.7">
+  <model name="floor">
+    <!--
+    We use a 3 x3x0.1 m rectangular block to represent a rigid floor
+    -->
+    <link name="floor">
+      <pose>0 0 0 0 0 0</pose>
+      <inertial>
+        <pose>0 0 0 0 0 0</pose>
+        <mass>0.1</mass>
+      </inertial>
+      <visual name="visual">
+        <pose>0 0 -2.5e-2 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>10 10 5.0e-2</size>
+          </box>
+        </geometry>
+        <material>
+          <diffuse>0.5 0.5 0.7 0.2</diffuse>
+        </material>
+      </visual>
+      <collision name="collision">
+        <pose>0 0 -2.5e-2 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>10 10 5.0e-2</size>
+          </box>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:rigid_hydroelastic/>
+          <drake:mu_dynamic> 0.5 </drake:mu_dynamic>
+          <drake:mu_static> 0.5 </drake:mu_static>
+          <drake:hunt_crossley_dissipation>1.0</drake:hunt_crossley_dissipation>
+        </drake:proximity_properties>
+      </collision>
+    </link>
+  </model>
+</sdf>

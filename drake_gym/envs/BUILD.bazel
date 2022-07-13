@@ -1,0 +1,111 @@
+# -*- mode: python -*-
+# vi: set ft=python :
+
+load("//tools/skylark:drake_py.bzl", "drake_py_binary","drake_py_library")
+load("//tools/lint:lint.bzl", "add_lint_tests")
+
+drake_py_library(
+    name = "box_flipup",
+    srcs = ["box_flipup.py"],
+    data = [
+      "models",
+    ],
+    imports = [".."],
+    visibility = ["//visibility:public"],
+    deps = [
+      "//drake_gym",
+      "//scenarios",
+    ]
+)
+drake_py_library(
+    name = "punyoid_lifting_box",
+    srcs = ["punyoid_lifting_box.py"],
+    data = [
+      "models",
+    ],
+    imports = [".."],
+    visibility = ["//visibility:public"],
+    deps = [
+      "//drake_gym",
+      "//scenarios",
+      "//bindings/pydrake",
+    ]
+)
+drake_py_library(
+    name = "pendulum",
+    srcs = ["pendulum.py"],
+    imports = [".."],
+    visibility = ["//visibility:public"],
+    deps = [
+      "drake_gym_py",
+      "scenarios_py",
+      "//bindings/pydrake",
+    ]
+)
+drake_py_library(
+    name = "noodleman_standup_idc",
+    srcs = ["noodleman_standup_idc.py"],
+    data = [
+      "models",
+    ],
+    imports = [".."],
+    visibility = ["//visibility:public"],
+    deps = [
+      "//drake_gym",
+      "//scenarios",
+    ]
+)
+drake_py_library(
+    name = "noodleman_fbase_standup_pid",
+    srcs = ["noodleman_fbase_standup_pid.py"],
+    data = [
+      "models",
+    ],
+    imports = [".."],
+    visibility = ["//visibility:public"],
+    deps = [
+      "//drake_gym",
+      "//scenarios",
+    ]
+)
+drake_py_library(
+    name = "noodleman_standup_pid",
+    srcs = ["noodleman_standup_pid.py"],
+    data = [
+      "models",
+    ],
+    imports = [".."],
+    visibility = ["//visibility:public"],
+    deps = [
+      "//drake_gym",
+      "//scenarios",
+      "//manipulation",
+    ]
+)
+drake_py_library(
+    name = "noodleman_fbase_standup_torque",
+    srcs = ["noodleman_fbase_standup_torque.py"],
+    data = [
+      "models",
+    ],
+    imports = [".."],
+    visibility = ["//visibility:public"],
+    deps = [
+      "//drake_gym",
+      "//scenarios",
+    ]
+)
+drake_py_library(
+    name = "humanoid_fbase_standup_pid",
+    srcs = ["humanoid_fbase_standup_pid.py"],
+    data = [
+      "models",
+    ],
+    imports = [".."],
+    visibility = ["//visibility:public"],
+    deps = [
+      "//drake_gym",
+      "//scenarios",
+      "//manipulation",
+    ]
+)

@@ -1,0 +1,65 @@
+# -*- python -*-
+
+load("//tools/skylark:drake_py.bzl", "drake_py_binary")
+load("//tools/lint:lint.bzl", "add_lint_tests")
+
+package(default_visibility = ["//visibility:private"])
+
+drake_py_binary(
+    name = "humanoid_torso_idc_box_lcm",
+    srcs = ["humanoid_torso_idc_box_lcm.py"],
+    data = [":model_files"],
+    deps = [
+        "//bindings/pydrake",
+    ],
+)
+
+drake_py_binary(
+    name = "openpose_test",
+    srcs = ["openpose_test.py"],
+    deps = [
+        "//bindings/pydrake",
+    ],
+)
+
+drake_py_binary(
+    name = "mediapipe_test",
+    srcs = ["mediapipe_test.py"],
+    deps = [
+        "//bindings/pydrake",
+    ],
+)
+
+drake_py_binary(
+    name = "mediapipe_test2",
+    srcs = ["mediapipe_test2.py"],
+    deps = [
+        "//bindings/pydrake",
+    ],
+)
+
+drake_py_binary(
+    name = "mediapipe_test_stereo",
+    srcs = ["mediapipe_test_stereo.py"],
+    deps = [
+        "//bindings/pydrake",
+    ],
+)
+
+drake_py_binary(
+    name = "mediapipe_test_video",
+    srcs = ["mediapipe_test_video.py"],
+    deps = [
+        "//bindings/pydrake",
+    ],
+)
+
+filegroup(
+    name = "model_files",
+    srcs = [
+       "models/humanoid_torso_v2_noball_noZeroBodies_spring_prismatic_v2.sdf",
+       "models/floor.sdf",
+    ],
+)
+
+add_lint_tests()
