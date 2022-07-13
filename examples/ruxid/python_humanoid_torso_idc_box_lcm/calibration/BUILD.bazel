@@ -1,0 +1,22 @@
+# -*- python -*-
+
+load("//tools/skylark:drake_py.bzl", "drake_py_binary")
+load("//tools/lint:lint.bzl", "add_lint_tests")
+
+package(default_visibility = ["//visibility:private"])
+
+drake_py_binary(
+    name = "calib",
+    srcs = ["calib.py"],
+    data = [":setting_files"],
+
+)
+
+filegroup(
+    name = "setting_files",
+    srcs = [
+        "calibration_settings.yaml",
+    ],
+)
+
+add_lint_tests()

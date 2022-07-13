@@ -1,0 +1,220 @@
+# -*- python -*-
+
+load("//tools/skylark:drake_py.bzl", "drake_py_binary","drake_py_library")
+load("//tools/lint:lint.bzl", "add_lint_tests")
+
+drake_py_library(
+    name = "drake_gym_py",
+    srcs = ["drake_gym.py"],
+    deps = [
+        "//bindings/pydrake",
+    ],
+    visibility = ["//visibility:public"],
+)
+drake_py_library(
+    name = "scenarios_py",
+    srcs = ["scenarios.py"],
+    deps = [
+        "//bindings/pydrake",
+    ],
+    visibility = ["//visibility:public"],
+)
+drake_py_library(
+    name = "utils_py",
+    srcs = [
+        "__init__.py",
+        "meshcat_cpp_utils.py",
+        "utils.py",
+    ],
+    imports = [".."],
+    visibility = ["//visibility:public"],
+)
+drake_py_binary(
+    name = "test_gym",
+    srcs = ["test_gym.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "scenarios_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "test_training",
+    srcs = ["test_training.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rl_train_boxflipup",
+    srcs = ["rl_train_boxflipup.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rl_play_boxflipup",
+    srcs = ["rl_play_boxflipup.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rl_train_noodlemanstandup_idc",
+    srcs = ["rl_train_noodlemanstandup_idc.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rl_play_noodlemanstandup_idc",
+    srcs = ["rl_play_noodlemanstandup_idc.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rl_train_noodleman_fbase_standup_pid",
+    srcs = ["rl_train_noodleman_fbase_standup_pid.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rl_play_noodleman_fbase_standup_pid",
+    srcs = ["rl_play_noodleman_fbase_standup_pid.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+
+drake_py_binary(
+    name = "rl_train_humanoid_fbase_standup_pid",
+    srcs = ["rl_train_humanoid_fbase_standup_pid.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "test_capsule",
+    srcs = ["test_capsule.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+
+drake_py_binary(
+    name = "rl_play_humanoid_fbase_standup_pid",
+    srcs = ["rl_play_humanoid_fbase_standup_pid.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+
+drake_py_binary(
+    name = "rl_train_noodlemanstandup_pid",
+    srcs = ["rl_train_noodlemanstandup_pid.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rl_play_noodlemanstandup_pid",
+    srcs = ["rl_play_noodlemanstandup_pid.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rl_play_punyoid_lifting_box",
+    srcs = ["rl_play_punyoid_lifting_box.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rl_train_punyoid_lifting_box",
+    srcs = ["rl_train_punyoid_lifting_box.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rl_train_noodleman_fbase_standup_torque",
+    srcs = ["rl_train_noodleman_fbase_standup_torque.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rl_play_noodleman_fbase_standup_torque",
+    srcs = ["rl_play_noodleman_fbase_standup_torque.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+
+filegroup(
+    name = "model_files",
+    srcs = [
+       "models/planar_bin.sdf",
+       "models/noodleman_v1.sdf",
+       "models/noodleman_w_foot_v1.sdf",
+       "models/floor.sdf",
+       "models/humanoid_v2_noball.sdf",
+       "models/capsule.sdf",
+       "models/floor_v2.sdf",
+       "models/humanoid_torso_v2_noball_noZeroBodies_spring_prismatic.sdf",
+    ],
+)
+add_lint_tests()
