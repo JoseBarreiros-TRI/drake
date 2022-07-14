@@ -72,7 +72,7 @@ from pydrake.all import (
     MultibodyForces,
     Box,
     Meshcat,
-    ContactSolver,
+    #ContactSolver,
     LcmSubscriberSystem,
     DrakeLcm,
 )
@@ -100,8 +100,8 @@ box_size=[ 0.35,#0.2+0.1*(np.random.random()-0.5),
         ]
 box_mass=2
 box_mu=10.0
-contact_model=ContactModel.kHydroelasticWithFallback#kPoint
-contact_solver=ContactSolver.kSap#kTamsi # kTamsi
+contact_model='hydroelastic_with_fallback'#ContactModel.kHydroelasticWithFallback#kPoint
+contact_solver='sap'#ContactSolver.kSap#kTamsi # kTamsi
 desired_box_heigth=0.6 #0.8
 camera_index=0
 stereo_ZED=True
@@ -137,7 +137,8 @@ def AddBox(plant):
     h= box_size[2]
     mass= box_mass
     mu= box_mu
-    if contact_model==ContactModel.kHydroelastic or contact_model==ContactModel.kHydroelasticWithFallback:
+    #if contact_model==ContactModel.kHydroelastic or contact_model==ContactModel.kHydroelasticWithFallback:
+    if contact_model=='hydroelastic_with_fallback' or contact_model=='hydroelastic':
         parser = Parser(plant)
         box = parser.AddModelFromFile(FindResource("models/box.sdf"))
     else:
@@ -173,11 +174,18 @@ def make_environment(meshcat=None,
                    debug = False):
 
     builder = DiagramBuilder()
-    plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=sim_time_step)
+    multibody_plant_config = \
+        MultibodyPlantConfig(
+            time_step=sim_time_step,
+            contact_model=contact_model,
+            )
+
+    #plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=sim_time_step)
+    plant, scene_graph = AddMultibodyPlant(multibody_plant_config, builder)
     
     #set contact model
-    plant.set_contact_model(contact_model) 
-    plant.set_contact_solver(contact_solver)
+    #plant.set_contact_model(contact_model) 
+    #plant.set_contact_solver(contact_solver)
 
     #add assets to the plant
     agent = AddAgent(plant)
@@ -190,8 +198,8 @@ def make_environment(meshcat=None,
 
     #add assets to the controller plant
     controller_plant = MultibodyPlant(time_step=controller_time_step)
-    controller_plant.set_contact_model(contact_model)   
-    controller_plant.set_contact_solver(contact_solver)  
+    #controller_plant.set_contact_model(contact_model)   
+    #controller_plant.set_contact_solver(contact_solver)  
     AddAgent(controller_plant)        
     #SetTransparency(scene_graph, alpha=0.5, source_id=plant.get_source_id())
 
@@ -646,15 +654,6 @@ if __name__ == "__main__":
         "--simulation_time", type=float, default=1000,
         help="Desired duration of the simulation in seconds. "
              "Default 8.0.")
-    parser.add_argument(
-        "--contact_model", type=str, default="hydroelastic_with_fallback",
-        help="Contact model. Options are: 'point', 'hydroelastic', "
-             "'hydroelastic_with_fallback'. "
-             "Default 'hydroelastic_with_fallback'")
-    parser.add_argument(
-        "--contact_surface_representation", type=str, default="polygon",
-        help="Contact-surface representation for hydroelastics. "
-             "Options are: 'triangle' or 'polygon'. Default 'polygon'.")
     parser.add_argument(
         "--time_step", type=float, default=0.001,
         help="The fixed time step period (in seconds) of discrete updates "
