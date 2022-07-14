@@ -1,0 +1,159 @@
+<?xml version='1.0' ?>
+<!-- Chair model 
+Toyota Research Institute-->
+<!-- Model definition: chair_v0/chair_v0.sdf -->
+<sdf version='1.6'>
+  <model name="chair_v1">
+    <pose>0.0 0.0 0 0 0 0</pose>
+
+    <link name='chair'>
+      <pose>0.0 0.0 0 0 0 0</pose>
+      <inertial>
+        <mass>3</mass>
+      </inertial>
+      <visual name="box_leg">
+        <pose>0.2 0.2 0.2 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.04 0.04 0.4</size>
+          </box>
+        </geometry>
+      </visual>     
+
+      <visual name="box_leg2">
+        <pose>0.2 -0.2 0.2 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.04 0.04 0.4</size>
+          </box>
+        </geometry>
+      </visual>     
+    
+      <visual name="box_leg3">
+        <pose>-0.2 0.2 0.2 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.04 0.04 0.4</size>
+          </box>
+        </geometry>
+      </visual>     
+
+      <visual name="box_leg4">
+        <pose>-0.2 -0.2 0.2 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.04 0.04 0.4</size>
+          </box>
+        </geometry>
+      </visual>     
+
+      <visual name="box_seat">
+        <pose>0 0 0.4 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.45 0.45 0.04</size>
+          </box>
+        </geometry>
+      </visual>     
+
+      <visual name="box_back">
+        <pose>0 -0.2 0.6 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.45 0.04 0.45</size>
+          </box>
+        </geometry>
+      </visual>     
+
+      <collision name="col_box_leg">
+        <pose>0.2 0.2 0.2 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.04 0.04 0.4</size>
+          </box>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:rigid_hydroelastic/>
+          <drake:mesh_resolution_hint>1</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>1.0</drake:mu_dynamic>
+          <drake:mu_static>1.0</drake:mu_static>
+        </drake:proximity_properties>   
+      </collision>     
+
+      <collision name="col_box_leg2">
+        <pose>0.2 -0.2 0.2 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.04 0.04 0.4</size>
+          </box>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:rigid_hydroelastic/>
+          <drake:mesh_resolution_hint>1</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>1.0</drake:mu_dynamic>
+          <drake:mu_static>1.0</drake:mu_static>
+        </drake:proximity_properties>   
+      </collision>     
+    
+      <collision name="col_box_leg3">
+        <pose>-0.2 0.2 0.2 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.04 0.04 0.4</size>
+          </box>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:rigid_hydroelastic/>
+          <drake:mesh_resolution_hint>1</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>1.0</drake:mu_dynamic>
+          <drake:mu_static>1.0</drake:mu_static>
+        </drake:proximity_properties>   
+      </collision>     
+
+      <collision name="col_box_leg4">
+        <pose>-0.2 -0.2 0.2 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.04 0.04 0.4</size>
+          </box>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:rigid_hydroelastic/>
+          <drake:mesh_resolution_hint>1</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>1.0</drake:mu_dynamic>
+          <drake:mu_static>1.0</drake:mu_static>
+        </drake:proximity_properties>   
+      </collision>     
+
+      <collision name="col_box_seat">
+        <pose>0 0 0.4 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.45 0.45 0.04</size>
+          </box>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:rigid_hydroelastic/>
+          <drake:mesh_resolution_hint>1</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>1.0</drake:mu_dynamic>
+          <drake:mu_static>1.0</drake:mu_static>
+        </drake:proximity_properties>   
+      </collision>     
+
+      <collision name="col_box_back">
+        <pose>0 -0.2 0.6 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.45 0.04 0.45</size>
+          </box>
+        </geometry>
+        <drake:proximity_properties>
+          <drake:rigid_hydroelastic/>
+          <drake:mesh_resolution_hint>1</drake:mesh_resolution_hint>
+          <drake:mu_dynamic>1.0</drake:mu_dynamic>
+          <drake:mu_static>1.0</drake:mu_static>
+        </drake:proximity_properties>   
+      </collision>     
+    </link>
+  </model>
+</sdf>
