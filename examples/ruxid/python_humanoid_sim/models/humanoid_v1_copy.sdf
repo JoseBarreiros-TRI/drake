@@ -1,0 +1,406 @@
+<?xml version='1.0' ?>
+<!-- Humanoid model 
+Toyota Research Institute-->
+<sdf version='1.6'>
+  <model name='humanoid_v1'>
+    <pose>0.0 0.0 0 0 0 0</pose>
+
+    <link name='waist'>
+      <pose>0 0 0.98 0 0 0</pose>
+      <inertial>
+        <mass>100</mass>
+        <pose>0 0 0 0 0 0</pose>
+      </inertial>
+      <visual name="cap_waist">
+        <pose>0 0 0 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.07</radius>
+            <length>0.16</length>
+          </capsule>
+        </geometry>
+        <material>
+          <specular>1 1 0.1 1</specular>
+        </material>
+      </visual>
+    </link>
+
+    <link name='torso'>
+      <pose relative_to='waist'>0 0 0.20 0 0 0</pose>
+      <inertial>
+        <mass>100</mass>
+        <pose>0 0 0 0 0 0</pose>
+      </inertial>
+      <visual name="cap_upper_L">
+        <pose>-0.1 0 0.06 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.082</radius>
+            <length>0.16</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <visual name="cap_upper_R">
+        <pose>0.1 0 0.06 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.082</radius>
+            <length>0.16</length>
+          </capsule>
+        </geometry>
+      </visual>      
+      <visual name="cap_lower">
+        <pose>0 0.005 -0.06 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.08</radius>
+            <length>0.18</length>
+          </capsule>
+        </geometry>
+        <material>
+          <specular>1 1 0.1 1</specular>
+        </material>
+      </visual>
+      <visual name="cap_lower_neck">
+        <pose>0 0 0.15 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.045</radius>
+            <length>0.03</length>
+          </capsule>
+        </geometry>
+      </visual>    
+    </link>    
+
+    <link name='head'>
+      <pose relative_to='torso'>0 0 0.35 0 0 0</pose>
+      <inertial>
+        <mass>100</mass>
+      </inertial>
+      <visual name="cap_face">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.09</radius>
+            <length>0.09</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <visual name="cap_upper_neck">
+        <pose>0 0 -0.14 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.045</radius>
+            <length>0.03</length>
+          </capsule>
+        </geometry>
+      </visual>
+    </link>
+
+    <link name='forearm_L'>
+      <pose relative_to='torso'>0.215 0 -0.08 0 0 0</pose>
+      <inertial>
+        <mass>100</mass>
+      </inertial>
+      <visual name="cyl_forearm">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.045</radius>
+            <length>0.28</length>
+          </capsule>
+        </geometry>
+      </visual>
+    </link>    
+
+    <link name='arm_L'>
+      <pose relative_to='forearm_L'>0 0 -0.29 0 0 0</pose>
+      <inertial>
+        <mass>100</mass>
+      </inertial>
+      <visual name="cyl_arm">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.036</radius>
+            <length>0.25</length>
+          </capsule>
+        </geometry>
+      </visual>
+    </link>
+
+    <link name='hand_L'>
+      <pose relative_to='arm_L'>0 0 -0.19 0 0 0</pose>
+      <inertial>
+        <mass>100</mass>
+      </inertial>
+      <visual name="ellip_hand">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <ellipsoid>
+            <radii>0.04 0.03 0.065</radii>
+          </ellipsoid>
+        </geometry>
+      </visual>
+    </link>
+
+    <link name='hips'>
+      <pose relative_to='waist'>0 0 -0.15 0 0 0</pose>
+      <inertial>
+        <mass>100</mass>
+      </inertial>
+      <visual name="cap_hips">
+        <pose>0 0 0 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.09</radius>
+            <length>0.18</length>
+          </capsule>
+        </geometry>
+      </visual>
+    </link>
+
+    <link name='upper_leg_L'>
+      <pose relative_to='hips'>0.08 0 -0.25 0 0 0</pose>
+      <inertial>
+        <mass>100</mass>
+      </inertial>
+      <visual name="cap_uleg">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.075</radius>
+            <length>0.30</length>
+          </capsule>
+        </geometry>
+      </visual>
+    </link>
+
+    <link name='lower_leg_L'>
+      <pose relative_to='upper_leg_L'>0 0.0 -0.35 0 0 0</pose>
+      <inertial>
+        <mass>100</mass>
+      </inertial>
+      <visual name="cyl_lleg">
+        <pose>0 0 0 0 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.06</radius>
+            <length>0.3</length>
+          </capsule>
+        </geometry>
+      </visual>
+    </link>
+
+    <link name='foot_L'>
+      <pose relative_to='lower_leg_L'>0 0.08 -0.2 0 0 0</pose>
+      <inertial>
+        <mass>100</mass>
+      </inertial>
+      <visual name="sph_ankle">
+        <pose>0 -0.08 0.028 0 0 0</pose>
+        <geometry>
+          <sphere>
+            <radius>0.06</radius>
+          </sphere>
+        </geometry>
+      </visual>
+      <visual name="cap1_foot">
+        <pose>-0.03 0.0 0 1.5708 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.03</radius>
+            <length>0.14</length>
+          </capsule>
+        </geometry>
+      </visual>
+      <visual name="cap2_foot">
+        <pose>0.03 0.0 0 1.5708 0 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.03</radius>
+            <length>0.14</length>
+          </capsule>
+        </geometry>
+      </visual>
+    </link>
+
+    <link name='toes_L'>
+      <pose relative_to='foot_L'>0 0.1 -0.003 0 0 0</pose>
+      <inertial>
+        <mass>100</mass>
+      </inertial>
+      <visual name="cap_toes">
+        <pose>0 0 0 0 1.5708 0</pose>
+        <geometry>
+          <capsule>
+            <radius>0.027</radius>
+            <length>0.06</length>
+          </capsule>
+        </geometry>
+      </visual>
+    </link>
+
+    <!-- ball joint for neck -->
+    <joint name='neck_joint' type='ball'>
+      <parent>torso</parent>
+      <child>head</child>
+      <pose>0 0 -0.18 0 0 0</pose>
+      <axis>
+        <xyz>0.0 0.0 1.0</xyz>
+        <limit>
+          <lower>-0.3</lower>
+          <upper>0.3</upper>
+          <effort>10.0</effort>
+        </limit>
+      </axis>
+    </joint>
+
+    <!-- universal joint for shoulder-->
+    <joint name='shoulderL_joint' type='universal'>
+      <parent>torso</parent>
+      <child>forearm_L</child>
+      <pose>0 0 0.15 0 0 1.5708 </pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-0.7853</lower>
+          <upper>0.7853</upper>
+          <effort>10.0</effort>
+        </limit>
+      </axis>
+      <axis2>
+        <xyz>0.0 1.0 0</xyz>
+        <limit>
+          <lower>-0.7853</lower>
+          <upper>0.7853</upper>
+          <effort>10.0</effort>
+        </limit>
+      </axis2>
+    </joint>
+
+    <!-- revolute joint for elbow -->
+    <joint name='elbowL_joint' type='revolute'>
+      <parent>forearm_L</parent>
+      <child>arm_L</child>
+      <pose>0 0 0.15 0 0 0 </pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-0.01</lower>
+          <upper>2.3</upper>
+          <effort>10.0</effort>
+        </limit>
+      </axis>
+    </joint>
+
+    <!-- revolute joint for wrist -->
+    <joint name='wristL_joint' type='revolute'>
+      <parent>arm_L</parent>
+      <child>hand_L</child>
+      <pose>0 0 0.05 0 0 0 </pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-1.5</lower>
+          <upper>1.5</upper>
+          <effort>10.0</effort>
+        </limit>
+      </axis>
+    </joint>
+
+    <!-- ball joint for torso and waist link -->
+    <joint name='waist_weld' type='fixed'>
+      <parent>hips</parent>
+      <child>waist</child>
+      <pose>0 0 0 0 0 0</pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+      </axis>
+    </joint>
+
+    <!-- ball joint for torso and waist link -->
+    <joint name='torso_joint' type='ball'>
+      <parent>waist</parent>
+      <child>torso</child>
+      <pose>0 0 -0.1 0 0 0</pose>
+      <axis>
+        <xyz>0.0 0.0 1.0</xyz>
+        <limit>
+          <lower>-0.3</lower>
+          <upper>0.3</upper>
+          <effort>10.0</effort>
+        </limit>
+      </axis>
+    </joint>
+
+    <!-- universal joint for hip L-->
+    <joint name='hipL_joint' type='universal'>
+      <parent>upper_leg_L</parent>
+      <child>hips</child>
+      <pose>0.09 0 -0.02 0 0 1.5708 </pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-0.7853</lower>
+          <upper>0.7853</upper>
+          <effort>10.0</effort>
+        </limit>
+      </axis>
+      <axis2>
+        <xyz>0.0 1.0 0</xyz>
+        <limit>
+          <lower>-0.52</lower>
+          <upper>1.74</upper>
+          <effort>10.0</effort>
+        </limit>
+      </axis2>
+    </joint>
+
+    <!-- revolute joint for knee L -->
+    <joint name='kneeL_joint' type='revolute'>
+      <parent>lower_leg_L</parent>
+      <child>upper_leg_L</child>
+      <pose>0 0 -0.15 0 0 0 </pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-0.1</lower>
+          <upper>1.74</upper>
+          <effort>10.0</effort>
+        </limit>
+      </axis>
+    </joint>
+
+    <!-- ball joint for ankle -->
+    <joint name='ankleL_joint' type='ball'>
+      <parent>foot_L</parent>
+      <child>lower_leg_L</child>
+      <pose>0 0 -0.17 0 0 0</pose>
+      <axis>
+        <xyz>0.0 0.0 1.0</xyz>
+        <limit>
+          <lower>-0.1</lower>
+          <upper>0.1</upper>
+          <effort>10.0</effort>
+        </limit>
+      </axis>
+    </joint>
+
+    <!-- revolute joint for toes L -->
+    <joint name='toesL_joint' type='revolute'>
+      <parent>toes_L</parent>
+      <child>foot_L</child>
+      <pose>0 0.1 0 0 0 0 </pose>
+      <axis>
+        <xyz>1.0 0.0 0.0</xyz>
+        <limit>
+          <lower>-0.15</lower>
+          <upper>0</upper>
+          <effort>10.0</effort>
+        </limit>
+      </axis>
+    </joint>
+
+  </model>
+</sdf>
