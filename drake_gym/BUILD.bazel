@@ -184,6 +184,26 @@ drake_py_binary(
     ],
 )
 drake_py_binary(
+    name = "rl_train_iiwa_pushing_box",
+    srcs = ["rl_train_iiwa_pushing_box.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rl_play_iiwa_pushing_box",
+    srcs = ["rl_play_iiwa_pushing_box.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
     name = "rl_train_noodleman_fbase_standup_torque",
     srcs = ["rl_train_noodleman_fbase_standup_torque.py"],
     data = [":model_files"],
