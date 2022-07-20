@@ -21,6 +21,9 @@ void DefineExamplesCompassGait(py::module m);
 /* Defines bindings per examples_py_manipulation_station.cc. */
 void DefineExamplesManipulationStation(py::module m);
 
+/* Defines bindings per examples_py_rl_cito_station.cc. */
+void DefineExamplesRlCitoStation(py::module m);
+
 /* Defines bindings per examples_py_pendulum.cc. */
 void DefineExamplesPendulum(py::module m);
 
