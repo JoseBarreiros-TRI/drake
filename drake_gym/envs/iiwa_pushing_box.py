@@ -61,7 +61,7 @@ contact_model='point'#'hydroelastic_with_fallback'#ContactModel.kHydroelasticWit
 contact_solver='tamsi'#ContactSolver.kSap#kTamsi # kTamsi
 desired_box_xy=[
     0.+0.8*(np.random.random()-0.5),
-    1,+0.5*(np.random.random()-0.5)
+    1.0+0.5*(np.random.random()-0.5),
     ] 
 ##
 
@@ -297,8 +297,9 @@ def make_sim(generator,
             Nss = plant.num_multibody_states()
             self.DeclareVectorInputPort("plant_states", Nss)
             self.DeclareAbstractInputPort("body_poses",AbstractValue.Make([RigidTransform.Identity()]))
-            self.DeclareVectorOutputPort("observations", Nss+12, self.CalcObs)
+            self.DeclareVectorOutputPort("observations", Nss+15, self.CalcObs)
             self.box_body_idx=plant.GetBodyByName('box').index()
+            self.desired_box_pose=np.array([desired_box_xy[0],desired_box_xy[1],box_size[2]/2+table_heigth])
 
         def CalcObs(self, context,output):
             plant_state = self.get_input_port(0).Eval(context)
@@ -313,9 +314,9 @@ def make_sim(generator,
                         #pose of the middle point of the closest edge of the box
             box_LC_edge= box_rotation.dot(np.array([box_pose[0]+box_size[0]/2,box_pose[1]-box_size[1]/2,box_pose[2]]))
             box_RC_edge= box_rotation.dot(np.array([box_pose[0]-box_size[0]/2,box_pose[1]-box_size[1]/2,box_pose[2]]))
-            
+            distance_to_target=self.desired_box_pose-box_pose
             #pdb.set_trace()
-            extension=np.concatenate((box_LF_edge,box_RF_edge,box_LC_edge,box_RC_edge))
+            extension=np.concatenate((box_LF_edge,box_RF_edge,box_LC_edge,box_RC_edge,distance_to_target))
             extended_observations=np.concatenate((plant_state,extension))      
             output.set_value(extended_observations)
 
@@ -358,8 +359,8 @@ def make_sim(generator,
             cost_EE=distance_to_EE.dot(distance_to_EE)
             cost_to_target=distance_to_target.dot(distance_to_target) 
 
-            #cost = cost_EE + 10*cost_to_target
-            cost = 10*cost_to_target
+            cost = cost_EE + 10*cost_to_target
+            #cost = 10*cost_to_target
             reward=1.2-cost
        
             if debug:
@@ -481,9 +482,9 @@ def IiwaBoxPushingEnv(observations="state", meshcat=None, time_limit=gym_time_li
      
     #Define observation space 
     low = np.concatenate(
-        (plant.GetPositionLowerLimits(), plant.GetVelocityLowerLimits(),np.array([-np.inf]*12)))
+        (plant.GetPositionLowerLimits(), plant.GetVelocityLowerLimits(),np.array([-np.inf]*15)))
     high = np.concatenate(
-        (plant.GetPositionUpperLimits(), plant.GetVelocityUpperLimits(),np.array([np.inf]*12)))
+        (plant.GetPositionUpperLimits(), plant.GetVelocityUpperLimits(),np.array([np.inf]*15)))
     observation_space = gym.spaces.Box(low=np.asarray(low, dtype="float64"),
                                        high=np.asarray(high, dtype="float64"),
                                        dtype=np.float64)
