@@ -57,11 +57,12 @@ class ManipulationStationHardwareInterface : public systems::Diagram<double> {
   /// numbers, and declares the output ports camera_%s_rgb_image and
   /// camera_%s_depth_image, where %s is the camera name.
   ManipulationStationHardwareInterface(
-      std::vector<std::string> camera_names = {});
+      std::vector<std::string> camera_names = {},
+      bool has_wsg = true);
 
   /// Starts a thread to receive network messages, and blocks execution until
   /// the first messages have been received.
-  void Connect(bool wait_for_cameras = true);
+  void Connect(bool wait_for_cameras = true,bool wait_for_wsg = true);
 
   /// For parity with ManipulationStation, we maintain a MultibodyPlant of
   /// the IIWA arm, with the lumped-mass equivalent spatial inertia of the
