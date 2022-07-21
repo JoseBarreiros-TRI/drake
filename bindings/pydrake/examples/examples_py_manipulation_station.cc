@@ -146,11 +146,13 @@ void DefineExamplesManipulationStation(py::module m) {
   py::class_<ManipulationStationHardwareInterface, Diagram<double>>(m,
       "ManipulationStationHardwareInterface",
       doc.ManipulationStationHardwareInterface.doc)
-      .def(py::init<const std::vector<std::string>>(),
+      .def(py::init<const std::vector<std::string>, bool>(),
           py::arg("camera_names") = std::vector<std::string>{},
+          py::arg("has_wsg") = true,
           doc.ManipulationStationHardwareInterface.ctor.doc)
       .def("Connect", &ManipulationStationHardwareInterface::Connect,
           py::arg("wait_for_cameras") = true,
+          py::arg("wait_for_wsg") = true,
           doc.ManipulationStationHardwareInterface.Connect.doc)
       .def("get_controller_plant",
           &ManipulationStationHardwareInterface::get_controller_plant,

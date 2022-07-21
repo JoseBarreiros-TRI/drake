@@ -32,7 +32,7 @@ using multibody::Parser;
 // TODO(russt): Consider taking DrakeLcmInterface as an argument instead of
 // (only) constructing one internally.
 ManipulationStationHardwareInterface::ManipulationStationHardwareInterface(
-    std::vector<std::string> camera_names)
+    std::vector<std::string> camera_names, bool has_wsg)
     : owned_controller_plant_(std::make_unique<MultibodyPlant<double>>(0.0)),
       owned_lcm_(new lcm::DrakeLcm()),
       camera_names_(std::move(camera_names)) {
@@ -79,33 +79,35 @@ ManipulationStationHardwareInterface::ManipulationStationHardwareInterface(
                        "iiwa_torque_external");
   builder.Connect(iiwa_status_subscriber_->get_output_port(),
                   iiwa_status_receiver->get_input_port());
+  
+  if (has_wsg==true){
+    // Publish WSG command.
+    auto wsg_command_sender =
+        builder.AddSystem<manipulation::schunk_wsg::SchunkWsgCommandSender>();
+    auto wsg_command_publisher = builder.AddSystem(
+        systems::lcm::LcmPublisherSystem::Make<drake::lcmt_schunk_wsg_command>(
+            "SCHUNK_WSG_COMMAND", lcm, 0.05
+            /* publish period: Schunk driver won't respond faster than 20Hz */));
+    builder.ExportInput(wsg_command_sender->get_position_input_port(),
+                        "wsg_position");
+    builder.ExportInput(wsg_command_sender->get_force_limit_input_port(),
+                        "wsg_force_limit");
+    builder.Connect(wsg_command_sender->get_output_port(0),
+                    wsg_command_publisher->get_input_port());
 
-  // Publish WSG command.
-  auto wsg_command_sender =
-      builder.AddSystem<manipulation::schunk_wsg::SchunkWsgCommandSender>();
-  auto wsg_command_publisher = builder.AddSystem(
-      systems::lcm::LcmPublisherSystem::Make<drake::lcmt_schunk_wsg_command>(
-          "SCHUNK_WSG_COMMAND", lcm, 0.05
-          /* publish period: Schunk driver won't respond faster than 20Hz */));
-  builder.ExportInput(wsg_command_sender->get_position_input_port(),
-                      "wsg_position");
-  builder.ExportInput(wsg_command_sender->get_force_limit_input_port(),
-                      "wsg_force_limit");
-  builder.Connect(wsg_command_sender->get_output_port(0),
-                  wsg_command_publisher->get_input_port());
-
-  // Receive WSG status and populate the output ports.
-  auto wsg_status_receiver =
-      builder.AddSystem<manipulation::schunk_wsg::SchunkWsgStatusReceiver>();
-  wsg_status_subscriber_ = builder.AddSystem(
-      systems::lcm::LcmSubscriberSystem::Make<drake::lcmt_schunk_wsg_status>(
-          "SCHUNK_WSG_STATUS", lcm));
-  builder.ExportOutput(wsg_status_receiver->get_state_output_port(),
-                       "wsg_state_measured");
-  builder.ExportOutput(wsg_status_receiver->get_force_output_port(),
-                       "wsg_force_measured");
-  builder.Connect(wsg_status_subscriber_->get_output_port(),
-                  wsg_status_receiver->get_input_port(0));
+    // Receive WSG status and populate the output ports.
+    auto wsg_status_receiver =
+        builder.AddSystem<manipulation::schunk_wsg::SchunkWsgStatusReceiver>();
+    wsg_status_subscriber_ = builder.AddSystem(
+        systems::lcm::LcmSubscriberSystem::Make<drake::lcmt_schunk_wsg_status>(
+            "SCHUNK_WSG_STATUS", lcm));
+    builder.ExportOutput(wsg_status_receiver->get_state_output_port(),
+                        "wsg_state_measured");
+    builder.ExportOutput(wsg_status_receiver->get_force_output_port(),
+                        "wsg_force_measured");
+    builder.Connect(wsg_status_subscriber_->get_output_port(),
+                    wsg_status_receiver->get_input_port(0));
+  }
 
   for (const std::string& name : camera_names_) {
     auto camera_subscriber = builder.AddSystem(
@@ -142,7 +144,7 @@ ManipulationStationHardwareInterface::ManipulationStationHardwareInterface(
   owned_controller_plant_->Finalize();
 }
 
-void ManipulationStationHardwareInterface::Connect(bool wait_for_cameras) {
+void ManipulationStationHardwareInterface::Connect(bool wait_for_cameras,bool wait_for_wsg) {
   drake::lcm::DrakeLcmInterface* const lcm = owned_lcm_.get();
   auto wait_for_new_message = [lcm](const auto& lcm_sub) {
     std::cout << "Waiting for " << lcm_sub.get_channel_name()
@@ -155,7 +157,9 @@ void ManipulationStationHardwareInterface::Connect(bool wait_for_cameras) {
   };
 
   wait_for_new_message(*iiwa_status_subscriber_);
-  wait_for_new_message(*wsg_status_subscriber_);
+  if (wait_for_wsg==true){
+    wait_for_new_message(*wsg_status_subscriber_);
+  }
   if (wait_for_cameras) {
     for (const auto* sub : camera_subscribers_) {
       wait_for_new_message(*sub);
