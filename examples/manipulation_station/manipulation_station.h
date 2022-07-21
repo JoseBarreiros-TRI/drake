@@ -30,7 +30,7 @@ enum class IiwaCollisionModel { kNoCollision, kBoxCollision };
 enum class SchunkCollisionModel { kBox, kBoxPlusFingertipSpheres };
 
 /// Determines which manipulation station is simulated.
-enum class Setup { kNone, kManipulationClass, kClutterClearing, kPlanarIiwa };
+enum class Setup { kNone, kCitoRl, kManipulationClass, kClutterClearing, kPlanarIiwa};
 
 /// @defgroup manipulation_station_systems Manipulation Station
 /// @{
@@ -157,6 +157,18 @@ class ManipulationStation : public systems::Diagram<T> {
   /// @note Must be called before Finalize().
   /// @note Only one of the `Setup___()` methods should be called.
   /// @param X_WCameraBody Transformation between the world and the camera body.
+  /// @param collision_model Determines which sdf is loaded for the IIWA.
+  /// @param schunk_model Determines which sdf is loaded for the Schunk.
+  void SetupCitoRlStation(
+    IiwaCollisionModel collision_model = IiwaCollisionModel::kNoCollision,
+    SchunkCollisionModel schunk_model = SchunkCollisionModel::kBox);
+
+  /// Adds a default iiwa, wsg, cupboard, and 80/20 frame for the MIT
+  /// Intelligent Robot Manipulation class, then calls
+  /// RegisterIiwaControllerModel() and RegisterWsgControllerModel() with
+  /// the appropriate arguments.
+  /// @note Must be called before Finalize().
+  /// @note Only one of the `Setup___()` methods should be called.
   /// @param collision_model Determines which sdf is loaded for the IIWA.
   /// @param schunk_model Determines which sdf is loaded for the Schunk.
   void SetupClutterClearingStation(
