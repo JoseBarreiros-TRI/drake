@@ -1,0 +1,24 @@
+# -*- python -*-
+
+load("//tools/skylark:drake_py.bzl", "drake_py_binary")
+load("//tools/lint:lint.bzl", "add_lint_tests")
+
+package(default_visibility = ["//visibility:private"])
+
+drake_py_binary(
+    name = "manipulation_station_box",
+    srcs = ["manipulation_station_box.py"],
+    data = [":model_files"],
+    deps = [
+        "//bindings/pydrake",
+    ],
+)
+
+filegroup(
+    name = "model_files",
+    srcs = [
+       "models/floor.sdf",
+    ],
+)
+
+add_lint_tests()

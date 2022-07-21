@@ -4,7 +4,7 @@
 #include <memory>
 #include <string>
 #include <utility>
-
+#include <iostream>
 #include "drake/common/find_resource.h"
 #include "drake/geometry/render_vtk/factory.h"
 #include "drake/manipulation/schunk_wsg/schunk_wsg_constants.h"
@@ -229,6 +229,32 @@ void ManipulationStation<T>::AddManipulandFromFile(
   object_ids_.push_back(indices[0]);
 
   object_poses_.push_back(X_WObject);
+}
+
+template <typename T>
+void ManipulationStation<T>::SetupCitoRlStation(
+  IiwaCollisionModel collision_model, SchunkCollisionModel schunk_model) {
+
+  DRAKE_DEMAND(setup_ == Setup::kNone);
+  setup_ = Setup::kCitoRl;
+
+  // Add the table and 80/20 workcell frame.
+  {
+    const double dx_table_center_to_robot_base = 1.2;
+    const double dz_table_top_robot_base = 0.15;
+    const std::string sdf_path = FindResourceOrThrow(
+        "drake/examples/manipulation_station/models/"
+        "table.sdf");
+
+    RigidTransform<double> X_WT(
+        Vector3d(dx_table_center_to_robot_base, 0, dz_table_top_robot_base));
+    internal::AddAndWeldModelFrom(sdf_path, "table", plant_->world_frame(),
+                                  "table", X_WT, plant_);
+  }
+
+  AddDefaultIiwa(collision_model);
+  AddDefaultWsg(schunk_model);
+
 }
 
 template <typename T>
@@ -492,6 +518,21 @@ void ManipulationStation<T>::Finalize(
 
   switch (setup_) {
     case Setup::kNone:
+    case Setup::kCitoRl: {
+      // Set the initial positions of the IIWA to a comfortable configuration
+      // inside the workspace of the station.
+      q0_iiwa << 0, 0.6, 0, -1.75, 0, 1.0, 0;
+
+      std::uniform_real_distribution<symbolic::Expression> x(0.4, 0.65),
+          y(-0.35, 0.35), z(0, 0.05);
+      const Vector3<symbolic::Expression> xyz{x(), y(), z()};
+      for (const auto& body_index : object_ids_) {
+        const multibody::Body<T>& body = plant_->get_body(body_index);
+        plant_->SetFreeBodyRandomPositionDistribution(body, xyz);
+        plant_->SetFreeBodyRandomRotationDistributionToUniform(body);
+      }
+      break;
+    }
     case Setup::kManipulationClass: {
       // Set the initial positions of the IIWA to a comfortable configuration
       // inside the workspace of the station.

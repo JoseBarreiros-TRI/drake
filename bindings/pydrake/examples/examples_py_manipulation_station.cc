@@ -51,6 +51,11 @@ void DefineExamplesManipulationStation(py::module m) {
     py::class_<Class, Diagram<T>> cls(m, "ManipulationStation", cls_doc.doc);
     cls  // BR
         .def(py::init<double>(), py::arg("time_step") = 0.002, cls_doc.ctor.doc)
+        .def("SetupCitoRlStation",
+            &Class::SetupCitoRlStation,
+            py::arg("collision_model") = IiwaCollisionModel::kNoCollision,
+            py::arg("schunk_model") = SchunkCollisionModel::kBox,
+            cls_doc.SetupCitoRlStation.doc)
         .def("SetupManipulationClassStation",
             &Class::SetupManipulationClassStation,
             py::arg("collision_model") = IiwaCollisionModel::kNoCollision,
