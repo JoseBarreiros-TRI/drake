@@ -233,7 +233,7 @@ void ManipulationStation<T>::AddManipulandFromFile(
 
 template <typename T>
 void ManipulationStation<T>::SetupCitoRlStation(
-  IiwaCollisionModel collision_model, SchunkCollisionModel schunk_model) {
+  IiwaCollisionModel collision_model) {
 
   DRAKE_DEMAND(setup_ == Setup::kNone);
   setup_ = Setup::kCitoRl;
@@ -253,7 +253,7 @@ void ManipulationStation<T>::SetupCitoRlStation(
   }
 
   AddDefaultIiwa(collision_model);
-  AddDefaultWsg(schunk_model);
+  //AddDefaultWsg(schunk_model);
 
 }
 
@@ -422,8 +422,10 @@ void ManipulationStation<T>::SetDefaultState(
   // the IIWA state.
   SetIiwaPosition(station_context, state, GetIiwaPosition(station_context));
   SetIiwaVelocity(station_context, state, VectorX<T>::Zero(num_iiwa_joints()));
-  SetWsgPosition(station_context, state, q0_gripper);
-  SetWsgVelocity(station_context, state, 0);
+  if (setup_ != Setup::kCitoRl){
+    SetWsgPosition(station_context, state, q0_gripper);
+    SetWsgVelocity(station_context, state, 0);
+  }
 }
 
 template <typename T>
@@ -457,8 +459,10 @@ void ManipulationStation<T>::SetRandomState(
   // the IIWA state.
   SetIiwaPosition(station_context, state, GetIiwaPosition(station_context));
   SetIiwaVelocity(station_context, state, VectorX<T>::Zero(num_iiwa_joints()));
-  SetWsgPosition(station_context, state, GetWsgPosition(station_context));
-  SetWsgVelocity(station_context, state, 0);
+  if (setup_ != Setup::kCitoRl){
+    SetWsgPosition(station_context, state, GetWsgPosition(station_context));
+    SetWsgVelocity(station_context, state, 0);
+  }
 }
 
 template <typename T>
@@ -479,18 +483,21 @@ void ManipulationStation<T>::MakeIiwaControllerModel() {
   // (according to the sdf)... and we don't believe our inertia calibration
   // on the hardware to be so precise, so we simply ignore the inertia
   // contribution from the fingers here.
-  const multibody::RigidBody<T>& wsg_equivalent =
-      owned_controller_plant_->AddRigidBody(
-          "wsg_equivalent", controller_iiwa_model,
-          internal::MakeCompositeGripperInertia(
-              wsg_model_.model_path, wsg_model_.child_frame->name()));
+  if (setup_ != Setup::kCitoRl){
+    std::cout << "here2" <<std::endl;
+    const multibody::RigidBody<T>& wsg_equivalent =
+        owned_controller_plant_->AddRigidBody(
+            "wsg_equivalent", controller_iiwa_model,
+            internal::MakeCompositeGripperInertia(
+                wsg_model_.model_path, wsg_model_.child_frame->name()));
 
-  // TODO(siyuan.feng@tri.global): when we handle multiple IIWA and WSG, this
-  // part need to deal with the parent's (iiwa's) model instance id.
-  owned_controller_plant_->WeldFrames(
-      owned_controller_plant_->GetFrameByName(wsg_model_.parent_frame->name(),
-                                              controller_iiwa_model),
-      wsg_equivalent.body_frame(), wsg_model_.X_PC);
+    // TODO(siyuan.feng@tri.global): when we handle multiple IIWA and WSG, this
+    // part need to deal with the parent's (iiwa's) model instance id.
+    owned_controller_plant_->WeldFrames(
+        owned_controller_plant_->GetFrameByName(wsg_model_.parent_frame->name(),
+                                                controller_iiwa_model),
+        wsg_equivalent.body_frame(), wsg_model_.X_PC);
+  }
   owned_controller_plant_->set_name("controller_plant");
 }
 
@@ -504,9 +511,13 @@ void ManipulationStation<T>::Finalize(
     std::map<std::string, std::unique_ptr<geometry::render::RenderEngine>>
         render_engines) {
   DRAKE_THROW_UNLESS(iiwa_model_.model_instance.is_valid());
-  DRAKE_THROW_UNLESS(wsg_model_.model_instance.is_valid());
-
+  if (setup_ != Setup::kCitoRl){
+    std::cout << "here000" <<std::endl;
+    DRAKE_THROW_UNLESS(wsg_model_.model_instance.is_valid());
+  }
+  std::cout << "here00" <<std::endl;
   MakeIiwaControllerModel();
+  std::cout << "here0" <<std::endl;
 
   // Note: This deferred diagram construction method/workflow exists because we
   //   - cannot finalize plant until all of my objects are added, and
@@ -578,7 +589,7 @@ void ManipulationStation<T>::Finalize(
       break;
     }
   }
-
+  std::cout << "here" <<std::endl;
   // Set the iiwa default configuration.
   const auto iiwa_joint_indices =
       plant_->GetJointIndices(iiwa_model_.model_instance);
@@ -699,7 +710,8 @@ void ManipulationStation<T>::Finalize(
     builder.ExportOutput(adder->get_output_port(), "iiwa_torque_measured");
   }
 
-  {
+  { 
+    if (setup_ != Setup::kCitoRl){
     auto wsg_controller = builder.template AddSystem<
         manipulation::schunk_wsg::SchunkWsgPositionController>(
         manipulation::schunk_wsg::kSchunkWsgLcmStatusPeriod, wsg_kp_, wsg_kd_);
@@ -726,6 +738,7 @@ void ManipulationStation<T>::Finalize(
 
     builder.ExportOutput(wsg_controller->get_grip_force_output_port(),
                          "wsg_force_measured");
+    }
   }
 
   builder.ExportOutput(plant_->get_generalized_contact_forces_output_port(
