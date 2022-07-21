@@ -63,10 +63,10 @@ def main():
     if args.hardware:
         # TODO(russt): Replace this hard-coded camera serial number with a
         # config file.
-        camera_ids = ["805212060544"]
+        camera_ids = []
         station = builder.AddSystem(ManipulationStationHardwareInterface(
-            camera_ids))
-        station.Connect(wait_for_cameras=False)
+            camera_ids,False))
+        station.Connect(wait_for_cameras=False,wait_for_wsg=False)
     else:
         station = builder.AddSystem(ManipulationStation())
 
