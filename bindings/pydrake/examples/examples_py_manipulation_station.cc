@@ -54,7 +54,6 @@ void DefineExamplesManipulationStation(py::module m) {
         .def("SetupCitoRlStation",
             &Class::SetupCitoRlStation,
             py::arg("collision_model") = IiwaCollisionModel::kNoCollision,
-            py::arg("schunk_model") = SchunkCollisionModel::kBox,
             cls_doc.SetupCitoRlStation.doc)
         .def("SetupManipulationClassStation",
             &Class::SetupManipulationClassStation,

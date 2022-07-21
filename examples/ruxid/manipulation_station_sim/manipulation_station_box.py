@@ -268,10 +268,10 @@ def make_environment(meshcat=None, debug=False):
     iiwa_feedforward_torque = builder.AddSystem(PassThrough(Na))
     iiwa_position = builder.AddSystem(PassThrough(Na))
     
-    builder.Connect(wsg_position.get_output_port(),
-                    station.GetInputPort("wsg_position"))
-    builder.Connect(wsg_force_limit.get_output_port(),
-                    station.GetInputPort("wsg_force_limit"))
+    # builder.Connect(wsg_position.get_output_port(),
+    #                 station.GetInputPort("wsg_position"))
+    # builder.Connect(wsg_force_limit.get_output_port(),
+    #                 station.GetInputPort("wsg_force_limit"))
     builder.Connect(iiwa_feedforward_torque.get_output_port(),
                     station.GetInputPort("iiwa_feedforward_torque"))
     builder.Connect(iiwa_position.get_output_port(),
@@ -343,7 +343,7 @@ def set_home(simulator,diagram_context,plant,plant_name="plant"):
 
 def simulate_diagram(diagram, plant, controller_plant, 
                        simulation_time, target_realtime_rate):
-
+    #pdb.set_trace()
     diagram_context = diagram.CreateDefaultContext()
     plant_context = diagram.GetMutableSubsystemContext(plant,
                                                 diagram_context)    
