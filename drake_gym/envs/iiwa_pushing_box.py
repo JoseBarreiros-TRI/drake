@@ -58,7 +58,7 @@ box_size=[ 0.2,#0.2+0.1*(np.random.random()-0.5),
 box_mass=1
 box_mu=1.0
 contact_model='point'#'hydroelastic_with_fallback'#ContactModel.kHydroelasticWithFallback#kPoint
-contact_solver='tamsi'#ContactSolver.kSap#kTamsi # kTamsi
+contact_solver='sap'#ContactSolver.kSap#kTamsi # kTamsi
 desired_box_xy=[
     0.+0.8*(np.random.random()-0.5),
     1.0+0.5*(np.random.random()-0.5),
