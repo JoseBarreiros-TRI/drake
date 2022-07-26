@@ -1,4 +1,5 @@
 #include <limits>
+#include <iostream>
 
 #include <gflags/gflags.h>
 
@@ -27,6 +28,7 @@
 #include "drake/systems/lcm/lcm_subscriber_system.h"
 #include "drake/systems/primitives/matrix_gain.h"
 #include "drake/systems/sensors/image_to_lcm_image_array_t.h"
+#include "drake/systems/sensors/optitrack_sender.h"
 
 namespace drake {
 namespace examples {
@@ -47,7 +49,7 @@ DEFINE_double(duration, std::numeric_limits<double>::infinity(),
               "Simulation duration.");
 DEFINE_string(setup, "manipulation_class",
               "Manipulation station type to simulate. "
-              "Can be {manipulation_class, clutter_clearing}");
+              "Can be {manipulation_class, clutter_clearing, cito_rl}");
 DEFINE_bool(publish_cameras, false,
             "Whether to publish camera images to LCM");
 DEFINE_bool(publish_point_cloud, false,
@@ -74,6 +76,13 @@ int do_main(int argc, char* argv[]) {
         "drake/manipulation/models/ycb/sdf/003_cracker_box.sdf",
         math::RigidTransform<double>(math::RollPitchYaw<double>(-1.57, 0, 3),
                                      Eigen::Vector3d(-0.3, -0.55, 0.36)));
+  }else if (FLAGS_setup == "cito_rl") {
+    station->SetupCitoRlStation();
+    station->AddManipulandFromFile(
+        "drake/examples/manipulation_station/models/061_foam_brick.sdf",
+        math::RigidTransform<double>(math::RotationMatrix<double>::Identity(),
+                                     Eigen::Vector3d(0.6, 0, 0.15)),
+        "box");
   } else {
     throw std::domain_error(
         "Unrecognized station type. Options are "
@@ -124,31 +133,54 @@ int do_main(int argc, char* argv[]) {
   builder.Connect(iiwa_status->get_output_port(),
                   iiwa_status_publisher->get_input_port());
 
-  // Receive the WSG commands.
-  auto wsg_command_subscriber = builder.AddSystem(
-      systems::lcm::LcmSubscriberSystem::Make<drake::lcmt_schunk_wsg_command>(
-          "SCHUNK_WSG_COMMAND", lcm));
-  auto wsg_command =
-      builder.AddSystem<manipulation::schunk_wsg::SchunkWsgCommandReceiver>();
-  builder.Connect(wsg_command_subscriber->get_output_port(),
-                  wsg_command->GetInputPort("command_message"));
-  builder.Connect(wsg_command->get_position_output_port(),
-                  station->GetInputPort("wsg_position"));
-  builder.Connect(wsg_command->get_force_limit_output_port(),
-                  station->GetInputPort("wsg_force_limit"));
+  if (FLAGS_setup != "cito_rl"){
+    // Receive the WSG commands.
+    auto wsg_command_subscriber = builder.AddSystem(
+        systems::lcm::LcmSubscriberSystem::Make<drake::lcmt_schunk_wsg_command>(
+            "SCHUNK_WSG_COMMAND", lcm));
+    auto wsg_command =
+        builder.AddSystem<manipulation::schunk_wsg::SchunkWsgCommandReceiver>();
+    builder.Connect(wsg_command_subscriber->get_output_port(),
+                    wsg_command->GetInputPort("command_message"));
+    builder.Connect(wsg_command->get_position_output_port(),
+                    station->GetInputPort("wsg_position"));
+    builder.Connect(wsg_command->get_force_limit_output_port(),
+                    station->GetInputPort("wsg_force_limit"));
 
-  // Publish the WSG status.
-  auto wsg_status =
-      builder.AddSystem<manipulation::schunk_wsg::SchunkWsgStatusSender>();
-  builder.Connect(station->GetOutputPort("wsg_state_measured"),
-                  wsg_status->get_state_input_port());
-  builder.Connect(station->GetOutputPort("wsg_force_measured"),
-                  wsg_status->get_force_input_port());
-  auto wsg_status_publisher = builder.AddSystem(
-      systems::lcm::LcmPublisherSystem::Make<drake::lcmt_schunk_wsg_status>(
-          "SCHUNK_WSG_STATUS", lcm, 0.05 /* publish period */));
-  builder.Connect(wsg_status->get_output_port(0),
-                  wsg_status_publisher->get_input_port());
+    // Publish the WSG status.
+    auto wsg_status =
+        builder.AddSystem<manipulation::schunk_wsg::SchunkWsgStatusSender>();
+    builder.Connect(station->GetOutputPort("wsg_state_measured"),
+                    wsg_status->get_state_input_port());
+    builder.Connect(station->GetOutputPort("wsg_force_measured"),
+                    wsg_status->get_force_input_port());
+    auto wsg_status_publisher = builder.AddSystem(
+        systems::lcm::LcmPublisherSystem::Make<drake::lcmt_schunk_wsg_status>(
+            "SCHUNK_WSG_STATUS", lcm, 0.05 /* publish period */));
+    builder.Connect(wsg_status->get_output_port(0),
+                    wsg_status_publisher->get_input_port());
+  } else {
+    // mock Mocap
+    auto& mbp_=station->get_multibody_plant();
+    std::cout<<"instance index: "<<mbp_.GetModelInstanceByName("box") <<"body index: "<<mbp_.GetBodyByName("base_link",mbp_.GetModelInstanceByName("box")).index()<<std::endl;
+    
+    geometry::FrameId frame_id=mbp_.GetBodyFrameIdOrThrow(mbp_.GetBodyByName("base_link",mbp_.GetModelInstanceByName("box")).index());
+    std::map<geometry::FrameId, std::pair<std::string, int>> frame_map;
+    int optitrack_id = 0;
+    frame_map[frame_id]=std::pair<std::string,int>("body_1",optitrack_id);
+    
+    const double fps_mocap = 100.0;
+    auto optitrack_mock=
+        builder.AddSystem<systems::sensors::OptitrackLcmFrameSender>(frame_map);   
+    builder.Connect(station->GetOutputPort("geometry_poses"),
+        optitrack_mock->get_input_port());
+
+    auto optitrack_publisher = builder.AddSystem(
+        systems::lcm::LcmPublisherSystem::Make<optitrack::optitrack_frame_t>(
+            "OPTITRACK", lcm, 1.0 / fps_mocap));
+    builder.Connect(optitrack_mock->get_lcm_output_port(),
+                    optitrack_publisher->get_input_port());
+  }
 
   // Publish the camera outputs.
   if (FLAGS_publish_cameras) {

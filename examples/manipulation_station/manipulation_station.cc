@@ -45,6 +45,8 @@ using multibody::MultibodyPlant;
 using multibody::PrismaticJoint;
 using multibody::RevoluteJoint;
 using multibody::SpatialInertia;
+using multibody::ContactModel;
+using multibody::DiscreteContactSolver;
 
 namespace internal {
 
@@ -196,7 +198,7 @@ MakeD415CameraModel(const std::string& renderer_name) {
 }  // namespace internal
 
 template <typename T>
-ManipulationStation<T>::ManipulationStation(double time_step)
+ManipulationStation<T>::ManipulationStation(double time_step, std::string contact_model, std::string contact_solver)
     : owned_plant_(std::make_unique<MultibodyPlant<T>>(time_step)),
       owned_scene_graph_(std::make_unique<SceneGraph<T>>()),
       // Given the controller does not compute accelerations, it is irrelevant
@@ -212,15 +214,36 @@ ManipulationStation<T>::ManipulationStation(double time_step)
   scene_graph_->set_name("scene_graph");
   plant_->set_name("plant");
 
+  // plant_->set_discrete_contact_solver(DiscreteContactSolver::kTamsi);
+  //plant_->set_contact_model(ContactModel::kHydroelasticWithFallback);
+  if (contact_solver == "sap") {
+    plant_->set_discrete_contact_solver(DiscreteContactSolver::kSap);
+  } else if (contact_solver == "tamsi") {
+    plant_->set_discrete_contact_solver(DiscreteContactSolver::kTamsi);
+  } else {
+    throw std::runtime_error("Invalid contact solver '" + contact_solver +
+                             "'.");
+  }
+  if (contact_model == "hydroelastic") {
+    plant_->set_contact_model(ContactModel::kHydroelastic);
+  } else if (contact_model == "point") {
+    plant_->set_contact_model(ContactModel::kPoint);
+  } else if (contact_model == "hydroelastic_with_fallback") {
+    plant_->set_contact_model(ContactModel::kHydroelasticWithFallback);
+  } else {
+    throw std::runtime_error("Invalid contact model '" + contact_model +
+                             "'.");
+  }
+
   this->set_name("manipulation_station");
 }
 
 template <typename T>
 void ManipulationStation<T>::AddManipulandFromFile(
-    const std::string& model_file, const RigidTransform<double>& X_WObject) {
+    const std::string& model_file, const RigidTransform<double>& X_WObject, std::string manipuland_name) {
   multibody::Parser parser(plant_);
   const auto model_index =
-      parser.AddModelFromFile(FindResourceOrThrow(model_file));
+      parser.AddModelFromFile(FindResourceOrThrow(model_file),manipuland_name);
   const auto indices = plant_->GetBodyIndices(model_index);
   // Only support single-body objects for now.
   // Note: this could be generalized fairly easily... would just want to
