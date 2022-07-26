@@ -50,6 +50,25 @@ using multibody::DiscreteContactSolver;
 
 namespace internal {
 
+
+template <typename T>
+ManipulandPoseExtractor<T>::ManipulandPoseExtractor()
+    : LeafSystem<T>(SystemTypeTag<ManipulandPoseExtractor>{}) {
+  this->DeclareAbstractInputPort("geometry_pose",AbstractValue::Make<> );
+  this->DeclareAbstractOutputPort("output", AbstractValue::Make<RigidTransform<double>::Identity()>, &ManipulandPoseExtractor<T>::Extractor);
+}
+
+template <typename T>
+void ManipulandPoseExtractor<T>::Extractor(const Context<T>& context,
+                 RigidTransform<double> output  ) const {
+
+    geometry::FramePoseVector<double>* geometry_poses = this->get_input_port(0).Eval(context);
+    geometry::FrameId frame_id=mbp_.GetBodyFrameIdOrThrow(mbp_.GetBodyByName("base_link",mbp_.GetModelInstanceByName("box")).index());
+    RigidTransform<double> out=geometry_poses.value(frame_id);
+    output.set_value(out);
+}
+
+
 // TODO(amcastro-tri): Refactor this into schunk_wsg directory, and cover it
 // with a unit test.  Potentially tighten the tolerance in
 // station_simulation_test.
@@ -761,7 +780,15 @@ void ManipulationStation<T>::Finalize(
 
     builder.ExportOutput(wsg_controller->get_grip_force_output_port(),
                          "wsg_force_measured");
-    }
+    } 
+    // else {
+    //   auto manipuland_pose_extractor=builder.AddSystem(ManipulandPoseExtractor());
+    //   builder.Connect(
+    //       plant_->get_geometry_poses_output_port(),
+    //       manipuland_pose_extractor->get_input_port());
+    //   builder.ExportOutput(manipuland_pose_extractor->get_output_port(),
+    //                       "optitrack_manipuland_pose")
+    // }
   }
 
   builder.ExportOutput(plant_->get_generalized_contact_forces_output_port(

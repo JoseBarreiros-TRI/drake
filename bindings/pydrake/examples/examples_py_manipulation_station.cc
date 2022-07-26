@@ -50,7 +50,7 @@ void DefineExamplesManipulationStation(py::module m) {
 
     py::class_<Class, Diagram<T>> cls(m, "ManipulationStation", cls_doc.doc);
     cls  // BR
-        .def(py::init<double>(), py::arg("time_step") = 0.002, cls_doc.ctor.doc)
+        .def(py::init<double, std::string, std::string>(), py::arg("time_step") = 0.002, py::arg("contact_model")="point", py::arg("contact_solver")="tamsi", cls_doc.ctor.doc)
         .def("SetupCitoRlStation",
             &Class::SetupCitoRlStation,
             py::arg("collision_model") = IiwaCollisionModel::kNoCollision,
@@ -69,7 +69,7 @@ void DefineExamplesManipulationStation(py::module m) {
             py::arg("schunk_model") = SchunkCollisionModel::kBox,
             cls_doc.SetupPlanarIiwaStation.doc)
         .def("AddManipulandFromFile", &Class::AddManipulandFromFile,
-            py::arg("model_file"), py::arg("X_WObject"),
+            py::arg("model_file"), py::arg("X_WObject"),py::arg("manipuland_name"),
             cls_doc.AddManipulandFromFile.doc)
         .def("RegisterIiwaControllerModel", &Class::RegisterIiwaControllerModel,
             cls_doc.RegisterIiwaControllerModel.doc)
@@ -146,13 +146,15 @@ void DefineExamplesManipulationStation(py::module m) {
   py::class_<ManipulationStationHardwareInterface, Diagram<double>>(m,
       "ManipulationStationHardwareInterface",
       doc.ManipulationStationHardwareInterface.doc)
-      .def(py::init<const std::vector<std::string>, bool>(),
+      .def(py::init<const std::vector<std::string>, bool, bool>(),
           py::arg("camera_names") = std::vector<std::string>{},
           py::arg("has_wsg") = true,
+          py::arg("has_optitrack") = false,
           doc.ManipulationStationHardwareInterface.ctor.doc)
       .def("Connect", &ManipulationStationHardwareInterface::Connect,
           py::arg("wait_for_cameras") = true,
           py::arg("wait_for_wsg") = true,
+          py::arg("wait_for_optitrack") = true,
           doc.ManipulationStationHardwareInterface.Connect.doc)
       .def("get_controller_plant",
           &ManipulationStationHardwareInterface::get_controller_plant,

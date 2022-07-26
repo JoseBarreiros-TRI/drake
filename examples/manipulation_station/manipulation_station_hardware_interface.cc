@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <utility>
+#include <limits>
 
 #include "drake/common/find_resource.h"
 #include "drake/lcm/drake_lcm.h"
@@ -20,6 +21,9 @@
 #include "drake/systems/lcm/lcm_subscriber_system.h"
 #include "drake/systems/primitives/pass_through.h"
 #include "drake/systems/sensors/lcm_image_array_to_images.h"
+#include "drake/systems/sensors/optitrack_receiver.h"
+#include "drake/systems/sensors/optitrack_sender.h"
+
 
 namespace drake {
 namespace examples {
@@ -32,7 +36,7 @@ using multibody::Parser;
 // TODO(russt): Consider taking DrakeLcmInterface as an argument instead of
 // (only) constructing one internally.
 ManipulationStationHardwareInterface::ManipulationStationHardwareInterface(
-    std::vector<std::string> camera_names, bool has_wsg)
+    std::vector<std::string> camera_names, bool has_wsg, bool has_optitrack)
     : owned_controller_plant_(std::make_unique<MultibodyPlant<double>>(0.0)),
       owned_lcm_(new lcm::DrakeLcm()),
       camera_names_(std::move(camera_names)) {
@@ -126,6 +130,25 @@ ManipulationStationHardwareInterface::ManipulationStationHardwareInterface(
     camera_subscribers_.push_back(camera_subscriber);
   }
 
+  if (has_optitrack==true){
+    //subscribe to box pose through LCM
+    optitrack_subscriber =
+        builder.AddSystem(
+            systems::lcm::LcmSubscriberSystem::Make<optitrack::optitrack_frame_t>(
+                "OPTITRACK", lcm ));
+    int optitrack_id = 0;            
+    std::map<int,std::string> frame_map{{optitrack_id, "body_1"}};;
+
+    auto optitrack_decoder =
+        builder.AddSystem<systems::sensors::OptitrackReceiver>(frame_map);
+
+    builder.Connect(optitrack_subscriber->get_output_port(),
+                    optitrack_decoder->get_input_port());
+    builder.ExportOutput(
+        optitrack_decoder->get_output_port(),
+        "optitrack_manipuland_pose"
+    );
+  }
   builder.BuildInto(this);
   this->set_name("manipulation_station_hardware_interface");
 
@@ -144,7 +167,7 @@ ManipulationStationHardwareInterface::ManipulationStationHardwareInterface(
   owned_controller_plant_->Finalize();
 }
 
-void ManipulationStationHardwareInterface::Connect(bool wait_for_cameras,bool wait_for_wsg) {
+void ManipulationStationHardwareInterface::Connect(bool wait_for_cameras,bool wait_for_wsg, bool wait_for_optitrack) {
   drake::lcm::DrakeLcmInterface* const lcm = owned_lcm_.get();
   auto wait_for_new_message = [lcm](const auto& lcm_sub) {
     std::cout << "Waiting for " << lcm_sub.get_channel_name()
@@ -159,6 +182,9 @@ void ManipulationStationHardwareInterface::Connect(bool wait_for_cameras,bool wa
   wait_for_new_message(*iiwa_status_subscriber_);
   if (wait_for_wsg==true){
     wait_for_new_message(*wsg_status_subscriber_);
+  }
+  if (wait_for_optitrack==true){
+    wait_for_new_message(*optitrack_subscriber);
   }
   if (wait_for_cameras) {
     for (const auto* sub : camera_subscribers_) {

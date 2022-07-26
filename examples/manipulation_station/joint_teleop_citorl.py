@@ -65,8 +65,8 @@ def main():
         # config file.
         camera_ids = []
         station = builder.AddSystem(ManipulationStationHardwareInterface(
-            camera_ids,False))
-        station.Connect(wait_for_cameras=False,wait_for_wsg=False)
+            camera_ids,False,True))
+        station.Connect(wait_for_cameras=False,wait_for_wsg=False,wait_for_optitrack=False)
     else:
         station = builder.AddSystem(ManipulationStation())
 
@@ -93,7 +93,8 @@ def main():
             station.AddManipulandFromFile(
                 "drake/examples/rl_cito_station/models/"
                 + "061_foam_brick.sdf",
-                RigidTransform(RotationMatrix.Identity(), [0.8, 0, 0.2]))
+                RigidTransform(RotationMatrix.Identity(), [0.8, 0, 0.2]),
+                "box")
                 
         station.Finalize()
 
