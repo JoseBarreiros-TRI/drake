@@ -149,7 +149,7 @@ class ManipulationStation : public systems::Diagram<T> {
   /// @param time_step The time step used by MultibodyPlant<T>, and by the
   ///   discrete derivative used to approximate velocity from the position
   ///   command inputs.
-  explicit ManipulationStation(double time_step = 0.002);
+  explicit ManipulationStation(double time_step = 0.002,  std::string contact_model = "point",  std::string contact_solver = "tamsi");
 
   /// Adds a default iiwa, wsg, two bins, and a camera, then calls
   /// RegisterIiwaControllerModel() and RegisterWsgControllerModel() with
@@ -306,7 +306,8 @@ class ManipulationStation : public systems::Diagram<T> {
   /// @param model_file The path to the .sdf model file of the object.
   /// @param X_WObject The pose of the object in world frame.
   void AddManipulandFromFile(const std::string& model_file,
-                             const math::RigidTransform<double>& X_WObject);
+                             const math::RigidTransform<double>& X_WObject,
+                             const std::string manipuland_name={});
 
   // TODO(russt): Add scalar copy constructor etc once we support more
   // scalar types than T=double.  See #9573.

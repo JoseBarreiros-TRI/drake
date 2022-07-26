@@ -106,24 +106,6 @@ desired_box_xy=[
 
 ##
 
-def AddAgent(plant):
-    parser = Parser(plant)
-    model_file = FindResourceOrThrow("drake/manipulation/models/iiwa_description/iiwa7/iiwa7_with_box_collision.sdf")
-    agent = parser.AddModelFromFile(model_file)
-    #noodleman = parser.AddModelFromFile(FindResource("models/humanoid_v2_noball.sdf"))
-    p_WAgent_fixed = RigidTransform(RollPitchYaw(0, 0, np.pi/2),
-                                     np.array([0, 0, 0])) #0.25
-    # weld the lower leg of the noodleman to the world frame. 
-    # The inverse dynamic controller does not work with floating base
-    weld=WeldJoint(
-          name="weld_base",
-          frame_on_parent_P=plant.world_frame(),
-          frame_on_child_C=plant.GetFrameByName("iiwa_link_0", agent), # "waist"
-          X_PC=p_WAgent_fixed
-        )
-    plant.AddJoint(weld)
-    return agent
-
 def AddFloor(plant):
     parser = Parser(plant)
     floor = parser.AddModelFromFile(FindResource("models/floor.sdf"))
@@ -193,46 +175,46 @@ def add_collision_filters(scene_graph, plant):
             declaration=mut.CollisionFilterDeclaration().ExcludeWithin(
                 set))
 
-def make_environment(meshcat=None, debug=False):
+def make_environment(meshcat=None, debug=False, hardware=False):
 
     builder = DiagramBuilder()
 
-    multibody_plant_config = \
-        MultibodyPlantConfig(
-            time_step=sim_time_step,
-            contact_model=contact_model,
-            )
-
-    #plant, scene_graph = AddMultibodyPlant(multibody_plant_config, builder)
-    #plant, scene_graph = AddMultibodyPlantSceneGraph(builder, time_step=time_step)
-
-    station = builder.AddSystem(ManipulationStation())
-    station.SetupCitoRlStation()
-
-    # station.AddManipulandFromFile(
-    #         "drake/examples/rl_cito_station/models/"
-    #         + "061_foam_brick.sdf",
-    #         RigidTransform(RotationMatrix.Identity(), [0.8, 0, 0.2]))
-                
-
-    controller_plant=station.get_controller_plant()
-    plant=station.get_multibody_plant()
-
-    box = AddBox(plant)
     target_position=[desired_box_xy[0],desired_box_xy[1],table_heigth]
-    AddTargetPosVisuals(plant,target_position)
-
-    station.Finalize()
-    # filter collisison between parent and child of each joint.
-    #add_collision_filters(scene_graph,plant)
-
-    if meshcat:
-        geometry_query_port = station.GetOutputPort("geometry_query")
-        meshcat_visualizer = MeshcatVisualizer.AddToBuilder(
-            builder=builder,
-            query_object_port=geometry_query_port,
-            meshcat=meshcat)
     
+    if hardware:
+        camera_ids = []
+        station = builder.AddSystem(ManipulationStationHardwareInterface(
+            camera_ids,False))
+        station.Connect(wait_for_cameras=False,wait_for_wsg=False)     
+        controller_plant=station.get_controller_plant()
+        plant=None
+        #plant=station.get_multibody_plant()
+    else:
+        station = builder.AddSystem(ManipulationStation(time_step=sim_time_step,contact_model=contact_model,contact_solver=contact_solver))
+        station.SetupCitoRlStation()
+
+        # station.AddManipulandFromFile(
+        #         "drake/examples/rl_cito_station/models/"
+        #         + "061_foam_brick.sdf",
+        #         RigidTransform(RotationMatrix.Identity(), [0.8, 0, 0.2]))
+                    
+
+        controller_plant=station.get_controller_plant()
+        plant=station.get_multibody_plant()
+
+        box = AddBox(plant)
+        AddTargetPosVisuals(plant,target_position)
+        station.Finalize()
+
+        if meshcat:
+            geometry_query_port = station.GetOutputPort("geometry_query")
+            meshcat_visualizer = MeshcatVisualizer.AddToBuilder(
+                builder=builder,
+                query_object_port=geometry_query_port,
+                meshcat=meshcat)
+            
+        # filter collisison between parent and child of each joint.
+        #add_collision_filters(scene_graph,plant)
 
 
     Ns = controller_plant.num_multibody_states()
@@ -263,23 +245,14 @@ def make_environment(meshcat=None, debug=False):
         #pdb.set_trace()
 
 
-    wsg_position = builder.AddSystem(PassThrough(1))
-    wsg_force_limit = builder.AddSystem(PassThrough(1))
     iiwa_feedforward_torque = builder.AddSystem(PassThrough(Na))
     iiwa_position = builder.AddSystem(PassThrough(Na))
     
-    # builder.Connect(wsg_position.get_output_port(),
-    #                 station.GetInputPort("wsg_position"))
-    # builder.Connect(wsg_force_limit.get_output_port(),
-    #                 station.GetInputPort("wsg_force_limit"))
     builder.Connect(iiwa_feedforward_torque.get_output_port(),
                     station.GetInputPort("iiwa_feedforward_torque"))
     builder.Connect(iiwa_position.get_output_port(),
                     station.GetInputPort("iiwa_position"))    
 
-    cte_v = builder.AddSystem(ConstantVectorSource([0.1]))
-    builder.Connect(cte_v.get_output_port(),
-                wsg_force_limit.get_input_port())
     zeros_v = builder.AddSystem(ConstantVectorSource([0]*Na))
     builder.Connect(zeros_v.get_output_port(),
                 iiwa_position.get_input_port())
@@ -288,8 +261,9 @@ def make_environment(meshcat=None, debug=False):
 
     if debug:
         #visualize plant and diagram
-        plt.figure()
-        plot_graphviz(plant.GetTopologyGraphvizString())
+        if not hardware:
+            plt.figure()
+            plot_graphviz(plant.GetTopologyGraphvizString())
         plt.figure()
         plot_system_graphviz(diagram, max_depth=2)
         plt.plot(1)
@@ -342,11 +316,9 @@ def set_home(simulator,diagram_context,plant,plant_name="plant"):
 
 
 def simulate_diagram(diagram, plant, controller_plant, 
-                       simulation_time, target_realtime_rate):
+                       simulation_time, target_realtime_rate, hardware=False):
     #pdb.set_trace()
     diagram_context = diagram.CreateDefaultContext()
-    plant_context = diagram.GetMutableSubsystemContext(plant,
-                                                diagram_context)    
 
     #setup the simulator
     simulator_config = SimulatorConfig(
@@ -356,14 +328,20 @@ def simulate_diagram(diagram, plant, controller_plant,
     simulator = Simulator(diagram,diagram_context)
     ApplySimulatorConfig(simulator, simulator_config)
 
-    print("Initial state variables: ", plant.GetPositionsAndVelocities(plant_context))
+    if not hardware:
+        plant_context = diagram.GetMutableSubsystemContext(plant,
+                                                    diagram_context)    
+        print("Initial state variables: ", plant.GetPositionsAndVelocities(plant_context))
    
     simulator.Initialize()
 
-
     context = simulator.get_mutable_context()
     context.SetTime(0)
-    set_home(simulator, context,plant)
+
+    if hardware:
+        simulator.AdvanceTo(1e-6)
+    else:
+        set_home(simulator, context,plant)
 
     #pdb.set_trace()
     adv_step=0.3
@@ -403,6 +381,9 @@ if __name__ == "__main__":
     parser.add_argument(
         "--meshcat", action="store_true",
         help="If set, visualize in meshcat. Use DrakeVisualizer otherwise")        
+    parser.add_argument(
+        "--hardware", action="store_true",
+        help="If set, visualize in meshcat. Use DrakeVisualizer otherwise")        
     parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
 
@@ -415,11 +396,11 @@ if __name__ == "__main__":
     input("Press Enter to continue...")
 
     diagram, plant, controller_plant = make_environment(
-        meshcat=visualizer, debug=args.debug)
+        meshcat=visualizer, debug=args.debug, hardware=args.hardware)
     
     simulate_diagram(
         diagram, plant, controller_plant, 
         args.simulation_time, 
-        args.target_realtime_rate)
+        args.target_realtime_rate,hardware=args.hardware)
     
 
