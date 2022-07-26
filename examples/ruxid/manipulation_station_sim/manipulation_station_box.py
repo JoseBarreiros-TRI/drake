@@ -28,6 +28,7 @@ from pydrake.systems.primitives import ConstantVectorSource
 from pydrake.multibody.tree import WeldJoint, RevoluteJoint, PrismaticJoint
 from pydrake.systems.drawing import plot_graphviz, plot_system_graphviz
 import matplotlib.pyplot as plt
+from pydrake.common.value import AbstractValue
 import pydrake.geometry as mut
 from pydrake.all import (
     AddMultibodyPlantSceneGraph,
@@ -70,6 +71,9 @@ from pydrake.all import (
     Meshcat,
     MeshcatVisualizer,
     FindResourceOrThrow,
+    TriggerType,
+    PublishEvent,
+    FramePoseVector,
 )
 from pydrake.examples import (
     CreateClutterClearingYcbObjectList, ManipulationStation,
@@ -180,12 +184,13 @@ def make_environment(meshcat=None, debug=False, hardware=False):
     builder = DiagramBuilder()
 
     target_position=[desired_box_xy[0],desired_box_xy[1],table_heigth]
-    
+
+
     if hardware:
         camera_ids = []
         station = builder.AddSystem(ManipulationStationHardwareInterface(
-            camera_ids,False))
-        station.Connect(wait_for_cameras=False,wait_for_wsg=False)     
+            camera_ids,False, True))
+        station.Connect(wait_for_cameras=False,wait_for_wsg=False,wait_for_optitrack=False)     
         controller_plant=station.get_controller_plant()
         plant=None
         #plant=station.get_multibody_plant()
@@ -256,6 +261,48 @@ def make_environment(meshcat=None, debug=False, hardware=False):
     zeros_v = builder.AddSystem(ConstantVectorSource([0]*Na))
     builder.Connect(zeros_v.get_output_port(),
                 iiwa_position.get_input_port())
+
+    class optitrack_debug_system(LeafSystem):
+
+        def __init__(self):
+            LeafSystem.__init__(self)
+            self.DeclareAbstractInputPort("signal_input", AbstractValue.Make(RigidTransform.Identity()))
+            self.DeclarePerStepEvent( event=PublishEvent(
+                                    trigger_type=TriggerType.kPerStep,
+                                    callback=self._on_per_step))
+        def _on_per_step(self,context,event):
+            #pdb.set_trace()
+            try:
+                signal_input = self.get_input_port(0).Eval(context)
+                print("input: ",signal_input) 
+            except:
+                pass
+
+
+    class ManipulandPoseExtractor(LeafSystem):
+
+        def __init__(self):
+            LeafSystem.__init__(self) 
+            self.DeclareAbstractInputPort("geometry_pose",AbstractValue.Make(FramePoseVector()))
+            self.DeclareAbstractOutputPort("manipuland_pose",lambda:AbstractValue.Make(RigidTransform.Identity()),self.Extractor)
+
+        def Extractor(self, context, output):
+            geometry_poses = self.get_input_port(0).Eval(context)
+            out=geometry_poses.value(id=plant.GetBodyFrameIdOrThrow(plant.GetBodyByName("box").index()))
+            output.set_value(out)
+            #pdb.set_trace()
+            #output[0] = reward
+
+    if debug:
+       
+        if not hardware:
+            manipuland_pose_extractor=builder.AddSystem(ManipulandPoseExtractor())
+            builder.Connect(station.GetOutputPort("geometry_poses"),manipuland_pose_extractor.get_input_port())
+            debugger=builder.AddSystem(optitrack_debug_system())
+            builder.Connect(manipuland_pose_extractor.get_output_port(),debugger.get_input_port())
+        else:
+            optitrack_debugger=builder.AddSystem(optitrack_debug_system())
+            builder.Connect(station.GetOutputPort("optitrack_manipuland_pose"),optitrack_debugger.get_input_port())
 
     diagram = builder.Build()
 

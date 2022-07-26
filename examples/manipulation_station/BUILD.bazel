@@ -76,6 +76,8 @@ drake_cc_library(
         "//systems/lcm",
         "//systems/primitives",
         "//systems/sensors:lcm_image_array_to_images",
+        "//systems/sensors:optitrack_receiver",
+        "//systems/sensors:optitrack_sender",
     ],
 )
 

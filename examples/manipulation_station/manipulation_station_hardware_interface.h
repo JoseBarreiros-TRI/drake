@@ -58,11 +58,12 @@ class ManipulationStationHardwareInterface : public systems::Diagram<double> {
   /// camera_%s_depth_image, where %s is the camera name.
   ManipulationStationHardwareInterface(
       std::vector<std::string> camera_names = {},
-      bool has_wsg = true);
+      bool has_wsg = true,
+      bool has_optitrack=false);
 
   /// Starts a thread to receive network messages, and blocks execution until
   /// the first messages have been received.
-  void Connect(bool wait_for_cameras = true,bool wait_for_wsg = true);
+  void Connect(bool wait_for_cameras = true, bool wait_for_wsg = true, bool wait_for_optitrack=true );
 
   /// For parity with ManipulationStation, we maintain a MultibodyPlant of
   /// the IIWA arm, with the lumped-mass equivalent spatial inertia of the
@@ -84,6 +85,7 @@ class ManipulationStationHardwareInterface : public systems::Diagram<double> {
   std::unique_ptr<multibody::MultibodyPlant<double>> owned_controller_plant_;
   std::unique_ptr<lcm::DrakeLcm> owned_lcm_;
   systems::lcm::LcmSubscriberSystem* wsg_status_subscriber_;
+  systems::lcm::LcmSubscriberSystem* optitrack_subscriber;
   systems::lcm::LcmSubscriberSystem* iiwa_status_subscriber_;
   std::vector<systems::lcm::LcmSubscriberSystem*> camera_subscribers_;
 
