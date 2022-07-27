@@ -5,8 +5,10 @@ a rigid chair, and rigid floor.
 It uses an inverse dynamics controller to bring the noodleman from a sitting to standing up position.
 """
 import argparse
+from ast import IfExp
 import numpy as np
 import pdb
+import time
 from pydrake.common import FindResourceOrThrow
 from pydrake.geometry import DrakeVisualizer
 from pydrake.math import RigidTransform
@@ -29,6 +31,9 @@ from pydrake.multibody.tree import WeldJoint, RevoluteJoint, PrismaticJoint
 from pydrake.systems.drawing import plot_graphviz, plot_system_graphviz
 import matplotlib.pyplot as plt
 from pydrake.common.value import AbstractValue
+from drake.examples.ruxid.manipulation_station_sim.differential_ik import DifferentialIK
+from pydrake.manipulation.planner import (
+    DifferentialInverseKinematicsParameters)
 import pydrake.geometry as mut
 from pydrake.all import (
     AddMultibodyPlantSceneGraph,
@@ -179,7 +184,12 @@ def add_collision_filters(scene_graph, plant):
             declaration=mut.CollisionFilterDeclaration().ExcludeWithin(
                 set))
 
-def make_environment(meshcat=None, debug=False, hardware=False):
+def make_environment(meshcat=None, debug=False, hardware=False,args=None):
+
+    if args:
+        box_following=args.box_following
+    else:
+        box_following=False
 
     builder = DiagramBuilder()
 
@@ -198,16 +208,17 @@ def make_environment(meshcat=None, debug=False, hardware=False):
         station = builder.AddSystem(ManipulationStation(time_step=sim_time_step,contact_model=contact_model,contact_solver=contact_solver))
         station.SetupCitoRlStation()
 
-        # station.AddManipulandFromFile(
-        #         "drake/examples/rl_cito_station/models/"
-        #         + "061_foam_brick.sdf",
-        #         RigidTransform(RotationMatrix.Identity(), [0.8, 0, 0.2]))
+        station.AddManipulandFromFile(
+                "drake/examples/manipulation_station/models/"
+                + "061_foam_brick.sdf",
+                RigidTransform(RotationMatrix.Identity(), [0.6, 0, 0.15]),
+                "box")
                     
 
         controller_plant=station.get_controller_plant()
         plant=station.get_multibody_plant()
 
-        box = AddBox(plant)
+        #box = AddBox(plant)
         AddTargetPosVisuals(plant,target_position)
         station.Finalize()
 
@@ -250,59 +261,95 @@ def make_environment(meshcat=None, debug=False, hardware=False):
         #pdb.set_trace()
 
 
-    iiwa_feedforward_torque = builder.AddSystem(PassThrough(Na))
-    iiwa_position = builder.AddSystem(PassThrough(Na))
-    
-    builder.Connect(iiwa_feedforward_torque.get_output_port(),
-                    station.GetInputPort("iiwa_feedforward_torque"))
-    builder.Connect(iiwa_position.get_output_port(),
-                    station.GetInputPort("iiwa_position"))    
 
-    zeros_v = builder.AddSystem(ConstantVectorSource([0]*Na))
-    builder.Connect(zeros_v.get_output_port(),
-                iiwa_position.get_input_port())
+    # builder.ExportInput(station.GetInputPort("iiwa_position"),"iiwa_position_commanded")
+
+    # zeros_v = builder.AddSystem(ConstantVectorSource([0]*Na))
+    # builder.Connect(zeros_v.get_output_port(),
+    #             iiwa_position.get_input_port())
 
     class optitrack_debug_system(LeafSystem):
 
         def __init__(self):
             LeafSystem.__init__(self)
             self.DeclareAbstractInputPort("signal_input", AbstractValue.Make(RigidTransform.Identity()))
-            self.DeclarePerStepEvent( event=PublishEvent(
-                                    trigger_type=TriggerType.kPerStep,
-                                    callback=self._on_per_step))
+            self.DeclarePeriodicEvent(period_sec=0.5,offset_sec=0, event=PublishEvent(
+                                    callback=self._on_per_step))            
+            # self.DeclarePerStepEvent( event=PublishEvent(
+            #                         trigger_type=TriggerType.kPerStep,
+            #                         callback=self._on_per_step))
+            #self.name=name
         def _on_per_step(self,context,event):
             #pdb.set_trace()
             try:
                 signal_input = self.get_input_port(0).Eval(context)
-                print("input: ",signal_input) 
+                print("input: ",signal_input.translation()) 
             except:
                 pass
 
+    # class ManipulandPoseExtractor(LeafSystem):
 
-    class ManipulandPoseExtractor(LeafSystem):
+    #     def __init__(self):
+    #         LeafSystem.__init__(self) 
+    #         self.DeclareAbstractInputPort("geometry_pose",AbstractValue.Make(FramePoseVector()))
+    #         self.DeclareAbstractOutputPort("manipuland_pose",lambda:AbstractValue.Make(RigidTransform.Identity()),self.Extractor)
 
-        def __init__(self):
-            LeafSystem.__init__(self) 
-            self.DeclareAbstractInputPort("geometry_pose",AbstractValue.Make(FramePoseVector()))
-            self.DeclareAbstractOutputPort("manipuland_pose",lambda:AbstractValue.Make(RigidTransform.Identity()),self.Extractor)
-
-        def Extractor(self, context, output):
-            geometry_poses = self.get_input_port(0).Eval(context)
-            out=geometry_poses.value(id=plant.GetBodyFrameIdOrThrow(plant.GetBodyByName("box").index()))
-            output.set_value(out)
-            #pdb.set_trace()
-            #output[0] = reward
+    #     def Extractor(self, context, output):
+    #         geometry_poses = self.get_input_port(0).Eval(context)
+    #         out=geometry_poses.value(id=plant.GetBodyFrameIdOrThrow(plant.GetBodyByName("box").index()))
+    #         output.set_value(out)
 
     if debug:
-       
-        if not hardware:
-            manipuland_pose_extractor=builder.AddSystem(ManipulandPoseExtractor())
-            builder.Connect(station.GetOutputPort("geometry_poses"),manipuland_pose_extractor.get_input_port())
-            debugger=builder.AddSystem(optitrack_debug_system())
-            builder.Connect(manipuland_pose_extractor.get_output_port(),debugger.get_input_port())
-        else:
-            optitrack_debugger=builder.AddSystem(optitrack_debug_system())
-            builder.Connect(station.GetOutputPort("optitrack_manipuland_pose"),optitrack_debugger.get_input_port())
+        debugger_=builder.AddSystem(optitrack_debug_system())
+        builder.Connect(station.GetOutputPort("optitrack_manipuland_pose"),debugger_.get_input_port())
+
+        # if not hardware:
+        #     # manipuland_pose_extractor=builder.AddSystem(ManipulandPoseExtractor())
+        #     # builder.Connect(station.GetOutputPort("geometry_poses"),manipuland_pose_extractor.get_input_port())
+        #     # debugger=builder.AddSystem(optitrack_debug_system())
+        #     # builder.Connect(manipuland_pose_extractor.get_output_port(),debugger.get_input_port())
+        #     debugger_=builder.AddSystem(optitrack_debug_system())
+        #     builder.Connect(station.GetOutputPort("optitrack_manipuland_pose"),debugger_.get_input_port())
+
+        # else:
+        #     optitrack_debugger=builder.AddSystem(optitrack_debug_system())
+        #     builder.Connect(station.GetOutputPort("optitrack_manipuland_pose"),optitrack_debugger.get_input_port())
+ 
+    
+    if box_following:
+        robot = station.get_controller_plant()
+        params = DifferentialInverseKinematicsParameters(robot.num_positions(),
+                                                        robot.num_velocities())
+
+        time_step = 0.005
+        params.set_timestep(time_step)
+        # True velocity limits for the IIWA14 (in rad, rounded down to the first
+        # decimal)
+        iiwa14_velocity_limits = np.array([1.4, 1.4, 1.7, 1.3, 2.2, 2.3, 2.3])
+
+        # Stay within a small fraction of those limits for this teleop demo.
+
+        factor = 0.8
+        params.set_joint_velocity_limits((-factor*iiwa14_velocity_limits,
+                                        factor*iiwa14_velocity_limits))
+        differential_ik = builder.AddSystem(DifferentialIK(
+            robot, robot.GetFrameByName("iiwa_link_7"), params, time_step))
+
+        builder.Connect(differential_ik.GetOutputPort("joint_position_desired"),
+                        station.GetInputPort("iiwa_position"))  
+        iiwa_position_EE = builder.AddSystem(PassThrough(6))          
+    
+        builder.Connect(iiwa_position_EE.get_output_port(),
+                    differential_ik.GetInputPort("rpy_xyz_desired"))   
+        builder.ExportInput(iiwa_position_EE.get_input_port(),"iiwa_position_commanded_EE")
+        DIK=differential_ik
+    else:
+        iiwa_position = builder.AddSystem(PassThrough(Na))
+        builder.Connect(iiwa_position.get_output_port(),
+                        station.GetInputPort("iiwa_position"))    
+        builder.ExportInput(iiwa_position.get_input_port(),"iiwa_position_commanded")
+        DIK=None
+
 
     diagram = builder.Build()
 
@@ -318,12 +365,12 @@ def make_environment(meshcat=None, debug=False, hardware=False):
         #pdb.set_trace()
 
 
-    return diagram, plant, controller_plant
+    return diagram, plant, controller_plant, station, DIK
 
-def set_home(simulator,diagram_context,plant,plant_name="plant"):
+def set_home(simulator,diagram_context,plant,home_manipuland=False,manipuland_names=[]):
     #pdb.set_trace()
     diagram = simulator.get_system()
-    #plant=diagram.GetSubsystemByName(plant_name)
+
     plant_context = diagram.GetMutableSubsystemContext(plant,
                                                 diagram_context)  
 
@@ -348,24 +395,33 @@ def set_home(simulator,diagram_context,plant,plant_name="plant"):
                             joint.position_upper_limit()
                             )
                         )
-    box=plant.GetBodyByName("box")
-    
-    box_pose = RigidTransform(
-                    RollPitchYaw(0, 0.1, 0),
-                    np.array(
-                        [
-                            0.75+0.1*(np.random.random()-0.5), 
-                            0+0.25*(np.random.random()-0.5), 
-                            box_size[2]/2+0.005+table_heigth,
-                        ])
-                    )
-    plant.SetFreeBodyPose(plant_context,box,box_pose)
+    if home_manipuland:
+        for manipuland_name in manipuland_names:
+            box=plant.GetBodyByName("manipuland_name")
+            
+            box_pose = RigidTransform(
+                            RollPitchYaw(0, 0.1, 0),
+                            np.array(
+                                [
+                                    0.75+0.1*(np.random.random()-0.5), 
+                                    0+0.25*(np.random.random()-0.5), 
+                                    box_size[2]/2+0.005+table_heigth,
+                                ])
+                            )
+            plant.SetFreeBodyPose(plant_context,box,box_pose)
 
 
-def simulate_diagram(diagram, plant, controller_plant, 
-                       simulation_time, target_realtime_rate, hardware=False):
+def simulate_diagram(diagram, plant, controller_plant, station,
+                       simulation_time, target_realtime_rate, hardware=False,
+                       args=None,differential_ik=None):
     #pdb.set_trace()
+
+    if args:
+        box_following=args.box_following
+    else:
+        box_following=False
     diagram_context = diagram.CreateDefaultContext()
+
 
     #setup the simulator
     simulator_config = SimulatorConfig(
@@ -373,31 +429,73 @@ def simulate_diagram(diagram, plant, controller_plant,
                            publish_every_time_step=False)
     
     simulator = Simulator(diagram,diagram_context)
+    # simulator = Simulator(diagram)
+    # simulator.set_publish_every_time_step(False)
+    # simulator.set_target_realtime_rate(target_realtime_rate)
+
     ApplySimulatorConfig(simulator, simulator_config)
+    station_context = diagram.GetMutableSubsystemContext(
+        station, simulator.get_mutable_context())
 
     if not hardware:
         plant_context = diagram.GetMutableSubsystemContext(plant,
                                                     diagram_context)    
         print("Initial state variables: ", plant.GetPositionsAndVelocities(plant_context))
    
-    simulator.Initialize()
 
     context = simulator.get_mutable_context()
     context.SetTime(0)
+    # num_iiwa_joints = station.num_iiwa_joints()
+    # station.GetInputPort("iiwa_feedforward_torque").FixValue(
+    #     station_context, np.zeros(num_iiwa_joints))
 
+    time_tracker=0
     if hardware:
-        simulator.AdvanceTo(1e-6)
+        time_tracker+=1e-6
+        simulator.AdvanceTo(time_tracker)
     else:
-        set_home(simulator, context,plant)
+        set_home(simulator, context,plant,home_manipuland=False)
+
+    #hold initial pose
+    q0 = station.GetOutputPort("iiwa_position_measured").Eval(
+            station_context)
+    if box_following:
+        differential_ik.parameters.set_nominal_joint_position(q0)
+        EE_pose=differential_ik.ForwardKinematics(q0)
+        differential_ik.SetPositions(diagram.GetMutableSubsystemContext(
+            differential_ik, simulator.get_mutable_context()), q0)
+        #pdb.set_trace()
+        rpy=RollPitchYaw(EE_pose.rotation())
+        diagram.GetInputPort("iiwa_position_commanded_EE").FixValue(
+            diagram_context, np.concatenate((np.array([rpy.roll_angle(),rpy.pitch_angle(),rpy.yaw_angle()]),EE_pose.translation())))
+    else:
+        diagram.GetInputPort("iiwa_position_commanded").FixValue(
+            diagram_context, np.array(q0))
+    #wait for initialization
+    time_tracker+=1
+    simulator.AdvanceTo(time_tracker)
+    #time.sleep(1)
+
 
     #pdb.set_trace()
+    if box_following:
+        box_pose = station.GetOutputPort("optitrack_manipuland_pose").Eval(
+            station_context)   
+        rpy_xyz_goal=np.array([0,0,0,box_pose.translation()[0],box_pose.translation()[1],box_pose.translation()[2]+0.35])
+        #pdb.set_trace()
+        diagram.GetInputPort("iiwa_position_commanded_EE").FixValue(
+            diagram_context, np.array(rpy_xyz_goal))        
+    else:
+        q_goal=np.array([0,0.5,0,-1,0,0.2,0.2])
+        diagram.GetInputPort("iiwa_position_commanded").FixValue(
+            diagram_context, np.array(q_goal))
+    
     adv_step=0.3
-    time=0
     for i in range(int(simulation_time/adv_step)):
-        input("Press Enter to continue...")
-        time+=adv_step
-        simulator.AdvanceTo(time)
-        PrintSimulatorStatistics(simulator)    
+        #input("Press Enter to continue...")
+        time_tracker+=adv_step
+        simulator.AdvanceTo(time_tracker)
+        #PrintSimulatorStatistics(simulator)    
         
     return 1
 
@@ -430,7 +528,10 @@ if __name__ == "__main__":
         help="If set, visualize in meshcat. Use DrakeVisualizer otherwise")        
     parser.add_argument(
         "--hardware", action="store_true",
-        help="If set, visualize in meshcat. Use DrakeVisualizer otherwise")        
+        help="If set, visualize in meshcat. Use DrakeVisualizer otherwise")   
+    parser.add_argument(
+        "--box_following", action="store_true",
+        help="If set, visualize in meshcat. Use DrakeVisualizer otherwise")                
     parser.add_argument('--debug', action='store_true')
     args = parser.parse_args()
 
@@ -442,12 +543,12 @@ if __name__ == "__main__":
 
     input("Press Enter to continue...")
 
-    diagram, plant, controller_plant = make_environment(
-        meshcat=visualizer, debug=args.debug, hardware=args.hardware)
+    diagram, plant, controller_plant,station,DIK = make_environment(
+        meshcat=visualizer, debug=args.debug, hardware=args.hardware,args=args)
     
     simulate_diagram(
-        diagram, plant, controller_plant, 
+        diagram, plant, controller_plant, station,
         args.simulation_time, 
-        args.target_realtime_rate,hardware=args.hardware)
+        args.target_realtime_rate,hardware=args.hardware,args=args,differential_ik=DIK)
     
 
