@@ -12,6 +12,7 @@
 #include "drake/math/rigid_transform.h"
 #include "drake/math/rotation_matrix.h"
 #include "drake/multibody/parsing/parser.h"
+#include "drake/geometry/kinematics_vector.h"
 #include "drake/multibody/tree/prismatic_joint.h"
 #include "drake/multibody/tree/revolute_joint.h"
 #include "drake/perception/depth_image_to_point_cloud.h"
@@ -47,26 +48,38 @@ using multibody::RevoluteJoint;
 using multibody::SpatialInertia;
 using multibody::ContactModel;
 using multibody::DiscreteContactSolver;
+using systems::Context;
 
 namespace internal {
 
-
 template <typename T>
-ManipulandPoseExtractor<T>::ManipulandPoseExtractor()
-    : LeafSystem<T>(SystemTypeTag<ManipulandPoseExtractor>{}) {
-  this->DeclareAbstractInputPort("geometry_pose",AbstractValue::Make<> );
-  this->DeclareAbstractOutputPort("output", AbstractValue::Make<RigidTransform<double>::Identity()>, &ManipulandPoseExtractor<T>::Extractor);
-}
 
-template <typename T>
-void ManipulandPoseExtractor<T>::Extractor(const Context<T>& context,
-                 RigidTransform<double> output  ) const {
+class ManipulandPoseExtractor final : public systems::LeafSystem<T> {
+ public:
+  explicit ManipulandPoseExtractor(const MultibodyPlant<T>* mbp)
+      : mbp_(mbp) {
+    input_ = &this->DeclareAbstractInputPort(
+        "geometry_pose", Value<geometry::FramePoseVector<T>>());
+    this->DeclareAbstractOutputPort(
+        "output", &ManipulandPoseExtractor<T>::Extractor);
+  }
+  void Extractor(const Context<T>& context,
+                 math::RigidTransform<T>* output) const {
+    const geometry::FramePoseVector<T>& geometry_poses =
+        input_->Eval<geometry::FramePoseVector<T>>(context);
+    geometry::FrameId frame_id =
+        mbp_->GetBodyFrameIdOrThrow(
+            mbp_->GetBodyByName("base_link",
+                               mbp_->GetModelInstanceByName("box")).index());
+    *output = geometry_poses.value(frame_id);
+  }
 
-    geometry::FramePoseVector<double>* geometry_poses = this->get_input_port(0).Eval(context);
-    geometry::FrameId frame_id=mbp_.GetBodyFrameIdOrThrow(mbp_.GetBodyByName("base_link",mbp_.GetModelInstanceByName("box")).index());
-    RigidTransform<double> out=geometry_poses.value(frame_id);
-    output.set_value(out);
-}
+ private:
+  const MultibodyPlant<T>* mbp_;
+  // TODO(sammy-tri) Why in the heck can't I declare this as an InputPort<T>??
+  const systems::InputPort<double>* input_{};
+ 
+};
 
 
 // TODO(amcastro-tri): Refactor this into schunk_wsg directory, and cover it
@@ -754,41 +767,42 @@ void ManipulationStation<T>::Finalize(
 
   { 
     if (setup_ != Setup::kCitoRl){
-    auto wsg_controller = builder.template AddSystem<
-        manipulation::schunk_wsg::SchunkWsgPositionController>(
-        manipulation::schunk_wsg::kSchunkWsgLcmStatusPeriod, wsg_kp_, wsg_kd_);
-    wsg_controller->set_name("wsg_controller");
+      auto wsg_controller = builder.template AddSystem<
+          manipulation::schunk_wsg::SchunkWsgPositionController>(
+          manipulation::schunk_wsg::kSchunkWsgLcmStatusPeriod, wsg_kp_, wsg_kd_);
+      wsg_controller->set_name("wsg_controller");
 
-    builder.Connect(
-        wsg_controller->get_generalized_force_output_port(),
-        plant_->get_actuation_input_port(wsg_model_.model_instance));
-    builder.Connect(plant_->get_state_output_port(wsg_model_.model_instance),
-                    wsg_controller->get_state_input_port());
+      builder.Connect(
+          wsg_controller->get_generalized_force_output_port(),
+          plant_->get_actuation_input_port(wsg_model_.model_instance));
+      builder.Connect(plant_->get_state_output_port(wsg_model_.model_instance),
+                      wsg_controller->get_state_input_port());
 
-    builder.ExportInput(wsg_controller->get_desired_position_input_port(),
-                        "wsg_position");
-    builder.ExportInput(wsg_controller->get_force_limit_input_port(),
-                        "wsg_force_limit");
+      builder.ExportInput(wsg_controller->get_desired_position_input_port(),
+                          "wsg_position");
+      builder.ExportInput(wsg_controller->get_force_limit_input_port(),
+                          "wsg_force_limit");
 
-    auto wsg_mbp_state_to_wsg_state = builder.template AddSystem(
-        manipulation::schunk_wsg::MakeMultibodyStateToWsgStateSystem<double>());
-    builder.Connect(plant_->get_state_output_port(wsg_model_.model_instance),
-                    wsg_mbp_state_to_wsg_state->get_input_port());
+      auto wsg_mbp_state_to_wsg_state = builder.template AddSystem(
+          manipulation::schunk_wsg::MakeMultibodyStateToWsgStateSystem<double>());
+      builder.Connect(plant_->get_state_output_port(wsg_model_.model_instance),
+                      wsg_mbp_state_to_wsg_state->get_input_port());
 
-    builder.ExportOutput(wsg_mbp_state_to_wsg_state->get_output_port(),
-                         "wsg_state_measured");
+      builder.ExportOutput(wsg_mbp_state_to_wsg_state->get_output_port(),
+                          "wsg_state_measured");
 
-    builder.ExportOutput(wsg_controller->get_grip_force_output_port(),
-                         "wsg_force_measured");
-    } 
-    // else {
-    //   auto manipuland_pose_extractor=builder.AddSystem(ManipulandPoseExtractor());
-    //   builder.Connect(
-    //       plant_->get_geometry_poses_output_port(),
-    //       manipuland_pose_extractor->get_input_port());
-    //   builder.ExportOutput(manipuland_pose_extractor->get_output_port(),
-    //                       "optitrack_manipuland_pose")
-    // }
+      builder.ExportOutput(wsg_controller->get_grip_force_output_port(),
+                          "wsg_force_measured");
+    } else {
+      auto manipuland_pose_extractor=
+          builder.template AddSystem<
+            internal::ManipulandPoseExtractor<double>>(plant_);
+      builder.Connect(
+          plant_->get_geometry_poses_output_port(),
+          manipuland_pose_extractor->get_input_port());
+      builder.ExportOutput(manipuland_pose_extractor->get_output_port(),
+                           "optitrack_manipuland_pose");
+    }
   }
 
   builder.ExportOutput(plant_->get_generalized_contact_forces_output_port(

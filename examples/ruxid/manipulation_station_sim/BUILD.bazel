@@ -1,16 +1,25 @@
 # -*- python -*-
 
-load("//tools/skylark:drake_py.bzl", "drake_py_binary")
+load("//tools/skylark:drake_py.bzl", "drake_py_binary","drake_py_library")
 load("//tools/lint:lint.bzl", "add_lint_tests")
 
 package(default_visibility = ["//visibility:private"])
 
+drake_py_library(
+    name = "differential_ik",
+    srcs = ["differential_ik.py"],
+    visibility = ["//visibility:private"],
+    deps = [
+        "//bindings/pydrake",
+    ],
+)
 drake_py_binary(
     name = "manipulation_station_box",
     srcs = ["manipulation_station_box.py"],
     data = [":model_files"],
     deps = [
         "//bindings/pydrake",
+        ":differential_ik",
     ],
 )
 
