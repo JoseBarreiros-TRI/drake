@@ -280,10 +280,11 @@ def make_environment(meshcat=None, debug=False, hardware=False,args=None):
             #                         callback=self._on_per_step))
             #self.name=name
         def _on_per_step(self,context,event):
-            #pdb.set_trace()
+            pdb.set_trace()
             try:
                 signal_input = self.get_input_port(0).Eval(context)
-                print("input: ",signal_input.translation()) 
+                print("input: ",signal_input.translation())
+                print("input: ",signal_input.translation()[1],-signal_input.translation()[0],signal_input.translation()[2]) 
             except:
                 pass
 
@@ -337,6 +338,9 @@ def make_environment(meshcat=None, debug=False, hardware=False,args=None):
 
         builder.Connect(differential_ik.GetOutputPort("joint_position_desired"),
                         station.GetInputPort("iiwa_position"))  
+     
+
+
         iiwa_position_EE = builder.AddSystem(PassThrough(6))          
     
         builder.Connect(iiwa_position_EE.get_output_port(),
@@ -481,14 +485,15 @@ def simulate_diagram(diagram, plant, controller_plant, station,
     if box_following:
         box_pose = station.GetOutputPort("optitrack_manipuland_pose").Eval(
             station_context)   
-        rpy_xyz_goal=np.array([0,0,0,box_pose.translation()[0],box_pose.translation()[1],box_pose.translation()[2]+0.35])
+        rpy_xyz_goal=np.array([0,0,0,box_pose.translation()[1],-box_pose.translation()[0],box_pose.translation()[2]+0.15])
         #pdb.set_trace()
         diagram.GetInputPort("iiwa_position_commanded_EE").FixValue(
             diagram_context, np.array(rpy_xyz_goal))        
     else:
         q_goal=np.array([0,0.5,0,-1,0,0.2,0.2])
-        diagram.GetInputPort("iiwa_position_commanded").FixValue(
-            diagram_context, np.array(q_goal))
+
+        # diagram.GetInputPort("iiwa_position_commanded").FixValue(
+        #     diagram_context, np.array(q_goal))
     
     adv_step=0.3
     for i in range(int(simulation_time/adv_step)):
