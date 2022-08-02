@@ -177,7 +177,7 @@ int do_main(int argc, char* argv[]) {
 
     auto optitrack_publisher = builder.AddSystem(
         systems::lcm::LcmPublisherSystem::Make<optitrack::optitrack_frame_t>(
-            "OPTITRACK", lcm, 1.0 / fps_mocap));
+            "OPTITRACK_FRAMES", lcm, 1.0 / fps_mocap));
     builder.Connect(optitrack_mock->get_lcm_output_port(),
                     optitrack_publisher->get_input_port());
   }

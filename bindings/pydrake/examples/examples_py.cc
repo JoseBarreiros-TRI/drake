@@ -24,6 +24,7 @@ Python examples.
   internal::DefineExamplesQuadrotor(m);
   internal::DefineExamplesRimlessWheel(m);
   internal::DefineExamplesVanDerPol(m);
+  internal::DefineExamplesRlCitoStation(m);
 
   const bool use_subdir = true;
   ExecuteExtraPythonCode(m, use_subdir);

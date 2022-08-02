@@ -32,6 +32,35 @@ namespace manipulation_station {
 using Eigen::Vector3d;
 using multibody::MultibodyPlant;
 using multibody::Parser;
+using systems::Context;
+
+template <typename T>
+
+class ApplyTransformToPose final : public systems::LeafSystem<T> {
+ public:
+  explicit ApplyTransformToPose()
+      : {
+    input_ = &this->DeclareAbstractInputPort(
+        "input_pose", Value<math::RigidTransform::Identity>());
+    this->DeclareAbstractOutputPort(
+        "output_pose", &ApplyTransformToPose<T>::Applicator);
+  }
+  void Applicator(const Context<T>& context,
+                 math::RigidTransform<T>* output) const {
+    const math::RigidTransform<T>& pose =
+        input_->Eval<math::RigidTransform<T>>(context);
+    
+    *output = pose;
+    
+    output.set_rotation(pose.rotation());
+    output.set_translation(pose.translation() * A_);
+  }
+
+ private:
+  const Vector3d<double> A_{{1,0,0},{0,1,0},{0,0,1}}
+  const systems::InputPort<double>* input_{};
+ 
+};
 
 // TODO(russt): Consider taking DrakeLcmInterface as an argument instead of
 // (only) constructing one internally.
@@ -135,7 +164,7 @@ ManipulationStationHardwareInterface::ManipulationStationHardwareInterface(
     optitrack_subscriber =
         builder.AddSystem(
             systems::lcm::LcmSubscriberSystem::Make<optitrack::optitrack_frame_t>(
-                "OPTITRACK", lcm ));
+                "OPTITRACK_FRAMES", lcm ));
     int optitrack_id = 0;            
     std::map<int,std::string> frame_map{{optitrack_id, "body_1"}};;
 
@@ -144,10 +173,17 @@ ManipulationStationHardwareInterface::ManipulationStationHardwareInterface(
 
     builder.Connect(optitrack_subscriber->get_output_port(),
                     optitrack_decoder->get_input_port());
+
+    // apply pose transform
+    auto pose_transform=builder.AddSystem(internal::ApplyTransformToPose<double>)
+    builder.Connect(optitrack_decoder->GetOutputPort("body_1"),pose_transform->get_input_port())
     builder.ExportOutput(
-        optitrack_decoder->get_output_port(),
-        "optitrack_manipuland_pose"
-    );
+        pose_transform->get_output_port(),
+        "optitrack_manipuland_pose");
+    
+    // builder.ExportOutput(
+    //     optitrack_decoder->GetOutputPort("body_1"),
+    //     "optitrack_manipuland_pose");
   }
   builder.BuildInto(this);
   this->set_name("manipulation_station_hardware_interface");
