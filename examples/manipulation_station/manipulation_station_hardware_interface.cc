@@ -30,6 +30,7 @@ namespace examples {
 namespace manipulation_station {
 
 using Eigen::Vector3d;
+using Eigen::Matrix3d;
 using multibody::MultibodyPlant;
 using multibody::Parser;
 using systems::Context;
@@ -38,12 +39,12 @@ template <typename T>
 
 class ApplyTransformToPose final : public systems::LeafSystem<T> {
  public:
-  explicit ApplyTransformToPose()
-      : {
+  explicit ApplyTransformToPose(){
     input_ = &this->DeclareAbstractInputPort(
-        "input_pose", Value<math::RigidTransform::Identity>());
+        "input_pose", Value<math::RigidTransformd>());
     this->DeclareAbstractOutputPort(
         "output_pose", &ApplyTransformToPose<T>::Applicator);
+    A_ << 1,0,0,0,1,0,0,0,1;
   }
   void Applicator(const Context<T>& context,
                  math::RigidTransform<T>* output) const {
@@ -52,12 +53,12 @@ class ApplyTransformToPose final : public systems::LeafSystem<T> {
     
     *output = pose;
     
-    output.set_rotation(pose.rotation());
-    output.set_translation(pose.translation() * A_);
+    output->set_rotation(pose.rotation());
+    output->set_translation(A_ * pose.translation());
   }
 
  private:
-  const Vector3d<double> A_{{1,0,0},{0,1,0},{0,0,1}}
+  Matrix3d A_;
   const systems::InputPort<double>* input_{};
  
 };
@@ -175,12 +176,13 @@ ManipulationStationHardwareInterface::ManipulationStationHardwareInterface(
                     optitrack_decoder->get_input_port());
 
     // apply pose transform
-    auto pose_transform=builder.AddSystem(internal::ApplyTransformToPose<double>)
-    builder.Connect(optitrack_decoder->GetOutputPort("body_1"),pose_transform->get_input_port())
+    auto pose_transform=builder.AddSystem<ApplyTransformToPose<double>>();
+    builder.Connect(optitrack_decoder->GetOutputPort("body_1"),
+          pose_transform->get_input_port());
     builder.ExportOutput(
         pose_transform->get_output_port(),
         "optitrack_manipuland_pose");
-    
+
     // builder.ExportOutput(
     //     optitrack_decoder->GetOutputPort("body_1"),
     //     "optitrack_manipuland_pose");
