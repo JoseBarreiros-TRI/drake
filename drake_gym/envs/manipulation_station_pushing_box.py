@@ -16,6 +16,8 @@ from pydrake.all import (
     EventStatus,
     InverseDynamicsController,
     LeafSystem,
+    RotationMatrix,
+    MeshcatVisualizer,
     MeshcatVisualizerCpp,
     MeshcatVisualizerParams,
     MultibodyPlant,
@@ -42,6 +44,9 @@ from utils import (FindResource, MakeNamedViewPositions,
         MakeNamedViewActuation)
 import pydrake.geometry as mut
 
+from pydrake.examples import (
+    CreateClutterClearingYcbObjectList, ManipulationStation,
+    ManipulationStationHardwareInterface)
 
 ## Gym parameters
 sim_time_step=0.01
@@ -55,8 +60,8 @@ box_size=[ 0.2,#0.2+0.1*(np.random.random()-0.5),
         0.2,#0.2+0.1*(np.random.random()-0.5),
          0.2,   #0.2+0.1*(np.random.random()-0.5),
         ]
-box_mass=1
-box_mu=1.0
+# box_mass=1
+# box_mu=1.0
 contact_model='point'#'hydroelastic_with_fallback'#ContactModel.kHydroelasticWithFallback#kPoint
 contact_solver='tamsi'#ContactSolver.kSap#kTamsi # kTamsi
 desired_box_xy=[
@@ -64,24 +69,6 @@ desired_box_xy=[
     1.0+0.5*(np.random.random()-0.5),
     ] 
 ##
-
-def AddAgent(plant):
-    parser = Parser(plant)
-    model_file = FindResourceOrThrow("drake/manipulation/models/iiwa_description/iiwa7/iiwa7_with_box_collision.sdf")
-    agent = parser.AddModelFromFile(model_file)
-    #noodleman = parser.AddModelFromFile(FindResource("models/humanoid_v2_noball.sdf"))
-    p_WAgent_fixed = RigidTransform(RollPitchYaw(0, 0, np.pi/2),
-                                     np.array([0, 0, 0])) #0.25
-    # weld the lower leg of the noodleman to the world frame. 
-    # The inverse dynamic controller does not work with floating base
-    weld=WeldJoint(
-          name="weld_base",
-          frame_on_parent_P=plant.world_frame(),
-          frame_on_child_C=plant.GetFrameByName("iiwa_link_0", agent), # "waist"
-          X_PC=p_WAgent_fixed
-        )
-    plant.AddJoint(weld)
-    return agent
 
 def AddFloor(plant):
     parser = Parser(plant)
@@ -103,22 +90,6 @@ def AddTable(plant):
                     )
     return table
 
-def AddBox(plant):
-    w= box_size[0]
-    d= box_size[1]
-    h= box_size[2]
-    mass= box_mass
-    mu= box_mu
-    #if contact_model==ContactModel.kHydroelastic or contact_model==ContactModel.kHydroelasticWithFallback:
-    if contact_model=='hydroelastic_with_fallback' or contact_model=='hydroelastic':
-        parser = Parser(plant)
-        box = parser.AddModelFromFile(FindResource("models/box_v2.sdf"))
-    else:
-        box=AddShape(plant, Box(w,d,h), 
-        name="box",mass=mass,mu=mu,
-        color=[.4, .4, 1., 0.8])
-
-    return box
 
 def AddTargetPosVisuals(plant,xyz_position,color=[.8, .1, .1, 1.0]):
     parser = Parser(plant)
@@ -155,55 +126,65 @@ def add_collision_filters(scene_graph, plant):
 def make_sim(generator,
                     observations="state",
                     meshcat=None,
-                    time_limit=5,debug=False):
+                    time_limit=5,debug=False,hardware=False):
     
     builder = DiagramBuilder()
-    
-    multibody_plant_config = \
-        MultibodyPlantConfig(
-            time_step=sim_time_step,
-            contact_model=contact_model,
-            )
+ 
+    target_position=[desired_box_xy[0],desired_box_xy[1],table_heigth]
 
-    plant, scene_graph = AddMultibodyPlant(multibody_plant_config, builder)
+  
+    if hardware:
+        camera_ids = []
+        station = builder.AddSystem(ManipulationStationHardwareInterface(
+            camera_ids,False, True))
+        station.Connect(wait_for_cameras=False,wait_for_wsg=False,wait_for_optitrack=False)     
+        controller_plant=station.get_controller_plant()
+        plant=None   
+    else:
+        station = builder.AddSystem(ManipulationStation(time_step=sim_time_step,contact_model=contact_model,contact_solver=contact_solver))
+        station.SetupCitoRlStation()
 
-    #add assets to the plant
-    agent = AddAgent(plant)
-    AddTable(plant)
-    box = AddBox(plant)
-    target_position=[desired_box_xy[0],desired_box_xy[1],table_heigth+0.01]
-    AddTargetPosVisuals(plant,target_position)
-    plant.Finalize()
-    plant.set_name("plant")
-    # filter collisison between parent and child of each joint.
-    add_collision_filters(scene_graph,plant)
+        station.AddManipulandFromFile(
+                "drake/examples/manipulation_station/models/"
+                + "061_foam_brick.sdf",
+                RigidTransform(RotationMatrix.Identity(), [0.6, 0, 0.15]),
+                "box")
+        
+        controller_plant=station.get_controller_plant()
+        plant=station.get_multibody_plant()
+        scene_graph=station.get_scene_graph()
 
-    #add assets to the controller plant
-    controller_plant = MultibodyPlant(time_step=controller_time_step)
-    AddAgent(controller_plant)        
-    #SetTransparency(scene_graph, alpha=0.5, source_id=plant.get_source_id())
+        #box = AddBox(plant)
+        AddTargetPosVisuals(plant,target_position)
+        station.Finalize()
 
-    if meshcat:
-        MeshcatVisualizerCpp.AddToBuilder(builder, scene_graph, meshcat)
-        ContactVisualizer.AddToBuilder(
-            builder, plant, meshcat,
-            ContactVisualizerParams(radius=0.005, newtons_per_meter=500.0))
+        if meshcat:
+            geometry_query_port = station.GetOutputPort("geometry_query")
+            meshcat_visualizer = MeshcatVisualizer.AddToBuilder(
+                builder=builder,
+                query_object_port=geometry_query_port,
+                meshcat=meshcat)
 
-        # Use the controller plant to visualize the set point geometry.
-        controller_scene_graph = builder.AddSystem(SceneGraph())
-        controller_plant.RegisterAsSourceForSceneGraph(controller_scene_graph)
-        SetColor(controller_scene_graph,
-                 color=[1.0, 165.0 / 255, 0.0, 1.0],
-                 source_id=controller_plant.get_source_id())
-        controller_vis = MeshcatVisualizerCpp.AddToBuilder(
-            builder, controller_scene_graph, meshcat,
-            MeshcatVisualizerParams(prefix="controller"))
-        controller_vis.set_name("controller meshcat")
+            # MeshcatVisualizerCpp.AddToBuilder(builder, scene_graph, meshcat)
+            # ContactVisualizer.AddToBuilder(
+            #     builder, plant, meshcat,
+            #     ContactVisualizerParams(radius=0.005, newtons_per_meter=500.0))
 
-    #finalize the plant
-    controller_plant.Finalize()
-    controller_plant.set_name("controller_plant")
-    add_collision_filters(scene_graph,controller_plant)  
+            # # Use the controller plant to visualize the set point geometry.
+            # controller_scene_graph = builder.AddSystem(SceneGraph())
+            # controller_plant.RegisterAsSourceForSceneGraph(controller_scene_graph)
+            # SetColor(controller_scene_graph,
+            #         color=[1.0, 165.0 / 255, 0.0, 1.0],
+            #         source_id=controller_plant.get_source_id())
+            # controller_vis = MeshcatVisualizerCpp.AddToBuilder(
+            #     builder, controller_scene_graph, meshcat,
+            #     MeshcatVisualizerParams(prefix="controller"))
+            # controller_vis.set_name("controller meshcat")
+
+        # plant, scene_graph = AddMultibodyPlant(multibody_plant_config, builder)
+        # # filter collisison between parent and child of each joint.
+        # add_collision_filters(scene_graph,plant)
+
 
     #extract controller plant information
     Ns = controller_plant.num_multibody_states()
@@ -232,98 +213,67 @@ def make_sim(generator,
         print("\nActuation view: ", ActuationView(np.ones(Na)))
         print("\nPosition view: ",PositionView(np.ones(Np)))   
 
-    if control_mode=="IDC":
-        #Create inverse dynamics controller
-        kp = [10] * Na
-        ki = [0] * Na
-        kd = [5] * Na      
+    # if meshcat:
+    #     positions_to_poses = builder.AddSystem(
+    #         MultibodyPositionToGeometryPose(controller_plant))
+    #     builder.Connect(
+    #         positions_to_poses.get_output_port(),
+    #         controller_scene_graph.get_source_pose_port(
+    #             controller_plant.get_source_id()))
 
-        IDC = builder.AddSystem(InverseDynamicsController(robot=controller_plant,
-                                                kp=kp,
-                                                ki=ki,
-                                                kd=kd,
-                                                has_reference_acceleration=False))                                  
 
-        builder.Connect(plant.get_state_output_port(agent),
-                IDC.get_input_port_estimated_state())       
+    # actions = builder.AddSystem(PassThrough(Na))
+    # builder.Connect(actions.get_output_port(),
+    #                    station.GetInputPort("iiwa_position"))    
+    builder.ExportInput(station.GetInputPort("iiwa_position"),"actions")
 
-        #actions are positions sent to IDC
-        actions = builder.AddSystem(PassThrough(Na))
-        positions_to_state = builder.AddSystem(Multiplexer([Na, Na]))
-        builder.Connect(actions.get_output_port(),
-                    positions_to_state.get_input_port(0))
-        zeros_v = builder.AddSystem(ConstantVectorSource([0] * Na))
-        builder.Connect(zeros_v.get_output_port(),
-                        positions_to_state.get_input_port(1))
-        builder.Connect(positions_to_state.get_output_port(),
-                        IDC.get_input_port_desired_state())
-
-    class gate_controller_system(LeafSystem):
-
-        def __init__(self):
-            LeafSystem.__init__(self)
-            self.DeclareVectorInputPort("control_signal_input", Na)
-            self.DeclareVectorOutputPort("gated_control_output", Na, self.CalcControl)
-            self.actuation_matrix=controller_plant.MakeActuationMatrix()
-
-        def CalcControl(self, context,output):
-            control_signal_input = self.get_input_port(0).Eval(context)
-            gated_control_output=control_signal_input.dot(self.actuation_matrix)       
-            #print("control_output: ",gated_control_output)  
-            #print("control_input: ",control_signal_input)       
-            output.set_value(gated_control_output)
-    
-    if control_mode=="IDC":
-        gate_controller=builder.AddSystem(gate_controller_system())
-        builder.Connect(IDC.get_output_port(),
-                        gate_controller.get_input_port(0))
-        builder.Connect(gate_controller.get_output_port(),
-                        plant.get_actuation_input_port(agent))  
-    
-    if meshcat:
-        positions_to_poses = builder.AddSystem(
-            MultibodyPositionToGeometryPose(controller_plant))
-        builder.Connect(
-            positions_to_poses.get_output_port(),
-            controller_scene_graph.get_source_pose_port(
-                controller_plant.get_source_id()))
-
-    builder.ExportInput(actions.get_input_port(), "actions")
+    # builder.ExportInput(actions.get_input_port(), "actions")
 
     class observation_publisher(LeafSystem):
 
         def __init__(self):
             LeafSystem.__init__(self)
-            Nss = plant.num_multibody_states()
-            self.DeclareVectorInputPort("plant_states", Nss)
-            self.DeclareAbstractInputPort("body_poses",AbstractValue.Make([RigidTransform.Identity()]))
-            self.DeclareVectorOutputPort("observations", Nss+15, self.CalcObs)
-            self.box_body_idx=plant.GetBodyByName('box').index()
-            self.desired_box_pose=np.array([desired_box_xy[0],desired_box_xy[1],box_size[2]/2+table_heigth])
+            #Nss = plant.num_multibody_states()
+            self.DeclareAbstractInputPort("manipuland_pose", AbstractValue.Make(RigidTransform.Identity()))
+            self.DeclareVectorInputPort("iiwa_position",Na)
+            self.DeclareVectorInputPort("iiwa_velocities",Na)
+            self.DeclareVectorInputPort("iiwa_torques",Na)
+            self.DeclareVectorOutputPort("iiwa_velocities", Na*2, self.CalcObs)
+            # self.box_body_idx=plant.GetBodyByName('base_link').index()
+            # self.desired_box_pose=np.array([desired_box_xy[0],desired_box_xy[1],box_size[2]/2+table_heigth])
 
         def CalcObs(self, context,output):
-            plant_state = self.get_input_port(0).Eval(context)
-            body_poses=self.get_input_port(1).Eval(context)
+            box_pose = self.get_input_port(0).Eval(context)
+            iiwa_position = self.get_input_port(1).Eval(context)
+            iiwa_velocities = self.get_input_port(2).Eval(context)
+            iiwa_torques = self.get_input_port(3).Eval(context)
    
-            box_pose = body_poses[self.box_body_idx].translation()
+            box_translation = box_pose.translation()
  
-            box_rotation=body_poses[self.box_body_idx].rotation().matrix()
+            box_rotation=box_pose.rotation().matrix()
             #pose of the middle point of the farthest edge of the box
-            box_LF_edge= box_rotation.dot(np.array([box_pose[0]+box_size[0]/2,box_pose[1]+box_size[1]/2,box_pose[2]]))
-            box_RF_edge= box_rotation.dot(np.array([box_pose[0]-box_size[0]/2,box_pose[1]+box_size[1]/2,box_pose[2]]))
+            box_LF_edge= box_rotation.dot(np.array([box_translation[0]+box_size[0]/2,box_translation[1]+box_size[1]/2,box_translation[2]]))
+            box_RF_edge= box_rotation.dot(np.array([box_translation[0]-box_size[0]/2,box_translation[1]+box_size[1]/2,box_translation[2]]))
                         #pose of the middle point of the closest edge of the box
-            box_LC_edge= box_rotation.dot(np.array([box_pose[0]+box_size[0]/2,box_pose[1]-box_size[1]/2,box_pose[2]]))
-            box_RC_edge= box_rotation.dot(np.array([box_pose[0]-box_size[0]/2,box_pose[1]-box_size[1]/2,box_pose[2]]))
-            distance_to_target=self.desired_box_pose-box_pose
+            box_LC_edge= box_rotation.dot(np.array([box_translation[0]+box_size[0]/2,box_translation[1]-box_size[1]/2,box_translation[2]]))
+            box_RC_edge= box_rotation.dot(np.array([box_translation[0]-box_size[0]/2,box_translation[1]-box_size[1]/2,box_translation[2]]))
+            distance_to_target=self.desired_box_pose-box_translation
             #pdb.set_trace()
+            observations=np.concatenate((iiwa_position,iiwa_velocities))
             extension=np.concatenate((box_LF_edge,box_RF_edge,box_LC_edge,box_RC_edge,distance_to_target))
-            extended_observations=np.concatenate((plant_state,extension))      
-            output.set_value(extended_observations)
+            
+            extended_observations=np.concatenate((observations,extension))      
+            #output.set_value(extended_observations)
+            output.set_value(observations)
+
 
     obs_pub=builder.AddSystem(observation_publisher())
 
-    builder.Connect(plant.get_state_output_port(),obs_pub.get_input_port(0))
-    builder.Connect(plant.get_body_poses_output_port(), obs_pub.get_input_port(1))
+    builder.Connect(station.GetOutputPort("optitrack_manipuland_pose"),obs_pub.get_input_port(0))
+    builder.Connect(station.GetOutputPort("iiwa_position_measured"),obs_pub.get_input_port(1))
+    builder.Connect(station.GetOutputPort("iiwa_velocity_estimated"),obs_pub.get_input_port(2))
+    builder.Connect(station.GetOutputPort("iiwa_torque_measured"),obs_pub.get_input_port(3))
+
     builder.ExportOutput(obs_pub.get_output_port(), "observations")
 
     class RewardSystem(LeafSystem):
@@ -410,8 +360,9 @@ def make_sim(generator,
 
     if debug:
         #visualize plant and diagram
-        plt.figure()
-        plot_graphviz(controller_plant.GetTopologyGraphvizString())
+        if not hardware:
+            plt.figure()
+            plot_graphviz(plant.GetTopologyGraphvizString())
         plt.figure()
         plot_system_graphviz(diagram, max_depth=2)
         plt.plot(1)
