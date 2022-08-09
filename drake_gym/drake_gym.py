@@ -182,8 +182,8 @@ class DrakeGymEnv(gym.Env):
                               ImageRgba8U)
         
         #(Maybe) expose plant and make NamedView
-        self.plant = self.simulator.get_system().GetSubsystemByName("plant")
-        self.stateview=MakeNamedViewState(self.plant, "States")
+        #self.plant = self.simulator.get_system().GetSubsystemByName("plant")
+        #self.stateview=MakeNamedViewState(self.plant, "States")
         
 
 
@@ -235,7 +235,7 @@ class DrakeGymEnv(gym.Env):
         if self.make_simulator:
             self.simulator = self.make_simulator(self.generator)
             self._setup()
-
+        #pdb.set_trace()
         context = self.simulator.get_mutable_context()
         context.SetTime(0)
         self.simulator.get_system().SetRandomContext(context, self.generator)
@@ -258,6 +258,7 @@ class DrakeGymEnv(gym.Env):
         
         #state=self.stateview(observations)
         #print(state)
+        #input("Press Enter to continue...")
         return observations
 
     def render(self, mode='human'):

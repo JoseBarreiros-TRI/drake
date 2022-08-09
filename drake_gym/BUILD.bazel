@@ -204,6 +204,16 @@ drake_py_binary(
     ],
 )
 drake_py_binary(
+    name = "rl_play_manipulation_station_pushing_box",
+    srcs = ["rl_play_manipulation_station_pushing_box.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
     name = "rl_play_iiwa_pushing_box",
     srcs = ["rl_play_iiwa_pushing_box.py"],
     data = [":model_files"],
@@ -244,6 +254,7 @@ filegroup(
        "models/humanoid_v2_noball.sdf",
        "models/capsule.sdf",
        "models/floor_v2.sdf",
+       "models/optitrack_brick.sdf",
        "models/humanoid_torso_v2_noball_noZeroBodies_spring_prismatic.sdf",
     ],
 )

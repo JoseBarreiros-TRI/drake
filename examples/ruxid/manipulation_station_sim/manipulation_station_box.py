@@ -282,6 +282,7 @@ def make_environment(meshcat=None, debug=False, hardware=False,args=None):
         def _on_per_step(self,context,event):
             #pdb.set_trace()
             try:
+                #pdb.set_trace()
                 signal_input = self.get_input_port(0).Eval(context)
                 print("input: ",signal_input.translation())
                 print("input: ",signal_input.translation()[1],-signal_input.translation()[0],signal_input.translation()[2]) 
