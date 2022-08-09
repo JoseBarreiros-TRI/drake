@@ -49,9 +49,9 @@ from pydrake.examples import (
     ManipulationStationHardwareInterface)
 
 ## Gym parameters
-sim_time_step=0.01
+sim_time_step=0.005
 gym_time_step=0.05
-controller_time_step=0.01
+#controller_time_step=0.01
 gym_time_limit=5
 modes=["IDC","torque"]
 control_mode=modes[0]
@@ -65,8 +65,8 @@ box_size=[ 0.2,#0.2+0.1*(np.random.random()-0.5),
 contact_model='point'#'hydroelastic_with_fallback'#ContactModel.kHydroelasticWithFallback#kPoint
 contact_solver='tamsi'#ContactSolver.kSap#kTamsi # kTamsi
 desired_box_xy=[
-    0.+0.8*(np.random.random()-0.5),
-    1.0+0.5*(np.random.random()-0.5),
+    1.+0.5*(np.random.random()-0.5),
+    0+0.8*(np.random.random()-0.5),
     ] 
 ##
 
@@ -80,17 +80,6 @@ def AddFloor(plant):
                     )
     return floor
 
-def AddTable(plant):
-    parser = Parser(plant)
-    table = parser.AddModelFromFile(FindResource("models/table.sdf"))
-    plant.WeldFrames(
-        plant.world_frame(), plant.GetFrameByName("table", table),
-        RigidTransform(RollPitchYaw(0, 0, 0),
-                        np.array([0, 1.2, table_heigth]))
-                    )
-    return table
-
-
 def AddTargetPosVisuals(plant,xyz_position,color=[.8, .1, .1, 1.0]):
     parser = Parser(plant)
     marker = parser.AddModelFromFile(FindResource("models/cross.sdf"))
@@ -101,32 +90,13 @@ def AddTargetPosVisuals(plant,xyz_position,color=[.8, .1, .1, 1.0]):
                     )
     )
 
-def add_collision_filters(scene_graph, plant):
-    filter_manager=scene_graph.collision_filter_manager()
-    body_pairs=[
-        ["iiwa_link_1","iiwa_link_2"],
-        ["iiwa_link_2","iiwa_link_3"],
-        ["iiwa_link_3","iiwa_link_4"],
-        ["iiwa_link_4","iiwa_link_5"],
-        ["iiwa_link_5","iiwa_link_6"],
-        ["iiwa_link_6","iiwa_link_7"],
-    ]
-
-    for pair in body_pairs:
-        parent=plant.GetBodyByName(pair[0])
-        child=plant.GetBodyByName(pair[1])
-        
-        set=mut.GeometrySet(
-            plant.GetCollisionGeometriesForBody(parent)+
-            plant.GetCollisionGeometriesForBody(child))
-        filter_manager.Apply(
-            declaration=mut.CollisionFilterDeclaration().ExcludeWithin(
-                set))
 
 def make_sim(generator,
                     observations="state",
                     meshcat=None,
-                    time_limit=5,debug=False,hardware=False):
+                    time_limit=5,
+                    debug=False,
+                    hardware=False):
     
     builder = DiagramBuilder()
  
@@ -145,8 +115,8 @@ def make_sim(generator,
         station.SetupCitoRlStation()
 
         station.AddManipulandFromFile(
-                "drake/examples/manipulation_station/models/"
-                + "061_foam_brick.sdf",
+                "drake/drake_gym/models/"
+                + "optitrack_brick.sdf",
                 RigidTransform(RotationMatrix.Identity(), [0.6, 0, 0.15]),
                 "box")
         
@@ -205,7 +175,7 @@ def make_sim(generator,
             ", number of joints: ",Nj,
             ", number of multibody states: ",Ns,'\n')
         plt.figure()
-        plot_graphviz(plant.GetTopologyGraphvizString())
+        plot_graphviz(controller_plant.GetTopologyGraphvizString())
         plt.plot(1)
         plt.show(block=False)
      
@@ -225,49 +195,73 @@ def make_sim(generator,
     # actions = builder.AddSystem(PassThrough(Na))
     # builder.Connect(actions.get_output_port(),
     #                    station.GetInputPort("iiwa_position"))    
-    builder.ExportInput(station.GetInputPort("iiwa_position"),"actions")
 
-    # builder.ExportInput(actions.get_input_port(), "actions")
+    if hardware:
+        action_passthrough=builder.AddSystem(PassThrough(Na))
+        builder.Connect(action_passthrough.get_output_port(),station.GetInputPort("iiwa_position"))
+        builder.ExportInput(action_passthrough.get_input_port(),"actions")
+    else:
+        builder.ExportInput(station.GetInputPort("iiwa_position"),"actions")
+
 
     class observation_publisher(LeafSystem):
 
-        def __init__(self):
+        def __init__(self,robot,frame_EE):
             LeafSystem.__init__(self)
             #Nss = plant.num_multibody_states()
             self.DeclareAbstractInputPort("manipuland_pose", AbstractValue.Make(RigidTransform.Identity()))
             self.DeclareVectorInputPort("iiwa_position",Na)
             self.DeclareVectorInputPort("iiwa_velocities",Na)
             self.DeclareVectorInputPort("iiwa_torques",Na)
-            self.DeclareVectorOutputPort("iiwa_velocities", Na*2, self.CalcObs)
-            # self.box_body_idx=plant.GetBodyByName('base_link').index()
-            # self.desired_box_pose=np.array([desired_box_xy[0],desired_box_xy[1],box_size[2]/2+table_heigth])
+            #self.DeclareVectorOutputPort("observations", Na*2, self.CalcObs)
+            self.DeclareVectorOutputPort("observations", Na*2+6, self.CalcObs)
+            self.desired_box_pose=np.array([desired_box_xy[0],desired_box_xy[1],box_size[2]/2+table_heigth])
+
+            self.robot = robot
+            self.frame_EE = frame_EE
+            self.robot_context = robot.CreateDefaultContext()
 
         def CalcObs(self, context,output):
-            box_pose = self.get_input_port(0).Eval(context)
+            try:
+                box_pose = self.get_input_port(0).Eval(context)
+            except:
+                box_pose=RigidTransform.Identity()  #this might not be safe
+
             iiwa_position = self.get_input_port(1).Eval(context)
             iiwa_velocities = self.get_input_port(2).Eval(context)
             iiwa_torques = self.get_input_port(3).Eval(context)
    
             box_translation = box_pose.translation()
- 
             box_rotation=box_pose.rotation().matrix()
+
+            #EE pose
+            x = self.robot.GetMutablePositionsAndVelocities(
+                self.robot_context)
+            x[:self.robot.num_positions()] = iiwa_position
+            EE_pose=self.robot.EvalBodyPoseInWorld(
+                self.robot_context, self.frame_EE.body())
+            #pdb.set_trace()
+
             #pose of the middle point of the farthest edge of the box
             box_LF_edge= box_rotation.dot(np.array([box_translation[0]+box_size[0]/2,box_translation[1]+box_size[1]/2,box_translation[2]]))
             box_RF_edge= box_rotation.dot(np.array([box_translation[0]-box_size[0]/2,box_translation[1]+box_size[1]/2,box_translation[2]]))
                         #pose of the middle point of the closest edge of the box
             box_LC_edge= box_rotation.dot(np.array([box_translation[0]+box_size[0]/2,box_translation[1]-box_size[1]/2,box_translation[2]]))
             box_RC_edge= box_rotation.dot(np.array([box_translation[0]-box_size[0]/2,box_translation[1]-box_size[1]/2,box_translation[2]]))
-            distance_to_target=self.desired_box_pose-box_translation
+            distance_box_to_target=self.desired_box_pose-box_translation
+            distance_EE_to_box=EE_pose.translation()-box_translation
             #pdb.set_trace()
             observations=np.concatenate((iiwa_position,iiwa_velocities))
-            extension=np.concatenate((box_LF_edge,box_RF_edge,box_LC_edge,box_RC_edge,distance_to_target))
+            #extension=np.concatenate((box_LF_edge,box_RF_edge,box_LC_edge,box_RC_edge,distance_box_to_target))
+            extension=np.concatenate((distance_box_to_target,distance_EE_to_box))
             
             extended_observations=np.concatenate((observations,extension))      
-            #output.set_value(extended_observations)
-            output.set_value(observations)
+            output.set_value(extended_observations)
+            #output.set_value(observations)
 
 
-    obs_pub=builder.AddSystem(observation_publisher())
+    obs_pub=builder.AddSystem(observation_publisher(controller_plant,controller_plant.GetFrameByName("iiwa_link_7")))
+
 
     builder.Connect(station.GetOutputPort("optitrack_manipuland_pose"),obs_pub.get_input_port(0))
     builder.Connect(station.GetOutputPort("iiwa_position_measured"),obs_pub.get_input_port(1))
@@ -278,47 +272,56 @@ def make_sim(generator,
 
     class RewardSystem(LeafSystem):
 
-        def __init__(self):
+        def __init__(self,robot,frame_EE):
             LeafSystem.__init__(self)
-            self.DeclareVectorInputPort("state", Ns)
-            self.DeclareAbstractInputPort("body_poses",AbstractValue.Make([RigidTransform.Identity()]))
-            self.DeclareVectorInputPort("actions", Na)
+            self.DeclareAbstractInputPort("manipuland_pose", AbstractValue.Make(RigidTransform.Identity()))
+            self.DeclareVectorInputPort("iiwa_position",Na)
+            self.DeclareVectorInputPort("iiwa_velocities",Na)
+            self.DeclareVectorInputPort("iiwa_torques",Na)
             self.DeclareVectorOutputPort("reward", 1, self.CalcReward)
-            self.StateView=MakeNamedViewState(plant, "States")
-            self.PositionView=MakeNamedViewPositions(plant, "Position")
-            self.ActuationView=MakeNamedViewActuation(plant, "Actuation")
-            self.box_body_idx=plant.GetBodyByName('box').index() 
-            self.EE_body_idx=plant.GetBodyByName('iiwa_link_7').index() 
+
             self.desired_box_pose=np.array([desired_box_xy[0],desired_box_xy[1],box_size[2]/2+table_heigth])
-            #self.Np=plant.num_positions()
+
+            self.robot = robot
+            self.frame_EE = frame_EE
+            self.robot_context = robot.CreateDefaultContext()
 
         def CalcReward(self, context, output):
-            agent_state = self.get_input_port(0).Eval(context)
-            body_poses=self.get_input_port(1).Eval(context)
-            actions = self.get_input_port(2).Eval(context)
-            box_pose = body_poses[self.box_body_idx].translation()
-            EE_pose = body_poses[self.EE_body_idx].translation()
+            try:
+                body_pose = self.get_input_port(0).Eval(context)
+            except:
+                body_pose=RigidTransform.Identity()  #this might not be safe
+
+            iiwa_position = self.get_input_port(1).Eval(context)
             
-            box_rotation=body_poses[self.box_body_idx].rotation().matrix()
+
+            box_translation = body_pose.translation()
+            box_rotation=body_pose.rotation().matrix()
             box_euler=R.from_dcm(box_rotation).as_euler('zyx', degrees=False)
             #pdb.set_trace()
 
-            distance_to_EE=box_pose-EE_pose
-            distance_to_target=self.desired_box_pose-box_pose
+            #EE pose
+            x = self.robot.GetMutablePositionsAndVelocities(
+                self.robot_context)
+            x[:self.robot.num_positions()] = iiwa_position
+            EE_pose=self.robot.EvalBodyPoseInWorld(
+                self.robot_context, self.frame_EE.body())
 
-            cost_EE=distance_to_EE.dot(distance_to_EE)
-            cost_to_target=distance_to_target.dot(distance_to_target) 
+
+            distance_box_to_target=self.desired_box_pose-box_translation
+            distance_EE_to_box=EE_pose.translation()-box_translation
+
+            cost_EE=distance_EE_to_box.dot(distance_EE_to_box)
+            cost_to_target=distance_box_to_target.dot(distance_box_to_target) 
 
             cost = cost_EE + 10*cost_to_target
-            #cost = 10*cost_to_target
-            reward=1.2-cost
+
+            reward=5-cost
        
             if debug:
-                print('box_pose: ',box_pose)
-                print("EE: ", EE_pose)
+                print('box_pose: ',box_translation)
+                print("EE: ", EE_pose.translation())
 
-                #print('joint_state: ',noodleman_joint_state)
-                #print('act: {a}, j_state: {p}'.format(a=actions,p=noodleman_joint_state))
                 print('cost: {c}, cost_EE: {ce}, cost_to_target: {ct}'.format(
                         c=cost,
                         ce=cost_EE,
@@ -329,36 +332,20 @@ def make_sim(generator,
 
             output[0] = reward
 
-    reward = builder.AddSystem(RewardSystem())
-    builder.Connect(plant.get_state_output_port(agent), reward.get_input_port(0))
-    builder.Connect(plant.get_body_poses_output_port(), reward.get_input_port(1))
-    builder.Connect(actions.get_output_port(), reward.get_input_port(2))
+
+    reward = builder.AddSystem(RewardSystem(controller_plant,controller_plant.GetFrameByName("iiwa_link_7")))
+
+    builder.Connect(station.GetOutputPort("optitrack_manipuland_pose"),reward.get_input_port(0))
+    builder.Connect(station.GetOutputPort("iiwa_position_measured"),reward.get_input_port(1))
+    builder.Connect(station.GetOutputPort("iiwa_velocity_estimated"),reward.get_input_port(2))
+    builder.Connect(station.GetOutputPort("iiwa_torque_measured"),reward.get_input_port(3))
     builder.ExportOutput(reward.get_output_port(), "reward")
+
 
     diagram = builder.Build()
     simulator = Simulator(diagram)
-    simulator.Initialize()
-
-    # Termination conditions:
-    def monitor(context,plant=plant):
-        #pdb.set_trace()
-        plant_context=plant.GetMyContextFromRoot(context)
-        box_body_idx=plant.GetBodyByName('box').index() 
-        body_poses=plant.get_body_poses_output_port().Eval(plant_context)
-        box_pose=body_poses[box_body_idx].translation()
-        #print("b_pose: ", box_pose)
-        # terminate from time and box out of reach
-        if context.get_time() > time_limit:
-            return EventStatus.ReachedTermination(diagram, "time limit")
-        elif np.linalg.norm(box_pose)>1.4 or box_pose[1]<0.2:
-            #pdb.set_trace()
-            return EventStatus.ReachedTermination(diagram, "box out of reach")
-        
-        return EventStatus.Succeeded()
-
-    simulator.set_monitor(monitor)
-
     if debug:
+        simulator.set_target_realtime_rate(1)
         #visualize plant and diagram
         if not hardware:
             plt.figure()
@@ -369,73 +356,73 @@ def make_sim(generator,
         plt.show(block=False)
         #pdb.set_trace()
 
+    simulator.Initialize()
+
+    # Termination conditions:
+    def monitor(context):
+
+        # terminate from time and box out of reach
+        if context.get_time() > time_limit:
+            return EventStatus.ReachedTermination(diagram, "time limit")
+        if not hardware:
+            #pdb.set_trace()
+            station_context=diagram.GetMutableSubsystemContext(station,context)
+            box_pose=station.GetOutputPort("optitrack_manipuland_pose").Eval(station_context).translation()
+            #print("b_pose: ", box_pose)
+            if np.linalg.norm(box_pose)>1.4 or box_pose[0]<0.2 or box_pose[2]<0.1:
+                #pdb.set_trace()
+                return EventStatus.ReachedTermination(diagram, "box out of reach")
+        
+        return EventStatus.Succeeded()
+
+    simulator.set_monitor(monitor)
+
     return simulator
 
-def set_home(simulator,diagram_context,plant_name="plant"):
-    
-    diagram = simulator.get_system()
-    plant=diagram.GetSubsystemByName(plant_name)
-    plant_context = diagram.GetMutableSubsystemContext(plant,
-                                                diagram_context)  
 
-    home_positions=[
-        ('iiwa_joint_1',0.1*(np.random.random()-0.5)+0.3),
-        ('iiwa_joint_2',0.1*(np.random.random()-0.5)+0.3),
-        ('iiwa_joint_3',0.1*(np.random.random()-0.5)+0.3),
-        ('iiwa_joint_4',0.1*(np.random.random()-0.5)+0.3),
-        ('iiwa_joint_5',0.1*(np.random.random()-0.5)+0.3),
-        ('iiwa_joint_6',0.1*(np.random.random()-0.5)+0.3),
-        ('iiwa_joint_7',0.1*(np.random.random()-0.5)+0.3),
-
-    ]
-
-    #ensure the positions are within the joint limits
-    for pair in home_positions:
-        joint = plant.GetJointByName(pair[0])
-        if joint.type_name()=="revolute":
-            joint.set_angle(plant_context,
-                        np.clip(pair[1],
-                            joint.position_lower_limit(),
-                            joint.position_upper_limit()
-                            )
-                        )
-    box=plant.GetBodyByName("box")
-    
-    box_pose = RigidTransform(
-                    RollPitchYaw(0, 0.1, 0),
-                    np.array(
-                        [
-                            0+0.25*(np.random.random()-0.5), 
-                            0.75+0.1*(np.random.random()-0.5), 
-                            box_size[2]/2+0.005+table_heigth,
-                        ])
-                    )
-    plant.SetFreeBodyPose(plant_context,box,box_pose)
-
-def ManipulationStationBoxPushingEnv(observations="state", meshcat=None, time_limit=gym_time_limit, debug=False):
+def ManipulationStationBoxPushingEnv(observations="state", meshcat=None, time_limit=gym_time_limit, debug=False,hardware=False):
     
     #Make simulation
     simulator = make_sim(RandomGenerator(),
                             observations,
                             meshcat=meshcat,
                             time_limit=time_limit,
-                            debug=debug)
-    plant = simulator.get_system().GetSubsystemByName("plant")
+                            debug=debug,
+                            hardware=hardware)
+    #pdb.set_trace()
+    if hardware:
+        station = simulator.get_system().GetSubsystemByName("manipulation_station_hardware_interface")
+    else:
+        station = simulator.get_system().GetSubsystemByName("manipulation_station")
+    plant=station.get_controller_plant()
     
     #Define Action space
     Na=plant.num_actuators()
     low = plant.GetPositionLowerLimits()[:Na]
     high = plant.GetPositionUpperLimits()[:Na]
+    #pdb.set_trace()
     # StateView=MakeNamedViewState(plant, "States")
     # PositionView=MakeNamedViewPositions(plant, "Position")
     # ActuationView=MakeNamedViewActuation(plant, "Actuation")
     action_space = gym.spaces.Box(low=np.asarray(low, dtype="float64"), high=np.asarray(high, dtype="float64"),dtype=np.float64)
      
     #Define observation space 
+    # low = np.concatenate(
+    #     (plant.GetPositionLowerLimits(), plant.GetVelocityLowerLimits(),np.array([-np.inf]*6)))
+    # high = np.concatenate(
+    #     (plant.GetPositionUpperLimits(), plant.GetVelocityUpperLimits(),np.array([np.inf]*6)))
+
     low = np.concatenate(
-        (plant.GetPositionLowerLimits(), plant.GetVelocityLowerLimits(),np.array([-np.inf]*15)))
+        (np.array([-np.pi]*Na), np.array([-100]*Na),np.array([-np.inf]*6)))
     high = np.concatenate(
-        (plant.GetPositionUpperLimits(), plant.GetVelocityUpperLimits(),np.array([np.inf]*15)))
+        (np.array([np.pi]*Na), np.array([100]*Na),np.array([np.inf]*6)))
+
+    # low = np.concatenate(
+    #     (plant.GetPositionLowerLimits(), plant.GetVelocityLowerLimits()))
+    # high = np.concatenate(
+    #     (plant.GetPositionUpperLimits(), plant.GetVelocityUpperLimits()))
+
+
     observation_space = gym.spaces.Box(low=np.asarray(low, dtype="float64"),
                                        high=np.asarray(high, dtype="float64"),
                                        dtype=np.float64)
@@ -447,5 +434,5 @@ def ManipulationStationBoxPushingEnv(observations="state", meshcat=None, time_li
                       reward="reward",
                       action_port_id="actions",
                       observation_port_id="observations",
-                      set_home=set_home)
+                      set_home=None)
     return env
