@@ -434,5 +434,6 @@ def ManipulationStationBoxPushingEnv(observations="state", meshcat=None, time_li
                       reward="reward",
                       action_port_id="actions",
                       observation_port_id="observations",
-                      set_home=None)
+                      set_home=None,
+                      hardware=hardware)
     return env

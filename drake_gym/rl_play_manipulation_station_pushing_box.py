@@ -49,13 +49,13 @@ if __name__ == '__main__':
         ActuationView=MakeNamedViewActuation(env.plant, "Actuation")
         PositionView=MakeNamedViewPositions(env.plant,"Positions")
         actuation_matrix=env.plant.MakeActuationMatrix()
-        # standing straigth
+
         a1=PositionView([0]*Np) 
-        # arms up
+
         a2=PositionView([0]*Np) 
-        a2.shoulderR_joint1=1.5
-        a2.shoulderL_joint1=1.5
-        a2.prismatic_z=0.3
+        # a2.shoulderR_joint1=1.5
+        # a2.shoulderL_joint1=1.5
+        # a2.prismatic_z=0.3
         actions=[a1.__array__()[:Na],a2.__array__()[:Na]]
 
         for action in actions:
@@ -76,4 +76,5 @@ if __name__ == '__main__':
         obs, reward, done, info = env.step(action)
         env.render()
         if done:
+            input("If continue the environment will reset. Press Enter to continue...")   
             obs = env.reset()
