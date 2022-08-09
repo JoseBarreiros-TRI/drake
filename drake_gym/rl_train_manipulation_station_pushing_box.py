@@ -8,6 +8,7 @@ from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.callbacks import CheckpointCallback
 from pydrake.geometry import Meshcat, Cylinder, Rgba, Sphere, StartMeshcat
+from stable_baselines3.common.env_checker import check_env
 
 gym.envs.register(id="ManipulationStationBoxPushing-v0",
                   entry_point="envs.manipulation_station_pushing_box:ManipulationStationBoxPushingEnv")
@@ -44,7 +45,10 @@ if __name__ == '__main__':
             observations=observations,time_limit=time_limit, debug=debug)
         print("Open tensorboard in another terminal. tensorboard --logdir ",log)
         input("Press Enter to continue...")
-        
+    
+    if args.debug:
+        check_env(env)
+
     if args.test:
         model = PPO('MlpPolicy', env, n_steps=4, n_epochs=2, batch_size=8)
     else:
@@ -52,7 +56,7 @@ if __name__ == '__main__':
 
     new_log = True
     while True:
-        model.learn(total_timesteps=100000 if not args.test else 4,
+        model.learn(total_timesteps=10000 if not args.test else 4,
                     reset_num_timesteps=new_log, callback=[checkpoint_callback] if not args.test else [])
         if args.test:
             break
