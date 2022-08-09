@@ -42,7 +42,8 @@ class DrakeGymEnv(gym.Env):
                  action_port_id: Union[InputPort, InputPortIndex, str] = None,
                  observation_port_id: Union[OutputPortIndex, str] = None,
                  render_rgb_port_id: Union[OutputPortIndex, str] = None,
-                 set_home = None):
+                 set_home = None,
+                 hardware = False):
         """
         Args:
             system: A Drake System
@@ -137,6 +138,7 @@ class DrakeGymEnv(gym.Env):
             self._setup()
         
         self.set_home=set_home
+        self.hardware=hardware
 
     def _setup(self):
         """Completes the setup once we have a self.simulator."""
@@ -242,9 +244,14 @@ class DrakeGymEnv(gym.Env):
         if self.set_home is not None:
             self.set_home(self.simulator,context)
         else:
-            self.simulator.get_system().SetRandomContext(context, self.generator)
+            if not self.hardware:
+                self.simulator.get_system().SetRandomContext(context, self.generator)
        
         self.simulator.Initialize()
+
+        if self.hardware:
+            self.simulator.AdvanceTo(1e-6)
+
         # Note: The output port will be evaluated without fixing the input port.
         observations = self.observation_port.Eval(context)
         #print('obs',observations)
