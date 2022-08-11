@@ -1,4 +1,5 @@
 #include <limits>
+#include <iostream>
 
 #include <gflags/gflags.h>
 
@@ -27,6 +28,7 @@
 #include "drake/systems/lcm/lcm_subscriber_system.h"
 #include "drake/systems/primitives/matrix_gain.h"
 #include "drake/systems/sensors/image_to_lcm_image_array_t.h"
+#include "drake/systems/sensors/optitrack_sender.h"
 
 namespace drake {
 namespace examples {
@@ -45,11 +47,9 @@ DEFINE_double(target_realtime_rate, 1.0,
               "Simulator::set_target_realtime_rate() for details.");
 DEFINE_double(duration, std::numeric_limits<double>::infinity(),
               "Simulation duration.");
-DEFINE_string(setup, "manipulation_class",
+DEFINE_string(setup, "cito_rl",
               "Manipulation station type to simulate. "
-              "Can be {manipulation_class, clutter_clearing}");
-DEFINE_bool(publish_cameras, false,
-            "Whether to publish camera images to LCM");
+              "Can be {cito_rl}");
 DEFINE_bool(publish_point_cloud, false,
             "Whether to publish point clouds to LCM.  Note that per issue "
             "https://github.com/RobotLocomotion/drake/issues/12125 the "
@@ -62,22 +62,17 @@ int do_main(int argc, char* argv[]) {
 
   // Create the "manipulation station".
   auto station = builder.AddSystem<RlCitoStation>();
-  if (FLAGS_setup == "manipulation_class") {
-    station->SetupManipulationClassStation();
+ if (FLAGS_setup == "cito_rl") {
+    station->SetupCitoRlStation();
     station->AddManipulandFromFile(
         "drake/examples/rl_cito_station/models/061_foam_brick.sdf",
         math::RigidTransform<double>(math::RotationMatrix<double>::Identity(),
-                                     Eigen::Vector3d(0.6, 0, 0)));
-  } else if (FLAGS_setup == "clutter_clearing") {
-    station->SetupClutterClearingStation();
-    station->AddManipulandFromFile(
-        "drake/manipulation/models/ycb/sdf/003_cracker_box.sdf",
-        math::RigidTransform<double>(math::RollPitchYaw<double>(-1.57, 0, 3),
-                                     Eigen::Vector3d(-0.3, -0.55, 0.36)));
+                                     Eigen::Vector3d(0.6, 0, 0.15)),
+        "box");
   } else {
     throw std::domain_error(
         "Unrecognized station type. Options are "
-        "{manipulation_class, clutter_clearing}.");
+        "{cito_rl}.");
   }
   // TODO(russt): Load sdf objects specified at the command line.  Requires
   // #9747.
@@ -124,74 +119,27 @@ int do_main(int argc, char* argv[]) {
   builder.Connect(iiwa_status->get_output_port(),
                   iiwa_status_publisher->get_input_port());
 
-  // Receive the WSG commands.
-  auto wsg_command_subscriber = builder.AddSystem(
-      systems::lcm::LcmSubscriberSystem::Make<drake::lcmt_schunk_wsg_command>(
-          "SCHUNK_WSG_COMMAND", lcm));
-  auto wsg_command =
-      builder.AddSystem<manipulation::schunk_wsg::SchunkWsgCommandReceiver>();
-  builder.Connect(wsg_command_subscriber->get_output_port(),
-                  wsg_command->GetInputPort("command_message"));
-  builder.Connect(wsg_command->get_position_output_port(),
-                  station->GetInputPort("wsg_position"));
-  builder.Connect(wsg_command->get_force_limit_output_port(),
-                  station->GetInputPort("wsg_force_limit"));
+  if (FLAGS_setup == "cito_rl"){
+    // mock Mocap
+    auto& mbp_=station->get_multibody_plant();
+    std::cout<<"instance index: "<<mbp_.GetModelInstanceByName("box") <<"body index: "<<mbp_.GetBodyByName("base_link",mbp_.GetModelInstanceByName("box")).index()<<std::endl;
+    
+    geometry::FrameId frame_id=mbp_.GetBodyFrameIdOrThrow(mbp_.GetBodyByName("base_link",mbp_.GetModelInstanceByName("box")).index());
+    std::map<geometry::FrameId, std::pair<std::string, int>> frame_map;
+    int optitrack_id = 0;
+    frame_map[frame_id]=std::pair<std::string,int>("body_1",optitrack_id);
+    
+    const double fps_mocap = 100.0;
+    auto optitrack_mock=
+        builder.AddSystem<systems::sensors::OptitrackLcmFrameSender>(frame_map);   
+    builder.Connect(station->GetOutputPort("geometry_poses"),
+        optitrack_mock->get_input_port());
 
-  // Publish the WSG status.
-  auto wsg_status =
-      builder.AddSystem<manipulation::schunk_wsg::SchunkWsgStatusSender>();
-  builder.Connect(station->GetOutputPort("wsg_state_measured"),
-                  wsg_status->get_state_input_port());
-  builder.Connect(station->GetOutputPort("wsg_force_measured"),
-                  wsg_status->get_force_input_port());
-  auto wsg_status_publisher = builder.AddSystem(
-      systems::lcm::LcmPublisherSystem::Make<drake::lcmt_schunk_wsg_status>(
-          "SCHUNK_WSG_STATUS", lcm, 0.05 /* publish period */));
-  builder.Connect(wsg_status->get_output_port(0),
-                  wsg_status_publisher->get_input_port());
-
-  // Publish the camera outputs.
-  if (FLAGS_publish_cameras) {
-    auto image_encoder = builder.AddSystem<
-        systems::sensors::ImageToLcmImageArrayT>();
-    for (const auto& camera_name : station->get_camera_names()) {
-      // RGB
-      const std::string rgb_name = "camera_" + camera_name + "_rgb_image";
-      const auto& rgb_output = station->GetOutputPort(rgb_name);
-      const auto& rgb_input =
-          image_encoder->DeclareImageInputPort<
-              systems::sensors::PixelType::kRgba8U>(rgb_name);
-      builder.Connect(rgb_output, rgb_input);
-      // Depth
-      const std::string depth_name = "camera_" + camera_name + "_depth_image";
-      const auto& depth_output = station->GetOutputPort(depth_name);
-      const auto& depth_input =
-          image_encoder->DeclareImageInputPort<
-              systems::sensors::PixelType::kDepth16U>(depth_name);
-      builder.Connect(depth_output, depth_input);
-    }
-    const double fps = 30.0;
-    auto image_publisher = builder.AddSystem(
-        systems::lcm::LcmPublisherSystem::Make<drake::lcmt_image_array>(
-            "DRAKE_RGBD_CAMERA_IMAGES", lcm, 1.0 / fps));
-    builder.Connect(image_encoder->image_array_t_msg_output_port(),
-                    image_publisher->get_input_port());
-  }
-
-  // Publish the point clouds.
-  if (FLAGS_publish_point_cloud) {
-    for (const auto& camera_name : station->get_camera_names()) {
-      const std::string cloud_name = "camera_" + camera_name + "_point_cloud";
-      auto cloud_encoder = builder.AddSystem<perception::PointCloudToLcm>();
-      const double fps = 5.0;
-      auto cloud_publisher = builder.AddSystem(
-          systems::lcm::LcmPublisherSystem::Make<drake::lcmt_point_cloud>(
-              "DRAKE_POINT_CLOUD_" + camera_name, lcm, 1.0 / fps));
-      builder.Connect(station->GetOutputPort(cloud_name),
-                      cloud_encoder->get_input_port());
-      builder.Connect(cloud_encoder->get_output_port(),
-                      cloud_publisher->get_input_port());
-    }
+    auto optitrack_publisher = builder.AddSystem(
+        systems::lcm::LcmPublisherSystem::Make<optitrack::optitrack_frame_t>(
+            "OPTITRACK_FRAMES", lcm, 1.0 / fps_mocap));
+    builder.Connect(optitrack_mock->get_lcm_output_port(),
+                    optitrack_publisher->get_input_port());
   }
 
   auto diagram = builder.Build();

@@ -26,8 +26,6 @@ namespace rl_cito_station {
 /// input_ports:
 /// - iiwa_position
 /// - iiwa_feedforward_torque
-/// - wsg_position
-/// - wsg_force_limit (optional)
 /// output_ports:
 /// - iiwa_position_commanded
 /// - iiwa_position_measured
@@ -35,13 +33,6 @@ namespace rl_cito_station {
 /// - iiwa_torque_commanded
 /// - iiwa_torque_measured
 /// - iiwa_torque_external
-/// - wsg_state_measured
-/// - wsg_force_measured
-/// - camera_[NAME]_rgb_image
-/// - camera_[NAME]_depth_image
-/// - ...
-/// - camera_[NAME]_rgb_image
-/// - camera_[NAME]_depth_image
 /// @endsystem
 ///
 /// @ingroup rl_cito_station_systems
@@ -51,28 +42,17 @@ class RlCitoStationHardwareInterface : public systems::Diagram<double> {
  public:
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(RlCitoStationHardwareInterface)
 
-  /// Subscribes to an incoming camera message on the channel
-  ///   DRAKE_RGBD_CAMERA_IMAGES_<camera_id>
-  /// where @p camera_name contains the names/unique ids, typically serial
-  /// numbers, and declares the output ports camera_%s_rgb_image and
-  /// camera_%s_depth_image, where %s is the camera name.
   RlCitoStationHardwareInterface(
-      std::vector<std::string> camera_names = {});
+      bool has_optitrack=true);
 
   /// Starts a thread to receive network messages, and blocks execution until
   /// the first messages have been received.
-  void Connect(bool wait_for_cameras = true);
+  void Connect(bool wait_for_optitrack=true );
 
   /// For parity with RlCitoStation, we maintain a MultibodyPlant of
   /// the IIWA arm, with the lumped-mass equivalent spatial inertia of the
-  /// Schunk WSG gripper.
-  // TODO(russt): Actually add the equivalent mass of the WSG.
   const multibody::MultibodyPlant<double>& get_controller_plant() const {
     return *owned_controller_plant_;
-  }
-
-  const std::vector<std::string>& get_camera_names() const {
-    return camera_names_;
   }
 
   /// Gets the number of joints in the IIWA (only -- does not include the
@@ -82,11 +62,9 @@ class RlCitoStationHardwareInterface : public systems::Diagram<double> {
  private:
   std::unique_ptr<multibody::MultibodyPlant<double>> owned_controller_plant_;
   std::unique_ptr<lcm::DrakeLcm> owned_lcm_;
-  systems::lcm::LcmSubscriberSystem* wsg_status_subscriber_;
+  systems::lcm::LcmSubscriberSystem* optitrack_subscriber;
   systems::lcm::LcmSubscriberSystem* iiwa_status_subscriber_;
-  std::vector<systems::lcm::LcmSubscriberSystem*> camera_subscribers_;
 
-  const std::vector<std::string> camera_names_;
   multibody::ModelInstanceIndex iiwa_model_instance_{};
 };
 

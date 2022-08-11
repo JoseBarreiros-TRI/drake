@@ -26,7 +26,7 @@ using systems::BasicVector;
 
 GTEST_TEST(RlCitoStationTest, CheckPlantBasics) {
   RlCitoStation<double> station(0.001);
-  station.SetupManipulationClassStation();
+  station.SetupCitoRlStation();
   multibody::Parser parser(&station.get_mutable_multibody_plant(),
                            &station.get_mutable_scene_graph());
   parser.AddModelFromFile(
@@ -36,7 +36,7 @@ GTEST_TEST(RlCitoStationTest, CheckPlantBasics) {
   station.Finalize();
 
   auto& plant = station.get_multibody_plant();
-  EXPECT_EQ(plant.num_actuated_dofs(), 9);  // 7 iiwa + 2 wsg.
+  EXPECT_EQ(plant.num_actuated_dofs(), 7);  // 7 iiwa + 2 wsg.
 
   auto context = station.CreateDefaultContext();
   auto& plant_context = station.GetSubsystemContext(plant, *context);
@@ -97,12 +97,6 @@ GTEST_TEST(RlCitoStationTest, CheckPlantBasics) {
                                   .Eval<BasicVector<double>>(*context)
                                   .get_value()));
 
-  // All ports must be connected if later on we'll ask questions like: "what's
-  // the external contact torque?". We therefore fix the gripper related ports.
-  double wsg_position = station.GetWsgPosition(*context);
-  station.GetInputPort("wsg_position").FixValue(context.get(), wsg_position);
-  station.GetInputPort("wsg_force_limit").FixValue(context.get(), 40.);
-
   // Check iiwa_torque_commanded == iiwa_torque_measured.
   EXPECT_TRUE(CompareMatrices(station.GetOutputPort("iiwa_torque_commanded")
                                   .Eval<BasicVector<double>>(*context)
@@ -127,7 +121,7 @@ GTEST_TEST(RlCitoStationTest, CheckPlantBasics) {
 GTEST_TEST(RlCitoStationTest, CheckDynamics) {
   const double kTimeStep = 0.002;
   RlCitoStation<double> station(kTimeStep);
-  station.SetupManipulationClassStation();
+  station.SetupCitoRlStation();
   station.Finalize();
 
   auto context = station.CreateDefaultContext();
@@ -147,9 +141,6 @@ GTEST_TEST(RlCitoStationTest, CheckDynamics) {
                         iiwa_position);
   station.GetInputPort("iiwa_feedforward_torque").FixValue(
       context.get(), VectorXd::Zero(7));
-  double wsg_position = station.GetWsgPosition(*context);
-  station.GetInputPort("wsg_position").FixValue(context.get(), wsg_position);
-  station.GetInputPort("wsg_force_limit").FixValue(context.get(), 40.);
 
   // Set desired position to actual position and the desired velocity to the
   // actual velocity.
@@ -187,57 +178,9 @@ GTEST_TEST(RlCitoStationTest, CheckDynamics) {
   EXPECT_TRUE(CompareMatrices(iiwa_velocity, next_velocity, kTolerance));
 }
 
-GTEST_TEST(RlCitoStationTest, CheckWsg) {
-  RlCitoStation<double> station(0.001);
-  station.SetupManipulationClassStation();
-  station.Finalize();
-
-  auto context = station.CreateDefaultContext();
-
-  const double q = 0.023;
-  const double v = 0.12;
-
-  station.SetWsgPosition(context.get(), q);
-  EXPECT_EQ(station.GetWsgPosition(*context), q);
-
-  station.SetWsgVelocity(context.get(), v);
-  EXPECT_EQ(station.GetWsgVelocity(*context), v);
-
-  EXPECT_TRUE(CompareMatrices(station.GetOutputPort("wsg_state_measured")
-                                  .Eval<BasicVector<double>>(*context)
-                                  .get_value(),
-                              Vector2d(q, v)));
-
-  DRAKE_EXPECT_NO_THROW(station.GetOutputPort("wsg_force_measured"));
-}
-
-GTEST_TEST(RlCitoStationTest, CheckRGBDOutputs) {
-  RlCitoStation<double> station(0.001);
-  station.SetupManipulationClassStation();
-  station.Finalize();
-
-  auto context = station.CreateDefaultContext();
-
-  for (const auto& name : station.get_camera_names()) {
-    // Make sure the camera outputs can be evaluated, and are non-empty.
-    EXPECT_GE(station.GetOutputPort("camera_" + name + "_rgb_image")
-                  .Eval<systems::sensors::ImageRgba8U>(*context)
-                  .size(),
-              0);
-    EXPECT_GE(station.GetOutputPort("camera_" + name + "_depth_image")
-                  .Eval<systems::sensors::ImageDepth16U>(*context)
-                  .size(),
-              0);
-    EXPECT_GE(station.GetOutputPort("camera_" + name + "_label_image")
-                  .Eval<systems::sensors::ImageLabel16I>(*context)
-                  .size(),
-              0);
-  }
-}
-
 GTEST_TEST(RlCitoStationTest, CheckCollisionVariants) {
   RlCitoStation<double> station1(0.002);
-  station1.SetupManipulationClassStation(IiwaCollisionModel_::kNoCollision);
+  station1.SetupCitoRlStation(IiwaCollisionModel_::kNoCollision);
 
   // In this variant, there are collision geometries from the world and the
   // gripper, but not from the iiwa.
@@ -245,7 +188,7 @@ GTEST_TEST(RlCitoStationTest, CheckCollisionVariants) {
       station1.get_multibody_plant().num_collision_geometries();
 
   RlCitoStation<double> station2(0.002);
-  station2.SetupManipulationClassStation(IiwaCollisionModel_::kBoxCollision);
+  station2.SetupCitoRlStation(IiwaCollisionModel_::kBoxCollision);
   // Check for additional collision elements (one for each link, which includes
   // the base).
   EXPECT_EQ(station2.get_multibody_plant().num_collision_geometries(),
@@ -278,145 +221,12 @@ GTEST_TEST(RlCitoStationTest, AddManipulandFromFile) {
             num_base_instances + 2);
 }
 
-GTEST_TEST(RlCitoStationTest, SetupClutterClearingStation) {
-  RlCitoStation<double> station(0.002);
-  station.SetupClutterClearingStation(math::RigidTransform<double>::Identity(),
-                                      IiwaCollisionModel_::kNoCollision);
-  station.Finalize();
-
-  // Make sure we get through the setup and initialization.
-  auto context = station.CreateDefaultContext();
-
-  // Check that domain randomization works.
-  RandomGenerator generator;
-  station.SetRandomContext(context.get(), &generator);
-}
-
-GTEST_TEST(RlCitoStationTest, SetupPlanarIiwaStation) {
-  RlCitoStation<double> station(0.002);
-  station.SetupPlanarIiwaStation();
-  station.Finalize();
-
-  // Make sure we get through the setup and initialization.
-  auto context = station.CreateDefaultContext();
-
-  // Check that domain randomization works.
-  RandomGenerator generator;
-  station.SetRandomContext(context.get(), &generator);
-}
-
-
 // Check that making many stations does not exhaust resources.
 GTEST_TEST(RlCitoStationTest, MultipleInstanceTest) {
   for (int i = 0; i < 20; ++i) {
     RlCitoStation<double> station;
-    station.SetupManipulationClassStation();
+    station.SetupCitoRlStation();
     station.Finalize();
-  }
-}
-
-GTEST_TEST(RlCitoStationTest, RegisterRgbdCameraTest) {
-  {
-    // Test default setup.
-    std::map<std::string, math::RigidTransform<double>> default_poses;
-
-    auto set_default_camera_poses = [&default_poses]() {
-      default_poses.emplace(
-          "0", math::RigidTransform<double>(
-                   math::RollPitchYaw<double>(2.549607, 1.357609, 2.971679),
-                   Eigen::Vector3d(-0.228895, -0.452176, 0.486308)));
-
-      default_poses.emplace(
-          "1", math::RigidTransform<double>(
-                   math::RollPitchYaw<double>(2.617427, -1.336404, -0.170522),
-                   Eigen::Vector3d(-0.201813, 0.469259, 0.417045)));
-
-      default_poses.emplace(
-          "2", math::RigidTransform<double>(
-                   math::RollPitchYaw<double>(-2.608978, 0.022298, 1.538460),
-                   Eigen::Vector3d(0.786258, -0.048422, 1.043315)));
-    };
-
-    RlCitoStation<double> dut;
-    dut.SetupManipulationClassStation();
-
-    std::map<std::string, math::RigidTransform<double>> camera_poses =
-        dut.GetStaticCameraPosesInWorld();
-    set_default_camera_poses();
-
-    EXPECT_EQ(camera_poses.size(), default_poses.size());
-
-    for (const auto& pair : camera_poses) {
-      auto found = default_poses.find(pair.first);
-      EXPECT_TRUE(found != default_poses.end());
-      EXPECT_TRUE(found->second.IsExactlyEqualTo(pair.second));
-    }
-  }
-
-  {
-    // Test registration to custom frames.
-    RlCitoStation<double> dut;
-    multibody::MultibodyPlant<double>& plant =
-        dut.get_mutable_multibody_plant();
-
-    geometry::render::DepthRenderCamera depth_camera{
-        {dut.default_renderer_name(), {640, 480, M_PI_4}, {0.05, 3.0}, {}},
-        {0.1, 2.0}};
-
-    const Eigen::Translation3d X_WF0(0, 0, 0.2);
-    const Eigen::Translation3d X_F0C0(0.3, 0.2, 0.0);
-    const auto& frame0 =
-        plant.AddFrame(std::make_unique<multibody::FixedOffsetFrame<double>>(
-            "frame0", plant.world_frame(), X_WF0));
-    dut.RegisterRgbdSensor("camera0", frame0, X_F0C0, depth_camera);
-
-    const Eigen::Translation3d X_F0F1(0, -0.1, 0.2);
-    const Eigen::Translation3d X_F1C1(-0.2, 0.2, 0.33);
-    const auto& frame1 =
-        plant.AddFrame(std::make_unique<multibody::FixedOffsetFrame<double>>(
-            "frame1", frame0, X_F0F1));
-    dut.RegisterRgbdSensor("camera1", frame1, X_F1C1, depth_camera);
-
-    std::map<std::string, math::RigidTransform<double>> camera_poses =
-        dut.GetStaticCameraPosesInWorld();
-
-    EXPECT_EQ(camera_poses.size(), 2);
-    EXPECT_TRUE(camera_poses.at("camera0").IsExactlyEqualTo(X_WF0 * X_F0C0));
-    EXPECT_TRUE(
-        camera_poses.at("camera1").IsExactlyEqualTo(X_WF0 * X_F0F1 * X_F1C1));
-  }
-}
-
-// Confirms initialization of renderers. With none specified, the default
-// renderer is used. Otherwise, the user-specified renderers are provided.
-GTEST_TEST(RlCitoStationTest, ConfigureRenderer) {
-  // Case: no user render engines specified; has renderer with default name.
-  {
-    RlCitoStation<double> dut;
-    dut.SetupManipulationClassStation();
-    dut.Finalize();
-    const auto& scene_graph = dut.get_scene_graph();
-    EXPECT_EQ(1, scene_graph.RendererCount());
-    EXPECT_TRUE(scene_graph.HasRenderer(dut.default_renderer_name()));
-  }
-
-  // Case: multiple user-specified render engines provided.
-  {
-    RlCitoStation<double> dut;
-    dut.SetupManipulationClassStation();
-    std::map<std::string, std::unique_ptr<geometry::render::RenderEngine>>
-        engines;
-    const std::string name1 = "engine1";
-    engines[name1] = std::make_unique<DummyRenderEngine>();
-    const std::string name2 = "engine2";
-    engines[name2] = std::make_unique<DummyRenderEngine>();
-    dut.Finalize(std::move(engines));
-
-    const auto& scene_graph = dut.get_scene_graph();
-    EXPECT_EQ(2, scene_graph.RendererCount());
-    EXPECT_TRUE(scene_graph.HasRenderer(name1));
-    EXPECT_TRUE(scene_graph.HasRenderer(name2));
-    EXPECT_FALSE(scene_graph.HasRenderer(dut.default_renderer_name()));
   }
 }
 

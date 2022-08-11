@@ -27,10 +27,10 @@ enum class IiwaCollisionModel_ { kNoCollision, kBoxCollision };
 /// - kBoxPlusFingertipSpheres loads a Schunk model with collision
 ///   spheres that models the indentations at tip of the fingers, in addition
 ///   to the box collision geometry on the fingers.
-enum class SchunkCollisionModel_ { kBox, kBoxPlusFingertipSpheres };
+enum class SchunkCollisionModel { kBox, kBoxPlusFingertipSpheres };
 
 /// Determines which manipulation station is simulated.
-enum class Setup_ { kNone, kManipulationClass, kClutterClearing, kPlanarIiwa, kCitoRl };
+enum class Setup { kNone, kCitoRl};
 
 /// @defgroup rl_cito_station_systems Manipulation Station
 /// @{
@@ -41,11 +41,11 @@ enum class Setup_ { kNone, kManipulationClass, kClutterClearing, kPlanarIiwa, kC
 /// @}
 
 /// A system that represents the complete manipulation station, including
-/// exactly one robotic arm (a Kuka IIWA LWR), one gripper (a Schunk WSG 50),
+/// exactly one robotic arm (a Kuka IIWA LWR), 
 /// and anything a user might want to load into the model.
 /// SetupDefaultStation() provides the setup that is used in the MIT
 /// Intelligent Robot Manipulation class, which includes the supporting
-/// structure for IIWA and several RGBD cameras.  Alternative Setup___()
+/// structure for IIWA.  Alternative Setup___()
 /// methods are provided, as well.
 ///
 /// @system
@@ -53,8 +53,6 @@ enum class Setup_ { kNone, kManipulationClass, kClutterClearing, kPlanarIiwa, kC
 /// input_ports:
 /// - iiwa_position
 /// - iiwa_feedforward_torque (optional)
-/// - wsg_position
-/// - wsg_force_limit (optional)
 /// output_ports:
 /// - iiwa_position_commanded
 /// - iiwa_position_measured
@@ -63,17 +61,7 @@ enum class Setup_ { kNone, kManipulationClass, kClutterClearing, kPlanarIiwa, kC
 /// - iiwa_torque_commanded
 /// - iiwa_torque_measured
 /// - iiwa_torque_external
-/// - wsg_state_measured
-/// - wsg_force_measured
-/// - camera_[NAME]_rgb_image
-/// - camera_[NAME]_depth_image
-/// - <b style="color:orange">camera_[NAME]_label_image</b>
-/// - <b style="color:orange">camera_[NAME]_point_cloud</b>
-/// - ...
-/// - camera_[NAME]_rgb_image
-/// - camera_[NAME]_depth_image
-/// - <b style="color:orange">camera_[NAME]_label_image</b>
-/// - <b style="color:orange">camera_[NAME]_point_cloud</b>
+
 /// - <b style="color:orange">query_object</b>
 /// - <b style="color:orange">contact_results</b>
 /// - <b style="color:orange">plant_continuous_state</b>
@@ -88,9 +76,6 @@ enum class Setup_ { kNone, kManipulationClass, kClutterClearing, kPlanarIiwa, kC
 /// between q_measured and v_estimated is because the Kuka FRI reports
 /// positions directly, but we have estimated v in our code that wraps the
 /// FRI.
-///
-/// @warning The "camera_[NAME]_point_cloud" data currently has registration
-/// errors per issue https://github.com/RobotLocomotion/drake/issues/12125.
 ///
 /// Consider the robot dynamics
 ///   M(q)vdot + C(q,v)v = τ_g(q) + τ_commanded + τ_joint_friction + τ_external,
@@ -149,24 +134,9 @@ class RlCitoStation : public systems::Diagram<T> {
   /// @param time_step The time step used by MultibodyPlant<T>, and by the
   ///   discrete derivative used to approximate velocity from the position
   ///   command inputs.
-  explicit RlCitoStation(double time_step = 0.002);
+  explicit RlCitoStation(double time_step = 0.002,  std::string contact_model = "point",  std::string contact_solver = "tamsi");
 
-  /// Adds a default iiwa, wsg, two bins, and a camera, then calls
-  /// RegisterIiwaControllerModel() and RegisterWsgControllerModel() with
-  /// the appropriate arguments.
-  /// @note Must be called before Finalize().
-  /// @note Only one of the `Setup___()` methods should be called.
-  /// @param X_WCameraBody Transformation between the world and the camera body.
-  /// @param collision_model Determines which sdf is loaded for the IIWA.
-  /// @param schunk_model Determines which sdf is loaded for the Schunk.
-  void SetupClutterClearingStation(
-      const std::optional<const math::RigidTransformd>& X_WCameraBody = {},
-      IiwaCollisionModel_ collision_model = IiwaCollisionModel_::kNoCollision,
-      SchunkCollisionModel_ schunk_model = SchunkCollisionModel_::kBox);
-
-  /// Adds a default iiwa, wsg, cupboard, and 80/20 frame for the MIT
-  /// Intelligent Robot Manipulation class, then calls
-  /// RegisterIiwaControllerModel() and RegisterWsgControllerModel() with
+  /// Adds a default iiwa, RegisterIiwaControllerModel() with
   /// the appropriate arguments.
   /// @note Must be called before Finalize().
   /// @note Only one of the `Setup___()` methods should be called.
@@ -175,35 +145,6 @@ class RlCitoStation : public systems::Diagram<T> {
   void SetupCitoRlStation(
     IiwaCollisionModel_ collision_model = IiwaCollisionModel_::kNoCollision);
 
-  /// Adds a default iiwa, wsg, cupboard, and 80/20 frame for the MIT
-  /// Intelligent Robot Manipulation class, then calls
-  /// RegisterIiwaControllerModel() and RegisterWsgControllerModel() with
-  /// the appropriate arguments.
-  /// @note Must be called before Finalize().
-  /// @note Only one of the `Setup___()` methods should be called.
-  /// @param collision_model Determines which sdf is loaded for the IIWA.
-  /// @param schunk_model Determines which sdf is loaded for the Schunk.
-  void SetupManipulationClassStation(
-      IiwaCollisionModel_ collision_model = IiwaCollisionModel_::kNoCollision,
-      SchunkCollisionModel_ schunk_model = SchunkCollisionModel_::kBox);
-
-  /// Adds a version of the iiwa with joints that would result in
-  /// out-of-plane rotations welded in a fixed orientation, reducing the
-  /// total degrees of freedom of the arm to 3.  This arm lives in the X-Z
-  /// plane.  Also adds the WSG planar gripper and two tables to form the
-  /// workspace.  Note that additional floating base objects (aka
-  /// manipulands) will still potentially move in 3D.
-  /// @note Must be called before Finalize().
-  /// @note Only one of the `Setup___()` methods should be called.
-  /// @param schunk_model Determines which sdf is loaded for the Schunk.
-  void SetupPlanarIiwaStation(
-      SchunkCollisionModel_ schunk_model = SchunkCollisionModel_::kBox);
-
-  /// Sets the default State for the chosen setup.
-  /// @param context A const reference to the RlCitoStation context.
-  /// @param state A pointer to the State of the RlCitoStation system.
-  /// @pre `state` must be the systems::State<T> object contained in
-  /// `station_context`.
   void SetDefaultState(const systems::Context<T>& station_context,
                        systems::State<T>* state) const override;
 
@@ -247,66 +188,13 @@ class RlCitoStation : public systems::Diagram<T> {
       const multibody::Frame<T>& child_frame,
       const math::RigidTransform<double>& X_PC);
 
-  /// Notifies the RlCitoStation that the WSG gripper model instance can
-  /// be identified by @p wsg_instance, as well as necessary information to
-  /// reload model for the internal controller's use. Assumes @p wsg_instance
-  /// has already been added to the MultibodyPlant. The IIWA model needs to
-  /// directly contain @p parent_frame, and the WSG model needs to directly
-  /// contain @p child_frame.
-  /// Only call this with custom WSG models (i.e. not calling
-  /// SetupDefaultStation()). Must be called before Finalize().
-  /// @param model_path Full path to the model file.
-  /// @param wsg_instance Identifies the WSG model.
-  /// @param parent_frame Identifies frame P (the parent frame) in the
-  /// MultibodyPlant that the WSG model has been attached to. Has to be part
-  /// of the IIWA model.
-  /// @param child_frame Identifies frame C (the child frame) in the WSG
-  /// model that is used welded to frame P.
-  /// @param X_PC Transformation between frame P and C.
-  // TODO(siyuan.feng@tri.global): Some of these information should be
-  // retrievable from the MultibodyPlant directly or MultibodyPlant should
-  // provide partial tree cloning.
-  // TODO(siyuan.feng@tri.global): throws meaningful errors earlier here,
-  // rather than in Finalize() if the arguments are inconsistent with the plant.
-  void RegisterWsgControllerModel(
-      const std::string& model_path,
-      const multibody::ModelInstanceIndex wsg_instance,
-      const multibody::Frame<T>& parent_frame,
-      const multibody::Frame<T>& child_frame,
-      const math::RigidTransform<double>& X_PC);
-
-  /// Registers an RGBD sensor. Must be called before Finalize().
-  /// @param name Name for the camera.
-  /// @param parent_frame The parent frame (frame P). The body that
-  /// @p parent_frame is attached to must have a corresponding
-  /// geometry::FrameId. Otherwise, an exception will be thrown in Finalize().
-  /// @param X_PCameraBody Transformation between frame P and the camera body.
-  /// see systems::sensors:::RgbdSensor for descriptions about how the
-  /// camera body, RGB, and depth image frames are related.
-  /// @param depth_camera Specification for the RGBD camera. The color render
-  /// camera is inferred from the depth_camera. The color camera will share the
-  /// RenderCameraCore and be configured to *not* show its window.
-  /// @pydrake_mkdoc_identifier{single_camera}
-  void RegisterRgbdSensor(
-      const std::string& name, const multibody::Frame<T>& parent_frame,
-      const math::RigidTransform<double>& X_PCameraBody,
-      const geometry::render::DepthRenderCamera& depth_camera);
-
-  /// Registers an RGBD sensor with uniquely characterized color/label and
-  /// depth cameras.
-  /// @pydrake_mkdoc_identifier{dual_camera}
-  void RegisterRgbdSensor(
-      const std::string& name, const multibody::Frame<T>& parent_frame,
-      const math::RigidTransform<double>& X_PCameraBody,
-      const geometry::render::ColorRenderCamera& color_camera,
-      const geometry::render::DepthRenderCamera& depth_camera);
-
   /// Adds a single object for the robot to manipulate
   /// @note Must be called before Finalize().
   /// @param model_file The path to the .sdf model file of the object.
   /// @param X_WObject The pose of the object in world frame.
   void AddManipulandFromFile(const std::string& model_file,
-                             const math::RigidTransform<double>& X_WObject);
+                             const math::RigidTransform<double>& X_WObject,
+                             const std::string manipuland_name={});
 
   // TODO(russt): Add scalar copy constructor etc once we support more
   // scalar types than T=double.  See #9573.
@@ -314,19 +202,12 @@ class RlCitoStation : public systems::Diagram<T> {
   /// Users *must* call Finalize() after making any additions to the
   /// multibody plant and before using this class in the Systems framework.
   /// This should be called exactly once.
-  /// This assumes an IIWA and WSG have been added to the MultibodyPlant, and
-  /// RegisterIiwaControllerModel() and RegisterWsgControllerModel() have been
+  /// This assumes an IIWA have been added to the MultibodyPlant, and
+  /// RegisterIiwaControllerModel() have been
   /// called.
   ///
   /// @see multibody::MultibodyPlant<T>::Finalize()
   void Finalize();
-
-  /// Finalizes the station with the option of specifying the renderers the
-  /// manipulation station uses. Calling this method with an empty map is
-  /// equivalent to calling Finalize(). See Finalize() for more details.
-  void Finalize(std::map<std::string,
-                         std::unique_ptr<geometry::render::RenderEngine>>
-                    render_engines);
 
   /// Returns a reference to the main plant responsible for the dynamics of
   /// the robot and the environment.  This can be used to, e.g., add
@@ -410,63 +291,6 @@ class RlCitoStation : public systems::Diagram<T> {
     SetIiwaVelocity(*station_context, &station_context->get_mutable_state(), v);
   }
 
-  /// Convenience method for getting the position of the Schunk WSG. Note
-  /// that the WSG position is the signed distance between the two fingers
-  /// (not the state of the fingers individually).
-  T GetWsgPosition(const systems::Context<T>& station_context) const;
-
-  /// Convenience method for getting the velocity of the Schunk WSG.
-  T GetWsgVelocity(const systems::Context<T>& station_context) const;
-
-  /// Convenience method for setting the position of the Schunk WSG. Also
-  /// sets the position history in the velocity interpolator.  Note that the
-  /// WSG position is the signed distance between the two fingers (not the
-  /// state of the fingers individually).
-  /// @pre `state` must be the systems::State<T> object contained in
-  /// `station_context`.
-  void SetWsgPosition(const systems::Context<T>& station_context,
-                      systems::State<T>* state, const T& q) const;
-
-  /// Convenience method for setting the position of the Schunk WSG. Also
-  /// sets the position history in the velocity interpolator.  Note that the
-  /// WSG position is the signed distance between the two fingers (not the
-  /// state of the fingers individually).
-  void SetWsgPosition(systems::Context<T>* station_context, const T& q) const {
-    SetWsgPosition(*station_context, &station_context->get_mutable_state(), q);
-  }
-
-  /// Convenience method for setting the velocity of the Schunk WSG.
-  /// @pre `state` must be the systems::State<T> object contained in
-  /// `station_context`.
-  void SetWsgVelocity(const systems::Context<T>& station_context,
-                      systems::State<T>* state, const T& v) const;
-
-  /// Convenience method for setting the velocity of the Schunk WSG.
-  void SetWsgVelocity(systems::Context<T>* station_context, const T& v) const {
-    SetWsgVelocity(*station_context, &station_context->get_mutable_state(), v);
-  }
-
-  /// Returns a map from camera name to X_WCameraBody for all the static
-  /// (rigidly attached to the world body) cameras that have been registered.
-  ///
-  /// <!-- TODO(EricCousineau-TRI) To simplify (and possibly modularize) this
-  /// class, frame kinematics should be handled by MbP frames, since that's
-  /// where they have the most relevance. Change in workflow would be:
-  /// - Add camera frame first to the tree;
-  /// - Add camera directly to frame (perhaps without offset, per #10247);
-  /// - Change this function to return frames, so that we aren't restricted to
-  ///   fixed-scene cameras.
-  /// -->
-  std::map<std::string, math::RigidTransform<double>>
-  GetStaticCameraPosesInWorld() const;
-
-  /// Get the camera names / unique ids.
-  std::vector<std::string> get_camera_names() const;
-
-  /// Set the gains for the WSG controller.
-  /// @throws std::exception if Finalize() has been called.
-  void SetWsgGains(double kp, double kd);
-
   /// Set the position gains for the IIWA controller.
   /// @throws std::exception if Finalize() has been called.
   void SetIiwaPositionGains(const VectorX<double>& kp) {
@@ -499,25 +323,11 @@ class RlCitoStation : public systems::Diagram<T> {
     math::RigidTransform<double> X_PC{math::RigidTransform<double>::Identity()};
   };
 
-  struct CameraInformation {
-    const multibody::Frame<T>* parent_frame{};
-    math::RigidTransform<double> X_PC{math::RigidTransform<double>::Identity()};
-    geometry::render::ColorRenderCamera color_camera{
-        {"", {2, 2, M_PI}, {0.1, 10}, {}},  // RenderCameraCore
-        false,  // show_window
-    };
-    geometry::render::DepthRenderCamera depth_camera{
-        {"", {2, 2, M_PI}, {0.1, 10}, {}},  // RenderCameraCore
-        {0.1, 0.2},  // DepthRange
-    };
-  };
-
-  // Assumes iiwa_model_info_ and wsg_model_info_ have already being populated.
+  // Assumes iiwa_model_info_ have already being populated.
   // Should only be called from Finalize().
   void MakeIiwaControllerModel();
 
   void AddDefaultIiwa(const IiwaCollisionModel_ collision_model);
-  void AddDefaultWsg(const SchunkCollisionModel_ schunk_model);
 
   // These are only valid until Finalize() is called.
   std::unique_ptr<multibody::MultibodyPlant<T>> owned_plant_;
@@ -531,31 +341,23 @@ class RlCitoStation : public systems::Diagram<T> {
       "manip_station_renderer";
 
   // Populated by RegisterIiwaControllerModel() and
-  // RegisterWsgControllerModel().
   ModelInformation iiwa_model_;
-  ModelInformation wsg_model_;
 
   // Store references to objects as *body* indices instead of model indices,
   // because this is needed for MultibodyPlant::SetFreeBodyPose(), etc.
   std::vector<multibody::BodyIndex> object_ids_;
   std::vector<math::RigidTransform<T>> object_poses_;
 
-  // Registered camera related information.
-  std::map<std::string, CameraInformation> camera_information_;
-
-  // These are kp and kd gains for iiwa and wsg controllers.
+  // These are kp and kd gains for iiwa controllers.
   VectorX<double> iiwa_kp_;
   VectorX<double> iiwa_kd_;
   VectorX<double> iiwa_ki_;
-  // TODO(siyuan.feng@tri.global): Need to tunes these better.
-  double wsg_kp_{200};
-  double wsg_kd_{5};
 
   // Represents the manipulation station to simulate. This gets set in the
   // corresponding station setup function (e.g.,
   // SetupManipulationClassStation()), and informs how SetDefaultState()
   // initializes the sim.
-  Setup_ setup_{Setup_::kNone};
+  Setup setup_{Setup::kNone};
 };
 
 }  // namespace rl_cito_station
