@@ -8,5 +8,4 @@ from pydrake.examples import (
     RlCitoStation,
     RlCitoStationHardwareInterface,
     IiwaCollisionModel_,
-    SchunkCollisionModel_,
 )
