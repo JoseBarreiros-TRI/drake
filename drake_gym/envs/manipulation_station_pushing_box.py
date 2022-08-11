@@ -297,7 +297,7 @@ def make_sim(generator,
 
             box_translation = body_pose.translation()
             box_rotation=body_pose.rotation().matrix()
-            box_euler=R.from_dcm(box_rotation).as_euler('zyx', degrees=False)
+            #box_euler=R.from_dcm(box_rotation).as_euler('zyx', degrees=False)
             #pdb.set_trace()
 
             #EE pose
@@ -413,9 +413,9 @@ def ManipulationStationBoxPushingEnv(observations="state", meshcat=None, time_li
     #     (plant.GetPositionUpperLimits(), plant.GetVelocityUpperLimits(),np.array([np.inf]*6)))
 
     low = np.concatenate(
-        (np.array([-np.pi]*Na), np.array([-100]*Na),np.array([-np.inf]*6)))
+        (np.array([-2*np.pi]*Na), np.array([-100]*Na),np.array([-np.inf]*6)))
     high = np.concatenate(
-        (np.array([np.pi]*Na), np.array([100]*Na),np.array([np.inf]*6)))
+        (np.array([2*np.pi]*Na), np.array([100]*Na),np.array([np.inf]*6)))
 
     # low = np.concatenate(
     #     (plant.GetPositionLowerLimits(), plant.GetVelocityLowerLimits()))
