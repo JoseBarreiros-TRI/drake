@@ -1,5 +1,5 @@
 """
-Runs the manipulation_station example with a meshcat joint slider ui for
+Runs the rl_cito_station example with a meshcat joint slider ui for
 directly tele-operating the joints.  To have the meshcat server automatically
 open in your browser, supply the --open-window flag; the joint sliders will be
 accessible by clicking on "Open Controls" in the top right corner.
@@ -11,11 +11,10 @@ import webbrowser
 
 import numpy as np
 
-from drake.examples.manipulation_station.schunk_wsg_buttons import \
-    SchunkWsgButtons
 from pydrake.examples import (
-    CreateClutterClearingYcbObjectList, ManipulationStation,
-    ManipulationStationHardwareInterface)
+    CreateClutterClearingYcbObjectList)
+from pydrake.examples import ( RlCitoStation,
+    RlCitoStationHardwareInterface)
 from pydrake.geometry import DrakeVisualizer
 from pydrake.multibody.meshcat import JointSliders
 from pydrake.math import RigidTransform, RotationMatrix
@@ -36,15 +35,15 @@ def main():
         help="Desired duration of the simulation in seconds.")
     parser.add_argument(
         "--hardware", action='store_true',
-        help="Use the ManipulationStationHardwareInterface instead of an "
+        help="Use the RlCitoStationHardwareInterface instead of an "
              "in-process simulation.")
     parser.add_argument(
         "--test", action='store_true',
         help="Disable opening the gui window for testing.")
     parser.add_argument(
-        '--setup', type=str, default='manipulation_class',
+        '--setup', type=str, default='cito_rl',
         help="The manipulation station setup to simulate. ",
-        choices=['manipulation_class', 'clutter_clearing', 'planar'])
+        choices=['cito_rl'])
     parser.add_argument(
         "-w", "--open-window", dest="browser_new",
         action="store_const", const=1, default=None,
@@ -61,33 +60,18 @@ def main():
     meshcat = Meshcat()
 
     if args.hardware:
-        # TODO(russt): Replace this hard-coded camera serial number with a
-        # config file.
-        camera_ids = ["805212060544"]
-        station = builder.AddSystem(ManipulationStationHardwareInterface(
-            camera_ids))
-        station.Connect(wait_for_cameras=False)
+        station = builder.AddSystem(RlCitoStationHardwareInterface())
+        station.Connect()
     else:
-        station = builder.AddSystem(ManipulationStation())
+        station = builder.AddSystem(RlCitoStation())
 
         # Initializes the chosen station type.
-        if args.setup == 'manipulation_class':
-            station.SetupManipulationClassStation()
+        if args.setup == 'cito_rl':
+            station.SetupCitoRlStation()
             station.AddManipulandFromFile(
-                "drake/examples/manipulation_station/models/"
+                "drake/examples/rl_cito_station/models/"
                 + "061_foam_brick.sdf",
-                RigidTransform(RotationMatrix.Identity(), [0.6, 0, 0]))
-        elif args.setup == 'clutter_clearing':
-            station.SetupClutterClearingStation()
-            ycb_objects = CreateClutterClearingYcbObjectList()
-            for model_file, X_WObject in ycb_objects:
-                station.AddManipulandFromFile(model_file, X_WObject)
-        elif args.setup == 'planar':
-            station.SetupPlanarIiwaStation()
-            station.AddManipulandFromFile(
-                "drake/examples/manipulation_station/models/"
-                + "061_foam_brick.sdf",
-                RigidTransform(RotationMatrix.Identity(), [0.6, 0, 0]))
+                RigidTransform(RotationMatrix.Identity(), [0.6, 0, 0]),"box")
 
         station.Finalize()
 
@@ -114,12 +98,6 @@ def main():
     builder.Connect(teleop.get_output_port(0), filter.get_input_port(0))
     builder.Connect(filter.get_output_port(0),
                     station.GetInputPort("iiwa_position"))
-
-    wsg_buttons = builder.AddSystem(SchunkWsgButtons(meshcat=meshcat))
-    builder.Connect(wsg_buttons.GetOutputPort("position"),
-                    station.GetInputPort("wsg_position"))
-    builder.Connect(wsg_buttons.GetOutputPort("force_limit"),
-                    station.GetInputPort("wsg_force_limit"))
 
     # When in regression test mode, log our joint velocities to later check
     # that they were sufficiently quiet.
