@@ -204,6 +204,26 @@ drake_py_binary(
     ],
 )
 drake_py_binary(
+    name = "rllib_train_manipulation_station_pushing_box",
+    srcs = ["rllib_train_manipulation_station_pushing_box.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rllib_play_manipulation_station_pushing_box",
+    srcs = ["rllib_play_manipulation_station_pushing_box.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
     name = "rl_play_manipulation_station_pushing_box",
     srcs = ["rl_play_manipulation_station_pushing_box.py"],
     data = [":model_files"],
