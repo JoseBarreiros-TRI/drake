@@ -1,14 +1,14 @@
 """
-Provides some insight into the ManipulationStation model by printing out the
+Provides some insight into the RlCitoStation model by printing out the
 contents of its (default) Context.
 """
 
-from pydrake.examples import ManipulationStation
+from pydrake.examples import RlCitoStation
 
 
 def main():
-    station = ManipulationStation()
-    station.SetupManipulationClassStation()
+    station = RlCitoStation()
+    station.SetupCitoRlStation()
     station.Finalize()
 
     context = station.CreateDefaultContext()
