@@ -22,11 +22,18 @@ parser = argparse.ArgumentParser(
 parser.add_argument('--test', action='store_true')
 parser.add_argument('--hardware', action='store_true')
 parser.add_argument('--debug', action='store_true')
+parser.add_argument('--model_path', help="path to the policy")
 args = parser.parse_args()
 
 observations = "state"
-zip = "/home/josebarreiros/rl/data/ManipulationStationBoxPushing_ppo_{observations}.zip"
-log = "/home/josebarreiros/rl/tmp/ManipulationStationBoxPushing/"
+
+#pdb.set_trace()
+if args.model_path != None:
+    zip=args.model_path
+    log = "/home/josebarreiros/rl/tmp/ManipulationStationBoxPushing/"
+else:
+    zip = "/home/josebarreiros/rl/data/ManipulationStationBoxPushing_ppo_{observations}.zip"
+    log = "/home/josebarreiros/rl/tmp/ManipulationStationBoxPushing/"
 
 
 if __name__ == '__main__':

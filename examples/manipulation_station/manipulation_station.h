@@ -160,7 +160,7 @@ class ManipulationStation : public systems::Diagram<T> {
   /// @param collision_model Determines which sdf is loaded for the IIWA.
   /// @param schunk_model Determines which sdf is loaded for the Schunk.
   void SetupCitoRlStation(
-    IiwaCollisionModel collision_model = IiwaCollisionModel::kNoCollision);
+    IiwaCollisionModel collision_model = IiwaCollisionModel::kBoxCollision);
 
   /// Adds a default iiwa, wsg, cupboard, and 80/20 frame for the MIT
   /// Intelligent Robot Manipulation class, then calls
