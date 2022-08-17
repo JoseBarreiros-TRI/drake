@@ -173,7 +173,7 @@ class ManipulationStation : public systems::Diagram<T> {
   /// @param collision_model Determines which sdf is loaded for the IIWA.
   /// @param schunk_model Determines which sdf is loaded for the Schunk.
   void SetupManipulationClassStation(
-      IiwaCollisionModel collision_model = IiwaCollisionModel::kNoCollision,
+      IiwaCollisionModel collision_model = IiwaCollisionModel::kBoxCollision,
       SchunkCollisionModel schunk_model = SchunkCollisionModel::kBox);
 
   /// Adds a version of the iiwa with joints that would result in
