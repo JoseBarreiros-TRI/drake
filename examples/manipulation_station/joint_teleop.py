@@ -7,6 +7,7 @@ accessible by clicking on "Open Controls" in the top right corner.
 
 import argparse
 import sys
+from tokenize import PlainToken
 import webbrowser
 
 import numpy as np
@@ -24,6 +25,11 @@ from pydrake.systems.analysis import Simulator
 from pydrake.geometry import Meshcat, MeshcatVisualizer
 from pydrake.systems.primitives import FirstOrderLowPassFilter, VectorLogSink
 
+from pydrake.visualization import (
+    AddDefaultVisualization,
+    ApplyVisualizationConfig,
+    VisualizationConfig,
+)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -93,6 +99,18 @@ def main():
 
         geometry_query_port = station.GetOutputPort("geometry_query")
         DrakeVisualizer.AddToBuilder(builder, geometry_query_port)
+        
+        plant=station.get_multibody_plant()
+        scene_graph=station.get_scene_graph()
+        
+        #AddDefaultVisualization(builder=builder)
+        ApplyVisualizationConfig(
+            config=VisualizationConfig(publish_contacts=True),
+            plant=plant,
+            scene_graph=scene_graph,
+            builder=builder,
+        )
+        
         meshcat_visualizer = MeshcatVisualizer.AddToBuilder(
             builder=builder,
             query_object_port=geometry_query_port,
