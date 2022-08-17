@@ -143,7 +143,7 @@ class RlCitoStation : public systems::Diagram<T> {
   /// @param collision_model Determines which sdf is loaded for the IIWA.
   /// @param schunk_model Determines which sdf is loaded for the Schunk.
   void SetupCitoRlStation(
-    IiwaCollisionModel_ collision_model = IiwaCollisionModel_::kNoCollision);
+    IiwaCollisionModel_ collision_model = IiwaCollisionModel_::kBoxCollision);
 
   void SetDefaultState(const systems::Context<T>& station_context,
                        systems::State<T>* state) const override;

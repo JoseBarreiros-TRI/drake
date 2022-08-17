@@ -24,8 +24,12 @@ from pydrake.geometry import (
     Box, CollisionFilterDeclaration, GeometrySet, Meshcat, MeshcatVisualizer)
 from pydrake.examples.rl_cito_station import (
     RlCitoStation, RlCitoStationHardwareInterface)
-
-
+from pydrake.visualization import (
+    AddDefaultVisualization,
+    VisualizationConfig,
+    ApplyVisualizationConfig,
+)
+from pydrake.geometry import DrakeVisualizer
 # Environment parameters
 sim_time_step = 0.025
 table_heigth = 0.0
@@ -78,7 +82,7 @@ def add_collision_filters(scene_graph, plant):
                 set))
 
 
-def make_environment(meshcat=None, debug=False, hardware=False, args=None):
+def make_environment(meshcat=None, debug=False, hardware=False, meldis=False,args=None):
 
     if args:
         box_following = args.box_following
@@ -118,6 +122,19 @@ def make_environment(meshcat=None, debug=False, hardware=False, args=None):
                 builder=builder,
                 query_object_port=geometry_query_port,
                 meshcat=meshcat)
+
+        if meldis:
+            geometry_query_port = station.GetOutputPort("geometry_query")
+            DrakeVisualizer.AddToBuilder(
+                builder=builder, 
+                query_object_port=geometry_query_port)
+            # scene_graph=station.get_scene_graph()
+            # ApplyVisualizationConfig(
+            #     config=VisualizationConfig(publish_contacts=True),
+            #     plant=plant,
+            #     scene_graph=scene_graph,
+            #     builder=builder)
+            #AddDefaultVisualization(builder=builder)
 
         # filter collisison between parent and child of each joint.
         # add_collision_filters(scene_graph,plant)
@@ -388,6 +405,9 @@ if __name__ == "__main__":
         "--meshcat", action="store_true",
         help="If set, visualize in meshcat. Use DrakeVisualizer otherwise")
     parser.add_argument(
+        "--meldis", action="store_true",
+        help="If set, visualize in Meldis or DrakeVisualizer")
+    parser.add_argument(
         "--hardware", action="store_true",
         help="If set, visualize in meshcat. Use DrakeVisualizer otherwise")
     parser.add_argument(
@@ -405,7 +425,7 @@ if __name__ == "__main__":
     input("Press Enter to continue...")
 
     diagram, plant, controller_plant, station, DIK = make_environment(
-        meshcat=visualizer, debug=args.debug, hardware=args.hardware, args=args)
+        meshcat=visualizer, debug=args.debug, hardware=args.hardware, meldis=args.meldis,args=args)
 
     simulate_diagram(
         diagram, plant, controller_plant, station,
