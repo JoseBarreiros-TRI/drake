@@ -76,18 +76,20 @@ def main():
             station.AddManipulandFromFile(
                 "drake/examples/manipulation_station/models/"
                 + "061_foam_brick.sdf",
-                RigidTransform(RotationMatrix.Identity(), [0.6, 0, 0]))
+                RigidTransform(RotationMatrix.Identity(), [0.6, 0, 0]),
+                "box")
         elif args.setup == 'clutter_clearing':
             station.SetupClutterClearingStation()
             ycb_objects = CreateClutterClearingYcbObjectList()
             for model_file, X_WObject in ycb_objects:
-                station.AddManipulandFromFile(model_file, X_WObject)
+                station.AddManipulandFromFile(model_file, X_WObject,"box")
         elif args.setup == 'planar':
             station.SetupPlanarIiwaStation()
             station.AddManipulandFromFile(
                 "drake/examples/manipulation_station/models/"
                 + "061_foam_brick.sdf",
-                RigidTransform(RotationMatrix.Identity(), [0.6, 0, 0]))
+                RigidTransform(RotationMatrix.Identity(), [0.6, 0, 0]),
+                "box")
 
         station.Finalize()
 
