@@ -44,7 +44,7 @@ void DefineExamplesRlCitoStation(py::module m) {
         .def(py::init<double, std::string, std::string>(), py::arg("time_step") = 0.002, py::arg("contact_model")="point", py::arg("contact_solver")="tamsi", cls_doc.ctor.doc)
         .def("SetupCitoRlStation",
             &Class::SetupCitoRlStation,
-            py::arg("collision_model") = IiwaCollisionModel_::kNoCollision,
+            py::arg("collision_model") = IiwaCollisionModel_::kBoxCollision,
             cls_doc.SetupCitoRlStation.doc)
         .def("AddManipulandFromFile", &Class::AddManipulandFromFile,
             py::arg("model_file"), py::arg("X_WObject"),py::arg("manipuland_name"),

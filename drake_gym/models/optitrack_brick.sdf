@@ -3,7 +3,7 @@
   <model name="optitrack_brick">
     <link name="base_link">
       <inertial>
-        <pose>0 0 0.025 0 0 0 </pose>
+        <pose>0 0 0 0 0 0 </pose>
         <mass>0.028</mass>
         <inertia>
           <ixx>1.17e-5</ixx>
@@ -15,7 +15,7 @@
         </inertia>
       </inertial>
       <visual name="base_link">
-        <pose>0 0 0.025 0 0 0</pose>
+        <pose>0 0 0 0 0 0</pose>
         <geometry>
           <box>
             <size>0.075 0.05 0.05</size>
@@ -38,7 +38,7 @@
       case a deviation of 0.0005 m from the visual surface).
      -->
       <collision name="box_collision">
-        <pose>0 0 0.025 0 0 0</pose>
+        <pose>0 0 0.0 0 0 0</pose>
         <geometry>
           <box>
             <size>0.074 0.049 0.049</size>
