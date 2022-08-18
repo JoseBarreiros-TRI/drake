@@ -21,14 +21,6 @@ namespace rl_cito_station {
 /// Determines which sdf is loaded for the IIWA in the RlCitoStation.
 enum class IiwaCollisionModel_ { kNoCollision, kBoxCollision };
 
-/// Determines which schunk model is used for the RlCitoStation.
-/// - kBox loads a model with a box collision geometry. This model is for those
-///   who want simplified collision behavior.
-/// - kBoxPlusFingertipSpheres loads a Schunk model with collision
-///   spheres that models the indentations at tip of the fingers, in addition
-///   to the box collision geometry on the fingers.
-enum class SchunkCollisionModel { kBox, kBoxPlusFingertipSpheres };
-
 /// Determines which manipulation station is simulated.
 enum class Setup { kNone, kCitoRl};
 
