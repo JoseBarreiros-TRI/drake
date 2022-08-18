@@ -53,7 +53,7 @@ void DefineExamplesManipulationStation(py::module m) {
         .def(py::init<double>(), py::arg("time_step") = 0.002, cls_doc.ctor.doc)
         .def("SetupManipulationClassStation",
             &Class::SetupManipulationClassStation,
-            py::arg("collision_model") = IiwaCollisionModel::kNoCollision,
+            py::arg("collision_model") = IiwaCollisionModel::kBoxCollision,
             py::arg("schunk_model") = SchunkCollisionModel::kBox,
             cls_doc.SetupManipulationClassStation.doc)
         .def("SetupClutterClearingStation", &Class::SetupClutterClearingStation,
