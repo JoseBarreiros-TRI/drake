@@ -204,8 +204,28 @@ drake_py_binary(
     ],
 )
 drake_py_binary(
+    name = "rl_train_rl_cito_station_pushing_box",
+    srcs = ["rl_train_rl_cito_station_pushing_box.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
     name = "rl_wandb_train_manipulation_station_pushing_box",
     srcs = ["rl_wandb_train_manipulation_station_pushing_box.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rl_wandb_train_rl_cito_station_pushing_box",
+    srcs = ["rl_wandb_train_rl_cito_station_pushing_box.py"],
     data = [":model_files"],
     deps = [
       "drake_gym_py",
@@ -236,6 +256,16 @@ drake_py_binary(
 drake_py_binary(
     name = "rl_play_manipulation_station_pushing_box",
     srcs = ["rl_play_manipulation_station_pushing_box.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
+    name = "rl_play_rl_cito_station_pushing_box",
+    srcs = ["rl_play_rl_cito_station_pushing_box.py"],
     data = [":model_files"],
     deps = [
       "drake_gym_py",

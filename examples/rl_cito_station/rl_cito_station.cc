@@ -235,12 +235,12 @@ void RlCitoStation<T>::SetRandomState(
   std::vector<multibody::BodyIndex> shuffled_object_ids(object_ids_);
   std::shuffle(shuffled_object_ids.begin(), shuffled_object_ids.end(),
                *generator);
-  double z_offset = 0.1;
+  double z_offset = 0.05;
   for (const auto& body_index : shuffled_object_ids) {
     math::RigidTransform<T> pose =
         plant_->GetFreeBodyPose(plant_context, plant_->get_body(body_index));
     pose.set_translation(pose.translation() + Vector3d{0, 0, z_offset});
-    z_offset += 0.1;
+    // z_offset += 0.1;
     plant_->SetFreeBodyPose(plant_context, &plant_state,
                             plant_->get_body(body_index), pose);
   }
@@ -273,9 +273,7 @@ template <typename T>
 void RlCitoStation<T>::Finalize() {
   DRAKE_THROW_UNLESS(iiwa_model_.model_instance.is_valid());
 
-  std::cout << "here00" <<std::endl;
   MakeIiwaControllerModel();
-  std::cout << "here0" <<std::endl;
 
   // Note: This deferred diagram construction method/workflow exists because we
   //   - cannot finalize plant until all of my objects are added, and
@@ -293,19 +291,21 @@ void RlCitoStation<T>::Finalize() {
       q0_iiwa << 0, 0.6, 0, -1.75, 0, 1.0, 0;
 
       std::uniform_real_distribution<symbolic::Expression> x(0.4, 0.65),
-          y(-0.35, 0.35), z(0.06, 0.07);
-      const Vector3<symbolic::Expression> xyz{x(), y(), z()};
-      const math::RotationMatrix<double> X_WB_new(RollPitchYawd(0., 0., 0.4));
+          y(-0.35, 0.35);
+      const Vector3<symbolic::Expression> xyz{x(), y(), 0.0};
+      std::uniform_real_distribution<symbolic::Expression> yaw(0.0, M_PI);
+      math::RollPitchYaw<symbolic::Expression> rpy(0.0, 0.0, 0.0);
+
+      //const math::RotationMatrix<double> X_WB_new(RollPitchYawd(0., 0., 0.4));
       for (const auto& body_index : object_ids_) {
         const multibody::Body<T>& body = plant_->get_body(body_index);
         plant_->SetFreeBodyRandomPositionDistribution(body, xyz);
-        //plant_->SetFreeBodyRandomRotationDistribution(body, X_WB_new.cast<symbolic::Expression>().ToQuaternion());
-        plant_->SetFreeBodyRandomRotationDistributionToUniform(body);
+        plant_->SetFreeBodyRandomRotationDistribution(body, rpy.ToRotationMatrix().ToQuaternion());
+        //plant_->SetFreeBodyRandomRotationDistributionToUniform(body);
       }
       break;
     }
   }
-  std::cout << "here" <<std::endl;
   // Set the iiwa default configuration.
   const auto iiwa_joint_indices =
       plant_->GetJointIndices(iiwa_model_.model_instance);

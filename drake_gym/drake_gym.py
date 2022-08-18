@@ -43,7 +43,8 @@ class DrakeGymEnv(gym.Env):
                  observation_port_id: Union[OutputPortIndex, str] = None,
                  render_rgb_port_id: Union[OutputPortIndex, str] = None,
                  set_home = None,
-                 hardware = False):
+                 hardware = False,
+                 plant_name = None):
         """
         Args:
             system: A Drake System
@@ -134,11 +135,13 @@ class DrakeGymEnv(gym.Env):
 
         self.generator = RandomGenerator()
 
+        self.set_home=set_home
+        self.hardware=hardware
+        self.plant_name=plant_name
+
         if self.simulator:
             self._setup()
         
-        self.set_home=set_home
-        self.hardware=hardware
 
     def _setup(self):
         """Completes the setup once we have a self.simulator."""
@@ -184,7 +187,8 @@ class DrakeGymEnv(gym.Env):
                               ImageRgba8U)
         
         #(Maybe) expose plant and make NamedView
-        #self.plant = self.simulator.get_system().GetSubsystemByName("plant")
+        if self.plant_name != None:
+            self.plant = self.simulator.get_system().GetSubsystemByName(self.plant_name)
         #self.stateview=MakeNamedViewState(self.plant, "States")
         
 
@@ -210,6 +214,7 @@ class DrakeGymEnv(gym.Env):
             if "MultibodyPlant's discrete update solver failed to converge" \
                     not in e.args[0]:
                 raise
+            #pdb.set_trace()
             warnings.warn("Calling Done after catching RuntimeError:")
             warnings.warn(e.args[0])
             catch = True
