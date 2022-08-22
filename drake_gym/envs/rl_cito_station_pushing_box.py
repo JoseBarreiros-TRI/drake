@@ -346,8 +346,7 @@ def make_sim(generator,
     builder.Connect(station.GetOutputPort("iiwa_velocity_estimated"),reward.get_input_port(2))
     builder.Connect(station.GetOutputPort("iiwa_torque_measured"),reward.get_input_port(3))
     builder.ExportOutput(reward.get_output_port(), "reward")
-
-
+    
     diagram = builder.Build()
     simulator = Simulator(diagram)
     if debug:
@@ -380,26 +379,32 @@ def make_sim(generator,
         except:
             box_pose=RigidTransform.Identity().translation() 
 
-        #c_plant=station.get_multibody_plant()
         c_plant=station.get_controller_plant()
-        c_plant_context=c_plant.GetMyContextFromRoot(context)
+        
+        #pdb.set_trace()
+        #EE pose
+        robot_context = c_plant.CreateDefaultContext()
+        iiwa_position=station.GetOutputPort("iiwa_position_measured").Eval(station_context)
+        x = c_plant.GetMutablePositionsAndVelocities(robot_context)
+        x[:c_plant.num_positions()] = iiwa_position
         frame_EE_=c_plant.GetFrameByName("iiwa_link_7")
+        EE_pose=c_plant.EvalBodyPoseInWorld(robot_context, frame_EE_.body())
 
-        EE_pose=c_plant.EvalBodyPoseInWorld(c_plant_context, frame_EE_.body())
         # if debug:
         #     print("b_pose: ", box_pose)
         #     print("EE_pose: ", EE_pose.translation())
+            
         if np.linalg.norm(box_pose)>1.4 or box_pose[0]<0.2 or box_pose[2]<0.0 or box_pose[0]>2.2 or np.abs(box_pose[1])>1.0:
             #pdb.set_trace()
             if debug:
-                print("\nTerminated. box off the table.\n")
-            return EventStatus.ReachedTermination(diagram, "box out of reach")
+                print("\nTerminated. box off the table or out of reach. Box pose: ", box_pose)
+            return EventStatus.ReachedTermination(diagram, "box off the table or out of reach")
         
         if task=="reach":
             # for reach
             if np.linalg.norm(box_pose-EE_pose.translation())<0.15:
                 if debug:
-                    print("\nTerminated. EE reached the box.\n")
+                    print("\nTerminated. Success EE reached the box.\n")
                 return EventStatus.ReachedTermination(diagram, "success. box reached")
                 
         elif task=="push": 
@@ -407,11 +412,11 @@ def make_sim(generator,
             target_position=[desired_box_xy[0],desired_box_xy[1],box_size[2]/2+table_heigth]
             if np.linalg.norm(box_pose-target_position)<0.15:
                 if debug:
-                    print("\nTerminated. Box reached the target.\n")
+                    print("\nTerminated. Box reached the target. Box_pose: \n", box_pose)
                 return EventStatus.ReachedTermination(diagram, "success. box reached target")
             if EE_pose.translation()[2]<0.005+table_heigth:
                 if debug:
-                    print("\nTerminated. EE collision with table.\n")
+                    print("\nTerminated. EE collision with table. EE_pose: ",EE_pose.translation() )
                 return EventStatus.ReachedTermination(diagram, "EE collided with table")
 
 
