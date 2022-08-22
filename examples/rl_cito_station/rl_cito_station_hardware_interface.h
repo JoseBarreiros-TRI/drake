@@ -13,7 +13,7 @@
 namespace drake {
 namespace examples {
 namespace rl_cito_station {
-
+using Eigen::Matrix3d;
 /// A System that connects via message-passing to the hardware manipulation
 /// station.
 ///
@@ -43,7 +43,8 @@ class RlCitoStationHardwareInterface : public systems::Diagram<double> {
   DRAKE_NO_COPY_NO_MOVE_NO_ASSIGN(RlCitoStationHardwareInterface)
 
   RlCitoStationHardwareInterface(
-      bool has_optitrack=true);
+      bool has_optitrack=true,
+      Matrix3d A(1,0,0,0,1,0,0,0,1));
 
   /// Starts a thread to receive network messages, and blocks execution until
   /// the first messages have been received.
