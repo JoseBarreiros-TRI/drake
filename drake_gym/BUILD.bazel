@@ -71,6 +71,16 @@ drake_py_binary(
     ],
 )
 drake_py_binary(
+    name = "rl_play_cart_pole",
+    srcs = ["rl_play_cart_pole.py"],
+    data = [":model_files"],
+    deps = [
+      "drake_gym_py",
+      "//bindings/pydrake",
+
+    ],
+)
+drake_py_binary(
     name = "rl_train_noodlemanstandup_idc",
     srcs = ["rl_train_noodlemanstandup_idc.py"],
     data = [":model_files"],
@@ -316,6 +326,7 @@ filegroup(
        "models/floor_v2.sdf",
        "models/optitrack_brick.sdf",
        "models/humanoid_torso_v2_noball_noZeroBodies_spring_prismatic.sdf",
+       "models/cartpole_BSA.sdf",
     ],
 )
 add_lint_tests()
