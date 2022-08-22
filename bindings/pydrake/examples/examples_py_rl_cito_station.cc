@@ -90,8 +90,9 @@ void DefineExamplesRlCitoStation(py::module m) {
   py::class_<RlCitoStationHardwareInterface, Diagram<double>>(m,
       "RlCitoStationHardwareInterface",
       doc.RlCitoStationHardwareInterface.doc)
-      .def(py::init<bool>(),
+      .def(py::init<bool,  const Eigen::Matrix3d&>(),
           py::arg("has_optitrack") = true,
+          py::arg("A") = Eigen::Matrix3d::Identity(),
           doc.RlCitoStationHardwareInterface.ctor.doc)
       .def("Connect", &RlCitoStationHardwareInterface::Connect,
           py::arg("wait_for_optitrack") = true,

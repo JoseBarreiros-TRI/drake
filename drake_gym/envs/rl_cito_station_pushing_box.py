@@ -69,6 +69,7 @@ desired_box_xy=[
     0+0.8*(np.random.random()-0.5),
     ] 
 ##
+optitrack_pose_transform=np.array([[1,0,0],[0,1,0],[0,0,1]])
 
 def AddTargetPosVisuals(plant,xyz_position,color=[.8, .1, .1, 1.0]):
     parser = Parser(plant)
@@ -109,7 +110,8 @@ def make_sim(generator,
                     time_limit=5,
                     debug=False,
                     hardware=False,
-                    task="reach"):
+                    task="reach",
+                    mock_hardware=False):
     
     assert(task=="reach" or task=="push"),f'_{task}_ task not implemented. valid options are push, reach'
     builder = DiagramBuilder()
@@ -118,7 +120,10 @@ def make_sim(generator,
 
   
     if hardware:
-        station = builder.AddSystem(RlCitoStationHardwareInterface())
+        if mock_hardware:
+            station = builder.AddSystem(RlCitoStationHardwareInterface(has_optitrack=True))
+        else:
+            station = builder.AddSystem(RlCitoStationHardwareInterface(has_optitrack=True, A=optitrack_pose_transform))
         station.Connect(wait_for_optitrack=True)     
         controller_plant=station.get_controller_plant()
         plant=None   
@@ -428,7 +433,7 @@ def make_sim(generator,
     return simulator
 
 
-def RlCitoStationBoxPushingEnv(observations="state", meshcat=None, time_limit=gym_time_limit, debug=False,hardware=False, task="reach"):
+def RlCitoStationBoxPushingEnv(observations="state", meshcat=None, time_limit=gym_time_limit, debug=False,hardware=False, task="reach", mock_hardware=False):
     
     #Make simulation
     simulator = make_sim(RandomGenerator(),
@@ -437,7 +442,8 @@ def RlCitoStationBoxPushingEnv(observations="state", meshcat=None, time_limit=gy
                             time_limit=time_limit,
                             debug=debug,
                             hardware=hardware,
-                            task=task)
+                            task=task,
+                            mock_hardware=mock_hardware)
     #pdb.set_trace()
     if hardware:
         station = simulator.get_system().GetSubsystemByName("rl_cito_station_hardware_interface")
