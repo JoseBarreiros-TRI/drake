@@ -1,3 +1,4 @@
+from ast import excepthandler
 from re import S
 import gym
 import pdb
@@ -52,8 +53,8 @@ from pydrake.examples import (
 sim_time_step=0.005
 gym_time_step=0.05
 gym_time_limit=5
-modes=["IDC","torque"]
-control_mode=modes[0]
+# modes=["IDC","torque"]
+# control_mode=modes[0]
 table_heigth =0.
 box_size=[ 0.075,#0.2+0.1*(np.random.random()-0.5),
         0.05,#0.2+0.1*(np.random.random()-0.5),
@@ -62,7 +63,7 @@ box_size=[ 0.075,#0.2+0.1*(np.random.random()-0.5),
 # box_mass=1
 # box_mu=1.0
 contact_model='point'#'hydroelastic_with_fallback'#ContactModel.kHydroelasticWithFallback#kPoint
-contact_solver='tamsi'#ContactSolver.kSap#kTamsi # kTamsi
+contact_solver='sap'#ContactSolver.kSap#kTamsi # kTamsi
 desired_box_xy=[
     1.+0.5*(np.random.random()-0.5),
     0+0.8*(np.random.random()-0.5),
@@ -107,18 +108,18 @@ def make_sim(generator,
                     meshcat=None,
                     time_limit=5,
                     debug=False,
-                    hardware=False):
+                    hardware=False,
+                    task="reach"):
     
+    assert(task=="reach" or task=="push"),f'_{task}_ task not implemented. valid options are push, reach'
     builder = DiagramBuilder()
  
     target_position=[desired_box_xy[0],desired_box_xy[1],table_heigth]
 
   
     if hardware:
-        camera_ids = []
-        station = builder.AddSystem(RlCitoStationHardwareInterface(
-            camera_ids,False, True))
-        station.Connect(wait_for_cameras=False,wait_for_wsg=False,wait_for_optitrack=False)     
+        station = builder.AddSystem(RlCitoStationHardwareInterface())
+        station.Connect(wait_for_optitrack=True)     
         controller_plant=station.get_controller_plant()
         plant=None   
     else:
@@ -126,8 +127,9 @@ def make_sim(generator,
         station.SetupCitoRlStation()
 
         station.AddManipulandFromFile(
-                "drake/drake_gym/models/"
-                + "optitrack_brick.sdf",
+                "drake/examples/rl_cito_station/models/"
+                # "drake/drake_gym/models/"
+                + "optitrack_brick_v2.sdf",
                 RigidTransform(RotationMatrix.Identity(), [0.6, 0, table_heigth]),
                 "box")
         
@@ -154,17 +156,6 @@ def make_sim(generator,
                 meshcat=meshcat,
                 params=ContactVisualizerParams(radius=0.005, newtons_per_meter=50.0),
                 )
-
-            # # Use the controller plant to visualize the set point geometry.
-            # controller_scene_graph = builder.AddSystem(SceneGraph())
-            # controller_plant.RegisterAsSourceForSceneGraph(controller_scene_graph)
-            # SetColor(controller_scene_graph,
-            #         color=[1.0, 165.0 / 255, 0.0, 1.0],
-            #         source_id=controller_plant.get_source_id())
-            # controller_vis = MeshcatVisualizerCpp.AddToBuilder(
-            #     builder, controller_scene_graph, meshcat,
-            #     MeshcatVisualizerParams(prefix="controller"))
-            # controller_vis.set_name("controller meshcat")
 
         # filter collisison between parent and child of each joint.
         add_collision_filters(scene_graph,plant)
@@ -195,20 +186,7 @@ def make_sim(generator,
      
         print("\nState view: ", StateView(np.ones(Ns)))
         print("\nActuation view: ", ActuationView(np.ones(Na)))
-        print("\nPosition view: ",PositionView(np.ones(Np)))   
-
-    # if meshcat:
-    #     positions_to_poses = builder.AddSystem(
-    #         MultibodyPositionToGeometryPose(controller_plant))
-    #     builder.Connect(
-    #         positions_to_poses.get_output_port(),
-    #         controller_scene_graph.get_source_pose_port(
-    #             controller_plant.get_source_id()))
-
-
-    # actions = builder.AddSystem(PassThrough(Na))
-    # builder.Connect(actions.get_output_port(),
-    #                    station.GetInputPort("iiwa_position"))    
+        print("\nPosition view: ",PositionView(np.ones(Np)))     
 
     if hardware:
         action_passthrough=builder.AddSystem(PassThrough(Na))
@@ -228,7 +206,7 @@ def make_sim(generator,
             self.DeclareVectorInputPort("iiwa_velocities",Na)
             self.DeclareVectorInputPort("iiwa_torques",Na)
             #self.DeclareVectorOutputPort("observations", Na*2, self.CalcObs)
-            self.DeclareVectorOutputPort("observations", Na*2+6, self.CalcObs)
+            self.DeclareVectorOutputPort("observations", Na*2+9, self.CalcObs)
             self.desired_box_pose=np.array([desired_box_xy[0],desired_box_xy[1],box_size[2]/2+table_heigth])
 
             self.robot = robot
@@ -267,7 +245,8 @@ def make_sim(generator,
             #pdb.set_trace()
             observations=np.concatenate((iiwa_position,iiwa_velocities))
             #extension=np.concatenate((box_LF_edge,box_RF_edge,box_LC_edge,box_RC_edge,distance_box_to_target))
-            extension=np.concatenate((distance_box_to_target,distance_EE_to_box))
+            #extension=np.concatenate((distance_box_to_target,distance_EE_to_box))
+            extension=np.concatenate((box_translation,self.desired_box_pose,EE_pose.translation()))
             
             extended_observations=np.concatenate((observations,extension))      
             output.set_value(extended_observations)
@@ -307,7 +286,8 @@ def make_sim(generator,
                 body_pose=RigidTransform.Identity()  #this might not be safe
 
             iiwa_position = self.get_input_port(1).Eval(context)
-            
+            iiwa_torques=self.get_input_port(3).Eval(context)
+            iiwa_velocities=self.get_input_port(2).Eval(context)
 
             box_translation = body_pose.translation()
             box_rotation=body_pose.rotation().matrix()
@@ -327,19 +307,31 @@ def make_sim(generator,
 
             cost_EE=distance_EE_to_box.dot(distance_EE_to_box)
             cost_to_target=distance_box_to_target.dot(distance_box_to_target) 
+            
+            #effort=iiwa_torques
+            effort=iiwa_velocities
+            cost_effort=1e-3*effort.dot(effort)
+            cost_collision_w_table=0
+            #cost = cost_EE + 10*cost_to_target
+            if EE_pose.translation()[2]<0.01:
+                cost_collision_w_table=2
+            if task=="reach":
+                cost = cost_EE + cost_effort  #+ cost_collision_w_table
+            elif task=="push": 
+                cost = cost_EE + cost_effort + cost_to_target
 
-            cost = cost_EE + 10*cost_to_target
-
-            reward=5-cost
+            reward=-cost
        
             if debug:
                 print('box_pose: ',box_translation)
                 print("EE: ", EE_pose.translation())
 
-                print('cost: {c}, cost_EE: {ce}, cost_to_target: {ct}'.format(
+                print('cost: {c}, cost_EE: {ce}, cost_to_target: {ct}, cost_effort: {cef}, cost_collision_w_table: {cct}'.format(
                         c=cost,
                         ce=cost_EE,
                         ct=cost_to_target,
+                        cef=cost_effort,
+                        cct=cost_collision_w_table,
                         ))
                 print('rew: {r}\n'.format(r=reward))
             #pdb.set_trace()
@@ -378,19 +370,52 @@ def make_sim(generator,
         # terminate from time and box out of reach
         if context.get_time() > time_limit:
             if debug:
-                print("\nTerminated. time limit reached.\n")
+                print("\nTerminated. time limit reached at ",context.get_time(), "\n")
             return EventStatus.ReachedTermination(diagram, "time limit")
-        if not hardware:
-            #pdb.set_trace()
-            station_context=diagram.GetMutableSubsystemContext(station,context)
+        #if not hardware:
+        #pdb.set_trace()
+        station_context=diagram.GetMutableSubsystemContext(station,context)
+        try:
             box_pose=station.GetOutputPort("optitrack_manipuland_pose").Eval(station_context).translation()
-            #print("b_pose: ", box_pose)
-            if np.linalg.norm(box_pose)>1.4 or box_pose[0]<0.2 or box_pose[2]<0:
-                #pdb.set_trace()
-                if debug:
-                    print("\nTerminated. box off the table.\n")
-                return EventStatus.ReachedTermination(diagram, "box out of reach")
+        except:
+            box_pose=RigidTransform.Identity().translation() 
+
+        #c_plant=station.get_multibody_plant()
+        c_plant=station.get_controller_plant()
+        c_plant_context=c_plant.GetMyContextFromRoot(context)
+        frame_EE_=c_plant.GetFrameByName("iiwa_link_7")
+
+        EE_pose=c_plant.EvalBodyPoseInWorld(c_plant_context, frame_EE_.body())
+        # if debug:
+        #     print("b_pose: ", box_pose)
+        #     print("EE_pose: ", EE_pose.translation())
+        if np.linalg.norm(box_pose)>1.4 or box_pose[0]<0.2 or box_pose[2]<0.0 or box_pose[0]>2.2 or np.abs(box_pose[1])>1.0:
+            #pdb.set_trace()
+            if debug:
+                print("\nTerminated. box off the table.\n")
+            return EventStatus.ReachedTermination(diagram, "box out of reach")
         
+        if task=="reach":
+            # for reach
+            if np.linalg.norm(box_pose-EE_pose.translation())<0.15:
+                if debug:
+                    print("\nTerminated. EE reached the box.\n")
+                return EventStatus.ReachedTermination(diagram, "success. box reached")
+                
+        elif task=="push": 
+            #for push
+            target_position=[desired_box_xy[0],desired_box_xy[1],box_size[2]/2+table_heigth]
+            if np.linalg.norm(box_pose-target_position)<0.15:
+                if debug:
+                    print("\nTerminated. Box reached the target.\n")
+                return EventStatus.ReachedTermination(diagram, "success. box reached target")
+            if EE_pose.translation()[2]<0.005+table_heigth:
+                if debug:
+                    print("\nTerminated. EE collision with table.\n")
+                return EventStatus.ReachedTermination(diagram, "EE collided with table")
+
+
+
         return EventStatus.Succeeded()
 
     simulator.set_monitor(monitor)
@@ -398,7 +423,7 @@ def make_sim(generator,
     return simulator
 
 
-def RlCitoStationBoxPushingEnv(observations="state", meshcat=None, time_limit=gym_time_limit, debug=False,hardware=False):
+def RlCitoStationBoxPushingEnv(observations="state", meshcat=None, time_limit=gym_time_limit, debug=False,hardware=False, task="reach"):
     
     #Make simulation
     simulator = make_sim(RandomGenerator(),
@@ -406,7 +431,8 @@ def RlCitoStationBoxPushingEnv(observations="state", meshcat=None, time_limit=gy
                             meshcat=meshcat,
                             time_limit=time_limit,
                             debug=debug,
-                            hardware=hardware)
+                            hardware=hardware,
+                            task=task)
     #pdb.set_trace()
     if hardware:
         station = simulator.get_system().GetSubsystemByName("rl_cito_station_hardware_interface")
@@ -431,9 +457,9 @@ def RlCitoStationBoxPushingEnv(observations="state", meshcat=None, time_limit=gy
     #     (plant.GetPositionUpperLimits(), plant.GetVelocityUpperLimits(),np.array([np.inf]*6)))
 
     low = np.concatenate(
-        (np.array([-2*np.pi]*Na), np.array([-100]*Na),np.array([-np.inf]*6)))
+        (np.array([-2*np.pi]*Na), np.array([-100]*Na),np.array([-10]*9)))
     high = np.concatenate(
-        (np.array([2*np.pi]*Na), np.array([100]*Na),np.array([np.inf]*6)))
+        (np.array([2*np.pi]*Na), np.array([100]*Na),np.array([10]*9)))
 
     # low = np.concatenate(
     #     (plant.GetPositionLowerLimits(), plant.GetVelocityLowerLimits()))
