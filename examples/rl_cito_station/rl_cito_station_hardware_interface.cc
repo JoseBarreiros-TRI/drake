@@ -64,7 +64,7 @@ class ApplyTransformToPose final : public systems::LeafSystem<T> {
 // (only) constructing one internally.
 // TODO(jose-tri): Add argument for mock_hardware. 
 RlCitoStationHardwareInterface::RlCitoStationHardwareInterface(
-    bool has_optitrack, const Matrix3d& A)
+    bool has_optitrack, const Matrix3d& optitrack_frame_transform)
     : owned_controller_plant_(std::make_unique<MultibodyPlant<double>>(0.0)),
       owned_lcm_(new lcm::DrakeLcm()){
   systems::DiagramBuilder<double> builder;
@@ -127,9 +127,7 @@ RlCitoStationHardwareInterface::RlCitoStationHardwareInterface(
                     optitrack_decoder->get_input_port());
 
     // apply pose transform
-    // Matrix3d A;
-    // A<<1,0,0,0,1,0,0,0,1; 
-    auto pose_transform=builder.AddSystem<ApplyTransformToPose<double>>(A);
+    auto pose_transform=builder.AddSystem<ApplyTransformToPose<double>>(optitrack_frame_transform);
     builder.Connect(optitrack_decoder->GetOutputPort("body_1"),
           pose_transform->get_input_port());
     builder.ExportOutput(

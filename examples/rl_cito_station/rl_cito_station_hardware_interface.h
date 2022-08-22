@@ -44,7 +44,7 @@ class RlCitoStationHardwareInterface : public systems::Diagram<double> {
 
   RlCitoStationHardwareInterface(
       bool has_optitrack=true,
-      const Eigen::Matrix3d& A = Eigen::Matrix3d::Identity());
+      const Eigen::Matrix3d& optitrack_frame_transform = Eigen::Matrix3d::Identity());
 
   /// Starts a thread to receive network messages, and blocks execution until
   /// the first messages have been received.
