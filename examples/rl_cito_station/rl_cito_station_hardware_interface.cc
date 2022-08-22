@@ -36,13 +36,14 @@ template <typename T>
 
 class ApplyTransformToPose final : public systems::LeafSystem<T> {
  public:
-  explicit ApplyTransformToPose(){
+  explicit ApplyTransformToPose(const Eigen::Matrix3d A){
     input_ = &this->DeclareAbstractInputPort(
         "input_pose", Value<math::RigidTransformd>());
     this->DeclareAbstractOutputPort(
         "output_pose", &ApplyTransformToPose<T>::Applicator);
     //TODO(jose-tri): change this as an argument. 
-    A_ << 1,0,0,0,1,0,0,0,1; 
+    //A_ << 1,0,0,0,1,0,0,0,1; 
+    A_ << A;
   }
   void Applicator(const Context<T>& context,
                  math::RigidTransform<T>* output) const {
@@ -65,7 +66,7 @@ class ApplyTransformToPose final : public systems::LeafSystem<T> {
 // (only) constructing one internally.
 // TODO(jose-tri): Add argument for mock_hardware. 
 RlCitoStationHardwareInterface::RlCitoStationHardwareInterface(
-    bool has_optitrack)
+    bool has_optitrack, Matrix3d A)
     : owned_controller_plant_(std::make_unique<MultibodyPlant<double>>(0.0)),
       owned_lcm_(new lcm::DrakeLcm()){
   systems::DiagramBuilder<double> builder;
@@ -128,7 +129,9 @@ RlCitoStationHardwareInterface::RlCitoStationHardwareInterface(
                     optitrack_decoder->get_input_port());
 
     // apply pose transform
-    auto pose_transform=builder.AddSystem<ApplyTransformToPose<double>>();
+    // Matrix3d A;
+    // A<<1,0,0,0,1,0,0,0,1; 
+    auto pose_transform=builder.AddSystem<ApplyTransformToPose<double>>(A);
     builder.Connect(optitrack_decoder->GetOutputPort("body_1"),
           pose_transform->get_input_port());
     builder.ExportOutput(
