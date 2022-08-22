@@ -41,8 +41,6 @@ class ApplyTransformToPose final : public systems::LeafSystem<T> {
         "input_pose", Value<math::RigidTransformd>());
     this->DeclareAbstractOutputPort(
         "output_pose", &ApplyTransformToPose<T>::Applicator);
-    //TODO(jose-tri): change this as an argument. 
-    //A_ << 1,0,0,0,1,0,0,0,1; 
     A_ << A;
   }
   void Applicator(const Context<T>& context,
@@ -66,7 +64,7 @@ class ApplyTransformToPose final : public systems::LeafSystem<T> {
 // (only) constructing one internally.
 // TODO(jose-tri): Add argument for mock_hardware. 
 RlCitoStationHardwareInterface::RlCitoStationHardwareInterface(
-    bool has_optitrack, Matrix3d A)
+    bool has_optitrack, const Matrix3d& A)
     : owned_controller_plant_(std::make_unique<MultibodyPlant<double>>(0.0)),
       owned_lcm_(new lcm::DrakeLcm()){
   systems::DiagramBuilder<double> builder;

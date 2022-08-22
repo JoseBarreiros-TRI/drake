@@ -26,6 +26,7 @@ parser.add_argument('--task', help="tasks: [reach,push]", type=str, default="rea
 parser.add_argument('--hardware', action='store_true')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--model_path', help="path to the policy")
+parser.add_argument('--mock_hardware', action='store_true')
 args = parser.parse_args()
 
 observations = "state"
@@ -41,15 +42,21 @@ else:
 
 if __name__ == '__main__':
 
-    # Make a version of the env with meshcat.
-    meshcat = StartMeshcat()
+    if args.hardware:
+        meshcat=None
+    else:
+        # Make a version of the env with meshcat.
+        meshcat = StartMeshcat()
+        
     env = gym.make("RlCitoStationBoxPushing-v0", 
             meshcat=meshcat, 
             time_limit=7,
             observations=observations,
             debug=args.debug,
             hardware=args.hardware,
-            task=args.task)
+            task=args.task,
+            mock_hardware=args.mock_hardware)
+    
     env.simulator.set_target_realtime_rate(1.0)
 
     if not args.hardware:  
@@ -58,11 +65,11 @@ if __name__ == '__main__':
     
     if args.test:
         # the expected behavior is arms down and then arms up
-        Na=7#env.plant.num_actuators()
+        #Na=7#env.plant.num_actuators()
 
         obs = env.reset()
         for i in range(1000):
-            action=np.random.rand(Na)
+            action=env.action_space.sample()#np.random.rand(Na)
             input("Press Enter to continue...")
             obs, reward, done, info = env.step(action)
             env.render()
