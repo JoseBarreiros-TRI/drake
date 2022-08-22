@@ -1,10 +1,11 @@
 import argparse
+from cgitb import handler
 from locale import ABDAY_1
 import gym
 import os
 import pdb
 import numpy as np
-
+import time
 from stable_baselines3 import A2C, PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.env_util import make_vec_env
@@ -21,6 +22,7 @@ gym.envs.register(id="RlCitoStationBoxPushing-v0",
 parser = argparse.ArgumentParser(
     description=' ')
 parser.add_argument('--test', action='store_true')
+parser.add_argument('--task', help="tasks: [reach,push]", type=str, default="reach")
 parser.add_argument('--hardware', action='store_true')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--model_path', help="path to the policy")
@@ -41,11 +43,17 @@ if __name__ == '__main__':
 
     # Make a version of the env with meshcat.
     meshcat = StartMeshcat()
-    env = gym.make("RlCitoStationBoxPushing-v0", meshcat=meshcat, observations=observations,debug=args.debug,hardware=args.hardware)
+    env = gym.make("RlCitoStationBoxPushing-v0", 
+            meshcat=meshcat, 
+            time_limit=7,
+            observations=observations,
+            debug=args.debug,
+            hardware=args.hardware,
+            task=args.task)
     env.simulator.set_target_realtime_rate(1.0)
 
-    #if not args.hardware:  
-    check_env(env)
+    if not args.hardware:  
+        check_env(env)
     
     
     if args.test:
@@ -68,7 +76,12 @@ if __name__ == '__main__':
     for i in range(100000):
         action, _state = model.predict(obs, deterministic=True)
         obs, reward, done, info = env.step(action)
+        if args.debug:
+            input("Press Enter to continue...")
         env.render()
         if done:
             input("If continue the environment will reset. Press Enter to continue...")   
             obs = env.reset()
+            if not args.hardware:
+                #wait for meshcat to load env
+                time.sleep(0.7)

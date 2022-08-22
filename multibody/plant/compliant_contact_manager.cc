@@ -36,6 +36,7 @@ using drake::multibody::contact_solvers::internal::SapFrictionConeConstraint;
 using drake::multibody::contact_solvers::internal::SapHolonomicConstraint;
 using drake::multibody::contact_solvers::internal::SapLimitConstraint;
 using drake::multibody::contact_solvers::internal::SapSolver;
+using drake::multibody::contact_solvers::internal::SapSolverParameters;
 using drake::multibody::contact_solvers::internal::SapSolverResults;
 using drake::multibody::contact_solvers::internal::SapSolverStatus;
 using drake::multibody::internal::DiscreteContactPair;
@@ -651,7 +652,10 @@ void CompliantContactManager<T>::DoCalcContactSolverResults(
 
   // Solve contact problem.
   SapSolver<T> sap;
-  sap.set_parameters(sap_parameters_);
+  SapSolverParameters parameters(sap_parameters_);
+  parameters.rel_tolerance = 1.0e-4;
+  parameters.max_iterations = 200;
+  sap.set_parameters(parameters);
   SapSolverResults<T> sap_results;
   const SapSolverStatus status =
       sap.SolveWithGuess(sap_problem, v0, &sap_results);

@@ -65,7 +65,7 @@ int do_main(int argc, char* argv[]) {
  if (FLAGS_setup == "cito_rl") {
     station->SetupCitoRlStation();
     station->AddManipulandFromFile(
-        "drake/examples/rl_cito_station/models/061_foam_brick.sdf",
+        "drake/examples/rl_cito_station/models/optitrack_brick_v2.sdf",
         math::RigidTransform<double>(math::RotationMatrix<double>::Identity(),
                                      Eigen::Vector3d(0.6, 0, 0.15)),
         "box");

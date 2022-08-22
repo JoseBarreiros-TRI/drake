@@ -290,11 +290,11 @@ void RlCitoStation<T>::Finalize() {
       // inside the workspace of the station.
       q0_iiwa << 0, 0.6, 0, -1.75, 0, 1.0, 0;
 
-      std::uniform_real_distribution<symbolic::Expression> x(0.4, 0.65),
-          y(-0.35, 0.35);
+      std::uniform_real_distribution<symbolic::Expression> x(0.3, 0.75),
+          y(-0.6, 0.6);
       const Vector3<symbolic::Expression> xyz{x(), y(), 0.0};
       std::uniform_real_distribution<symbolic::Expression> yaw(0.0, M_PI);
-      math::RollPitchYaw<symbolic::Expression> rpy(0.0, 0.0, 0.0);
+      math::RollPitchYaw<symbolic::Expression> rpy(0.0, 0.0, yaw());
 
       //const math::RotationMatrix<double> X_WB_new(RollPitchYawd(0., 0., 0.4));
       for (const auto& body_index : object_ids_) {
@@ -536,13 +536,13 @@ void RlCitoStation<T>::AddDefaultIiwa(
   switch (collision_model) {
     case IiwaCollisionModel_::kNoCollision:
       sdf_path = FindResourceOrThrow(
-          "drake/manipulation/models/iiwa_description/iiwa7/"
-          "iiwa7_no_collision.sdf");
+          "drake/manipulation/models/iiwa_description/sdf/"
+          "iiwa14_no_collision.sdf");
       break;
     case IiwaCollisionModel_::kBoxCollision:
       sdf_path = FindResourceOrThrow(
-          "drake/manipulation/models/iiwa_description/iiwa7/"
-          "iiwa7_with_box_collision.sdf");
+          "drake/manipulation/models/iiwa_description/sdf/"
+          "iiwa14_polytope_collision.sdf");
       break;
   }
   const auto X_WI = RigidTransform<double>::Identity();

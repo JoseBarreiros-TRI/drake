@@ -9,8 +9,15 @@ from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.callbacks import CheckpointCallback
 from pydrake.geometry import Meshcat, Cylinder, Rgba, Sphere, StartMeshcat
 from stable_baselines3.common.env_checker import check_env
+from stable_baselines3.common.callbacks import EvalCallback
 
-import wandb
+import torch as th
+try:
+    import wandb
+except ImportError:
+    raise ImportError(
+        "if you want to use Weights & Biases to track experiment, please install W&B via `pip install wandb`"
+    )
 from wandb.integration.sb3 import WandbCallback
 
 
@@ -25,25 +32,31 @@ args = parser.parse_args()
 gym.envs.register(id="RlCitoStationBoxPushing-v0",
                   entry_point="envs.rl_cito_station_pushing_box:RlCitoStationBoxPushingEnv")
 
+
 config = {
-        "policy_type": "MlpPolicy",
-        "total_timesteps": 10e6,
+        "task": "reach",
+        "policy_type": "MlpPolicy", #'MlpPolicy'
+        "total_timesteps": 1e7,
         "env_name": "RlCitoStationBoxPushing-v0",
-        "num_workers": 36,
+        "num_workers": 80,
         "env_time_limit": 7,
         "local_log_dir": "/home/josebarreiros/rl/tmp/RlCitoStationBoxPushing/",
         "observations_set": "state",
-        "model_save_freq": 10000,
+        "model_save_freq": 1e5,
+        "policy_kwargs": dict(activation_fn=th.nn.ReLU,
+                     net_arch=[dict(pi=[128, 128,128], vf=[128,128,128])]),
     }
 
 if __name__ == '__main__':
-
+    task=config["task"]
     num_cpu = config["num_workers"] if not args.test else 2
     time_limit = config["env_time_limit"] if not args.test else 0.5
     observations=config["observations_set"]
     log_dir=config["local_log_dir"]
     policy_type=config["policy_type"]
     total_timesteps=config["total_timesteps"] if not args.test else 3
+    policy_kwargs=config["policy_kwargs"] if not args.test else None
+    eval_freq=config["model_save_freq"]
 
     run = wandb.init(
         project="sb3_test",
@@ -61,12 +74,18 @@ if __name__ == '__main__':
                         env_kwargs={
                             'observations': observations,
                             'time_limit': time_limit,
+                            'task': task,
                         })
     else:
         config["num_workers"]=1
         meshcat = StartMeshcat()
-        env = gym.make("RlCitoStationBoxPushing-v0", meshcat=meshcat, 
-            observations=observations,time_limit=time_limit, debug=args.debug)
+        env = gym.make("RlCitoStationBoxPushing-v0", 
+                meshcat=meshcat, 
+                observations=observations,
+                time_limit=time_limit, 
+                debug=args.debug,
+                task=task,
+                )
         print("Open tensorboard in another terminal. tensorboard --logdir ",log_dir+f"runs/{run.id}")
         input("Press Enter to continue...")
     
@@ -74,17 +93,29 @@ if __name__ == '__main__':
         check_env(env)
 
     if args.test:
-        model = PPO(policy_type, env, n_steps=4, n_epochs=2, batch_size=8)
+        model = PPO(policy_type, env, n_steps=4, n_epochs=2, batch_size=8,policy_kwargs=policy_kwargs)
     else:
-        model = PPO(policy_type, env, verbose=1, tensorboard_log=log_dir+f"runs/{run.id}")
+        model = PPO(policy_type, env, verbose=1, tensorboard_log=log_dir+f"runs/{run.id}",policy_kwargs=policy_kwargs)
+
+    # Separate evaluation env
+    eval_env = gym.make("RlCitoStationBoxPushing-v0",  
+                observations=observations,
+                time_limit=time_limit, 
+                task=task,
+                )
+    # Use deterministic actions for evaluation
+    eval_callback = EvalCallback(eval_env, best_model_save_path=log_dir+f'eval_logs/{run.id}',
+                                log_path=log_dir+f'eval_logs/{run.id}', eval_freq=eval_freq,
+                                deterministic=True, render=False)
 
     model.learn(
         total_timesteps=total_timesteps,
-        callback=WandbCallback(
-            gradient_save_freq=1000,
+        callback=[WandbCallback(
+            gradient_save_freq=1e3,
             model_save_path=log_dir+f"models/{run.id}",
             verbose=2,
             model_save_freq=config["model_save_freq"],
         ),
+        eval_callback]
     )
     run.finish()
