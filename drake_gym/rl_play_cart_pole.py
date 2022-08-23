@@ -21,49 +21,43 @@ gym.envs.register(id="Cartpole-v0",
 parser = argparse.ArgumentParser(
     description=' ')
 parser.add_argument('--test', action='store_true')
+parser.add_argument('--debug', action='store_true')
+parser.add_argument('--model_path', help="path to the policy")
 args = parser.parse_args()
 
 observations = "state"
-zip = "/home/josebarreiros/rl/data/Cartpole_ppo_{observations}.zip"
-log = "/home/josebarreiros/rl/tmp/Cartpole/"
-debug=True
+
+if args.model_path != None:
+    zip=args.model_path
+    log = "/home/josebarreiros/rl/tmp/RlCitoStationBoxPushing/"
+else:
+    zip = "/home/josebarreiros/rl/data/Cartpole_ppo_{observations}.zip"
+    log = "/home/josebarreiros/rl/tmp/Cartpole/"
 
 if __name__ == '__main__':
 
     # Make a version of the env with meshcat.
     meshcat = StartMeshcat()
-    env = gym.make("Cartpole-v0", meshcat=meshcat, observations=observations,debug=debug)
+    env = gym.make("Cartpole-v0", 
+                    meshcat=meshcat, 
+                    time_limit=7,
+                    observations=observations,
+                    debug=args.debug)
+
     env.simulator.set_target_realtime_rate(1.0)
       
     check_env(env)
     
-    #pdb.set_trace()
-    
     if args.test:
-        # the expected behavior is arms down and then arms up
-         
-        Na=env.plant.num_actuators()
-        Np=env.plant.num_positions()
-        ActuationView=MakeNamedViewActuation(env.plant, "Actuation")
-        PositionView=MakeNamedViewPositions(env.plant,"Positions")
-        actuation_matrix=env.plant.MakeActuationMatrix()
-        # standing straigth
-        a1=PositionView([0]*Np) 
-        # arms up
-        a2=PositionView([0]*Np) 
-        a2.shoulderR_joint1=1.5
-        a2.shoulderL_joint1=1.5
-        a2.prismatic_z=0.3
-        actions=[a1.__array__()[:Na],a2.__array__()[:Na]]
-
-        for action in actions:
+        # play a random policy
+        obs = env.reset()
+        for i in range(1000):
+            action=env.action_space.sample()#np.random.rand(Na)
             input("Press Enter to continue...")
-            obs = env.reset()
-            for i in range(1000):
-                obs, reward, done, info = env.step(action)
-                env.render()
-                if done:
-                    obs = env.reset()
+            obs, reward, done, info = env.step(action)
+            env.render()
+            if done:
+                obs = env.reset()
 
     input("Press Enter to continue...")   
 
@@ -72,7 +66,11 @@ if __name__ == '__main__':
     for i in range(100000):
         action, _state = model.predict(obs, deterministic=True)
         obs, reward, done, info = env.step(action)
+        if args.debug:
+            input("Press Enter to continue...")
         env.render()
         if done:
+            input("If continue the environment will reset. Press Enter to continue...")   
             obs = env.reset()
-            time.sleep(2.5)
+            #wait for meshcat to load env
+            time.sleep(0.7)

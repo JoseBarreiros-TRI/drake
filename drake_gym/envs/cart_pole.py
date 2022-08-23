@@ -83,9 +83,6 @@ def make_sim(generator,
 
     if meshcat:
         MeshcatVisualizerCpp.AddToBuilder(builder, scene_graph, meshcat)
-        ContactVisualizer.AddToBuilder(
-            builder, plant, meshcat,
-            ContactVisualizerParams(radius=0.005, newtons_per_meter=500.0))
 
         # Use the controller plant to visualize the set point geometry.
         controller_scene_graph = builder.AddSystem(SceneGraph())
@@ -162,7 +159,6 @@ def make_sim(generator,
             
         def CalcObs(self, context,output):
             plant_state = self.get_input_port(0).Eval(context)
-  
             output.set_value(plant_state)
 
     obs_pub=builder.AddSystem(observation_publisher())
@@ -190,15 +186,31 @@ def make_sim(generator,
     simulator = Simulator(diagram)
     simulator.Initialize()
 
-    # Termination conditions:
-    def monitor(context,plant=plant):
+    # Episode end conditions:
+    def monitor(context,state_view=StateView):
         #pdb.set_trace()
         plant_context=plant.GetMyContextFromRoot(context)
+        state=plant.GetOutputPort("continuous_state").Eval(plant_context)
+        s=state_view(state)
 
+        # Truncation: the episode duration reaches the time limit
         if context.get_time() > time_limit:
+            if debug:
+                print("Episode reached time limit.")
             return EventStatus.ReachedTermination(diagram, "time limit")
-
         
+        # Termination: The pole angle exceeded +-0.2 rad
+        if abs(s.PolePin_q) > 0.2:
+            if debug:
+                print("Pole angle exceeded +-0.2 rad.")
+            return EventStatus.ReachedTermination(diagram, "pole angle exceeded +-0.2 rad")
+        
+        # Termination: Cart position exceeded +-2.4 m
+        if abs(s.CartSlider_x) > 2.4:
+            if debug:
+                print("Cart position exceeded +-2.4 m.")
+            return EventStatus.ReachedTermination(diagram, "cart position exceeded +-2.4 m")
+            
         return EventStatus.Succeeded()
 
     simulator.set_monitor(monitor)
@@ -211,7 +223,7 @@ def make_sim(generator,
         plot_system_graphviz(diagram, max_depth=2)
         plt.plot(1)
         plt.show(block=False)
-        pdb.set_trace()
+       #pdb.set_trace()
 
     return simulator
 
@@ -267,11 +279,14 @@ def CartpoleEnv(observations="state", meshcat=None, time_limit=gym_time_limit, d
     plant = simulator.get_system().GetSubsystemByName("plant")
     
     #Define Action space
+    #pdb.set_trace()
     Na=1
-    low = plant.GetEffortLowerLimits()[:Na]
-    high = plant.GetEffortUpperLimits()[:Na]
+    low_a = plant.GetEffortLowerLimits()[:Na]
+    high_a = plant.GetEffortUpperLimits()[:Na]
 
-    action_space = gym.spaces.Box(low=np.asarray(low, dtype="float64"), high=np.asarray(high, dtype="float64"),dtype=np.float64)
+    action_space = gym.spaces.Box(low=np.asarray(low_a, dtype="float64"), 
+                                    high=np.asarray(high_a, dtype="float64"),
+                                    dtype=np.float64)
      
     #Define observation space 
     low = np.concatenate(
@@ -290,4 +305,9 @@ def CartpoleEnv(observations="state", meshcat=None, time_limit=gym_time_limit, d
                       action_port_id="actions",
                       observation_port_id="observations",
                       set_home=None)
+
+    # expose parameters that could be useful for learning
+    env.time_step=gym_time_step
+    env.sim_time_step=sim_time_step
+    
     return env
