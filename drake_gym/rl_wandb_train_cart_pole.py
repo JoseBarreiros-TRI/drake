@@ -2,16 +2,15 @@ import argparse
 import gym
 import os
 import pdb
+import torch as th
 
-from stable_baselines3 import A2C, PPO
+from stable_baselines3 import PPO
 from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.env_util import make_vec_env
-from stable_baselines3.common.callbacks import CheckpointCallback
-from pydrake.geometry import Meshcat, Cylinder, Rgba, Sphere, StartMeshcat
+from pydrake.geometry import StartMeshcat
 from stable_baselines3.common.env_checker import check_env
 from stable_baselines3.common.callbacks import EvalCallback
 
-import torch as th
 try:
     import wandb
 except ImportError:
@@ -32,30 +31,29 @@ args = parser.parse_args()
 gym.envs.register(id="Cartpole-v0",
                   entry_point="envs.cart_pole:CartpoleEnv")
 
-
 config = {
         "policy_type": "MlpPolicy", #'MlpPolicy'
         "total_timesteps": 1e7,
         "env_name": "Cartpole-v0",
-        "num_workers": 80,
+        "num_workers": 10,
         "env_time_limit": 7,
         "local_log_dir": "/home/josebarreiros/rl/tmp/Cartpole/",
-        "observations_set": "state",
         "model_save_freq": 1e5,
         "policy_kwargs": dict(activation_fn=th.nn.ReLU,
-                     net_arch=[dict(pi=[128, 128,128], vf=[128,128,128])]),
+                     net_arch=[dict(pi=[64, 64, 64], vf=[64,64,64])]),
+        "observation_noise": True,
     }
 
 if __name__ == '__main__':
     env_name=config["env_name"]
     num_cpu = config["num_workers"] if not args.test else 2
     time_limit = config["env_time_limit"] if not args.test else 0.5
-    observations=config["observations_set"]
     log_dir=config["local_log_dir"]
     policy_type=config["policy_type"]
     total_timesteps=config["total_timesteps"] if not args.test else 3
     policy_kwargs=config["policy_kwargs"] if not args.test else None
     eval_freq=config["model_save_freq"]
+    obs_noise=config["observation_noise"]
 
     run = wandb.init(
         project="sb3_test",
@@ -71,17 +69,17 @@ if __name__ == '__main__':
                         seed=0,
                         vec_env_cls=SubprocVecEnv,
                         env_kwargs={
-                            'observations': observations,
                             'time_limit': time_limit,
+                            'obs_noise': obs_noise,
                         })
     else:
         config["num_workers"]=1
         meshcat = StartMeshcat()
         env = gym.make(env_name, 
                 meshcat=meshcat, 
-                observations=observations,
                 time_limit=time_limit, 
                 debug=args.debug,
+                obs_noise=obs_noise,
                 )
         print("Open tensorboard in another terminal. tensorboard --logdir ",log_dir+f"runs/{run.id}")
         input("Press Enter to continue...")
@@ -96,8 +94,8 @@ if __name__ == '__main__':
 
     # Separate evaluation env
     eval_env = gym.make(env_name,  
-                observations=observations,
                 time_limit=time_limit, 
+                obs_noise=obs_noise,
                 )
     # Use deterministic actions for evaluation
     eval_callback = EvalCallback(eval_env, best_model_save_path=log_dir+f'eval_logs/{run.id}',

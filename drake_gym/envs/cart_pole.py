@@ -2,19 +2,13 @@ from re import S
 import gym
 import pdb
 import numpy as np
+
 from scipy.spatial.transform import Rotation as R
 import matplotlib.pyplot as plt
-from pydrake.common.value import AbstractValue
-from pydrake.math import RigidTransform
-from pydrake.math import RollPitchYaw
 from pydrake.all import (
-    Box,
     ConstantVectorSource,
-    ContactVisualizer,
-    ContactVisualizerParams,
     DiagramBuilder,
     EventStatus,
-    InverseDynamicsController,
     LeafSystem,
     MeshcatVisualizerCpp,
     MeshcatVisualizerParams,
@@ -27,19 +21,16 @@ from pydrake.all import (
     RigidTransform,
     SceneGraph,
     Simulator,
-    WeldJoint,
     AddMultibodyPlant,
     MultibodyPlantConfig,
     FindResourceOrThrow,
-
 )
-
 from pydrake.systems.drawing import plot_graphviz, plot_system_graphviz
 from drake_gym import DrakeGymEnv
-from scenarios import AddShape, SetColor, SetTransparency
-from utils import (FindResource, MakeNamedViewPositions, 
-        MakeNamedViewState,
-        MakeNamedViewActuation)
+from scenarios import SetColor
+from utils import (MakeNamedViewPositions, 
+                MakeNamedViewState,
+                MakeNamedViewActuation)
 import pydrake.geometry as mut
 
 
@@ -48,8 +39,10 @@ sim_time_step=0.01
 gym_time_step=0.05
 controller_time_step=0.01
 gym_time_limit=5
-contact_model='point'#'hydroelastic_with_fallback'#ContactModel.kHydroelasticWithFallback#kPoint
-contact_solver='sap'#ContactSolver.kSap#kTamsi # kTamsi
+drake_contact_models=['point','hydroelastic_with_fallback']
+contact_model=drake_contact_models[0]
+drake_contact_solvers=['sap','tamsi']
+contact_solver=drake_contact_solvers[0]
 
 def AddAgent(plant):
     parser = Parser(plant)
@@ -58,9 +51,10 @@ def AddAgent(plant):
     return agent
 
 def make_sim(generator,
-                    observations="state",
-                    meshcat=None,
-                    time_limit=5,debug=False):
+            meshcat=None,
+            time_limit=5,
+            debug=False,
+            obs_noise=False):
     
     builder = DiagramBuilder()
     
@@ -116,16 +110,16 @@ def make_sim(generator,
             ", number of velocities: ",Nv,
             ", number of actuators: ",Na,
             ", number of joints: ",Nj,
-            ", number of multibody states: ",Ns,'\n')
+            ", number of multibody states: ",Ns,'\n') 
+        print("\nState view: ", StateView(np.ones(Ns)))
+        print("\nPosition view: ",PositionView(np.ones(Np)))   
+        print("\nActuation view: ", ActuationView(np.ones(Na)))
+        
+        # visualize the plant
         plt.figure()
         plot_graphviz(plant.GetTopologyGraphvizString())
         plt.plot(1)
         plt.show(block=False)
-     
-        print("\nState view: ", StateView(np.ones(Ns)))
-        print("\nActuation view: ", ActuationView(np.ones(Na)))
-        print("\nPosition view: ",PositionView(np.ones(Np)))   
-
 
     #actions are positions sent to plant
     actuation = builder.AddSystem(Multiplexer([1,1]))
@@ -150,15 +144,17 @@ def make_sim(generator,
     builder.ExportInput(prismatic_actuation_torque.get_input_port(), "actions")
 
     class observation_publisher(LeafSystem):
-
-        def __init__(self):
+        def __init__(self, noise=False):
             LeafSystem.__init__(self)
             Nss = plant.num_multibody_states()
             self.DeclareVectorInputPort("plant_states", Nss)
             self.DeclareVectorOutputPort("observations", Nss, self.CalcObs)
+            self.noise=noise
             
         def CalcObs(self, context,output):
             plant_state = self.get_input_port(0).Eval(context)
+            if self.noise:
+                plant_state+=np.random.uniform(low=-0.01,high=0.01,shape=Nss)       
             output.set_value(plant_state)
 
     obs_pub=builder.AddSystem(observation_publisher())
@@ -167,12 +163,12 @@ def make_sim(generator,
     builder.ExportOutput(obs_pub.get_output_port(), "observations")
 
     class RewardSystem(LeafSystem):
-
         def __init__(self):
             LeafSystem.__init__(self)
+            # The state port is not used. 
+            # Drake only computes the output of a system that is connected.
             self.DeclareVectorInputPort("state", Ns)
             self.DeclareVectorOutputPort("reward", 1, self.CalcReward)
-
 
         def CalcReward(self, context, output):
             reward=1
@@ -216,7 +212,7 @@ def make_sim(generator,
     simulator.set_monitor(monitor)
 
     if debug:
-        #visualize plant and diagram
+        #visualize the controller plant and diagram
         plt.figure()
         plot_graphviz(controller_plant.GetTopologyGraphvizString())
         plt.figure()
@@ -235,14 +231,12 @@ def set_home(simulator,diagram_context,plant_name="plant"):
                                                 diagram_context)  
 
     home_positions=[
-        ('iiwa_joint_1',0.1*(np.random.random()-0.5)+0.3),
-        ('iiwa_joint_2',0.1*(np.random.random()-0.5)+0.3),
-        ('iiwa_joint_3',0.1*(np.random.random()-0.5)+0.3),
-        ('iiwa_joint_4',0.1*(np.random.random()-0.5)+0.3),
-        ('iiwa_joint_5',0.1*(np.random.random()-0.5)+0.3),
-        ('iiwa_joint_6',0.1*(np.random.random()-0.5)+0.3),
-        ('iiwa_joint_7',0.1*(np.random.random()-0.5)+0.3),
-
+        ('CartSlider',np.random.uniform(low=-.1,high=0.1)),
+        ('PolePin',np.random.uniform(low=-.15,high=0.15)),
+    ]
+    
+    home_velocities=[
+        ('PolePin',np.random.uniform(low=-.1,high=0.1))
     ]
 
     #ensure the positions are within the joint limits
@@ -250,40 +244,47 @@ def set_home(simulator,diagram_context,plant_name="plant"):
         joint = plant.GetJointByName(pair[0])
         if joint.type_name()=="revolute":
             joint.set_angle(plant_context,
-                        np.clip(pair[1],
+                            np.clip(pair[1],
                             joint.position_lower_limit(),
                             joint.position_upper_limit()
                             )
                         )
-    box=plant.GetBodyByName("box")
-    
-    box_pose = RigidTransform(
-                    RollPitchYaw(0, 0.1, 0),
-                    np.array(
-                        [
-                            0+0.25*(np.random.random()-0.5), 
-                            0.75+0.1*(np.random.random()-0.5), 
-                            box_size[2]/2+0.005+table_heigth,
-                        ])
-                    )
-    plant.SetFreeBodyPose(plant_context,box,box_pose)
+        if joint.type_name()=="prismatic":
+            joint.set_translation(plant_context,
+                            np.clip(pair[1],
+                            joint.position_lower_limit(),
+                            joint.position_upper_limit()
+                            )
+                        )
+    for pair in home_velocities:
+        joint = plant.GetJointByName(pair[0])
+        if joint.type_name()=="revolute":
+            joint.set_angular_rate(plant_context,
+                            np.clip(pair[1],
+                            joint.velocity_lower_limit(),
+                            joint.velocity_upper_limit()
+                            )
+                        )        
 
-def CartpoleEnv(observations="state", meshcat=None, time_limit=gym_time_limit, debug=False):
+def CartpoleEnv(observations="state", 
+                meshcat=None, 
+                time_limit=gym_time_limit, 
+                debug=False,
+                obs_noise=False):
     
     #Make simulation
     simulator = make_sim(RandomGenerator(),
-                            observations,
                             meshcat=meshcat,
                             time_limit=time_limit,
-                            debug=debug)
+                            debug=debug,
+                            obs_noise=obs_noise)
+    
     plant = simulator.get_system().GetSubsystemByName("plant")
     
     #Define Action space
-    #pdb.set_trace()
     Na=1
     low_a = plant.GetEffortLowerLimits()[:Na]
     high_a = plant.GetEffortUpperLimits()[:Na]
-
     action_space = gym.spaces.Box(low=np.asarray(low_a, dtype="float64"), 
                                     high=np.asarray(high_a, dtype="float64"),
                                     dtype=np.float64)
@@ -304,7 +305,7 @@ def CartpoleEnv(observations="state", meshcat=None, time_limit=gym_time_limit, d
                       reward="reward",
                       action_port_id="actions",
                       observation_port_id="observations",
-                      set_home=None)
+                      set_home=set_home)
 
     # expose parameters that could be useful for learning
     env.time_step=gym_time_step
