@@ -39,7 +39,7 @@ config = {
         "num_workers": 10,
         "env_time_limit": 7,
         "local_log_dir": "/home/josebarreiros/rl/tmp/Cartpole/",
-        "model_save_freq": 1e3,
+        "model_save_freq": 1e4,
         "policy_kwargs": dict(activation_fn=th.nn.ReLU,
                      net_arch=[dict(pi=[64, 64, 64], vf=[64,64,64])]),
         "observation_noise": True,
@@ -96,7 +96,8 @@ if __name__ == '__main__':
                 monitoring_camera=True,
                 )
     eval_env = DummyVecEnv([lambda: eval_env])
-    eval_env = VecVideoRecorder(eval_env, log_dir+f"videos/{run.id}", record_video_trigger=lambda x: x % 1 == 0, video_length=200)
+    #record a video every 2 evaluation rollouts
+    eval_env = VecVideoRecorder(eval_env, log_dir+f"videos/{run.id}", record_video_trigger=lambda x: x % 2 == 0, video_length=200)
     # Use deterministic actions for evaluation
     eval_callback = EvalCallback(eval_env, best_model_save_path=log_dir+f'eval_logs/{run.id}',
                                 log_path=log_dir+f'eval_logs/{run.id}', eval_freq=eval_freq,
