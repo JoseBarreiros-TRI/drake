@@ -24,6 +24,17 @@ from pydrake.all import (
     AddMultibodyPlant,
     MultibodyPlantConfig,
     FindResourceOrThrow,
+    ColorRenderCamera,
+    RenderCameraCore,
+    ClippingRange,
+    DepthRenderCamera,
+    DepthRange,
+    CameraInfo,
+    RgbdSensor,
+    RollPitchYaw,
+    MakeRenderEngineVtk,
+    RenderEngineVtkParams,
+    
 )
 from pydrake.systems.drawing import plot_graphviz, plot_system_graphviz
 from drake_gym import DrakeGymEnv
@@ -54,7 +65,8 @@ def make_sim(generator,
             meshcat=None,
             time_limit=5,
             debug=False,
-            obs_noise=False):
+            obs_noise=False,
+            monitoring_camera=False):
     
     builder = DiagramBuilder()
     
@@ -178,6 +190,31 @@ def make_sim(generator,
     builder.Connect(plant.get_state_output_port(agent), reward.get_input_port(0))
     builder.ExportOutput(reward.get_output_port(), "reward")
 
+    if monitoring_camera:
+        # add an overhead camera. 
+        # This is useful for logging videos of rollout evaluation
+        scene_graph.AddRenderer("renderer",MakeRenderEngineVtk(RenderEngineVtkParams()))
+        color_camera = ColorRenderCamera(
+                RenderCameraCore(
+                    "renderer",
+                    CameraInfo(
+                        width=640,
+                        height=480,
+                        fov_y=np.pi/4),
+                    ClippingRange(0.01, 10.0),
+                    RigidTransform()
+                ), False)
+        depth_camera = DepthRenderCamera(color_camera.core(),
+                                        DepthRange(0.01, 10.0))
+        parent_id=plant.GetBodyFrameIdIfExists(plant.world_body().index())
+        X_PB= RigidTransform(RollPitchYaw(-np.pi/2, 0, 0),
+                            np.array([0, -2, 0.4]))
+        rgbd_camera=builder.AddSystem(RgbdSensor(parent_id=parent_id, X_PB=X_PB,
+                                  color_camera=color_camera,
+                                  depth_camera=depth_camera))
+        builder.Connect(scene_graph.get_query_output_port(),rgbd_camera.query_object_input_port())
+        builder.ExportOutput(rgbd_camera.color_image_output_port(),"color_image")
+        
     diagram = builder.Build()
     simulator = Simulator(diagram)
     simulator.Initialize()
@@ -270,14 +307,16 @@ def CartpoleEnv(observations="state",
                 meshcat=None, 
                 time_limit=gym_time_limit, 
                 debug=False,
-                obs_noise=False):
+                obs_noise=False,
+                monitoring_camera=False):
     
     #Make simulation
     simulator = make_sim(RandomGenerator(),
                             meshcat=meshcat,
                             time_limit=time_limit,
                             debug=debug,
-                            obs_noise=obs_noise)
+                            obs_noise=obs_noise,
+                            monitoring_camera=monitoring_camera)
     
     plant = simulator.get_system().GetSubsystemByName("plant")
     
@@ -305,7 +344,8 @@ def CartpoleEnv(observations="state",
                       reward="reward",
                       action_port_id="actions",
                       observation_port_id="observations",
-                      set_home=set_home)
+                      set_home=set_home,
+                      render_rgb_port_id="color_image" if monitoring_camera else None)
 
     # expose parameters that could be useful for learning
     env.time_step=gym_time_step
