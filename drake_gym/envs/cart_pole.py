@@ -261,20 +261,28 @@ def make_sim(generator,
     return simulator
 
 def set_home(simulator,diagram_context,plant_name="plant"):
-    
-    diagram = simulator.get_system()
-    plant=diagram.GetSubsystemByName(plant_name)
-    plant_context = diagram.GetMutableSubsystemContext(plant,
-                                                diagram_context)  
+    # Provides an easy method for domain randomization.
 
+    # Randomize the initial position of the joints
     home_positions=[
         ('CartSlider',np.random.uniform(low=-.1,high=0.1)),
         ('PolePin',np.random.uniform(low=-.15,high=0.15)),
     ]
-    
+
+    # Randomize the initial velocities of the PolePin joint 
     home_velocities=[
         ('PolePin',np.random.uniform(low=-.1,high=0.1))
     ]
+
+    # Randomize the mass offset of the Pole. 
+    home_body_mass_offset=[
+        ('Pole',np.random.uniform(low=-0.05,high=0.05))
+    ]
+
+    diagram = simulator.get_system()
+    plant=diagram.GetSubsystemByName(plant_name)
+    plant_context = diagram.GetMutableSubsystemContext(plant,
+                                                diagram_context) 
 
     #ensure the positions are within the joint limits
     for pair in home_positions:
@@ -301,7 +309,11 @@ def set_home(simulator,diagram_context,plant_name="plant"):
                             joint.velocity_lower_limit(),
                             joint.velocity_upper_limit()
                             )
-                        )        
+                        )       
+    for pair in home_body_mass_offset:
+        body=plant.GetBodyByName(pair[0])
+        mass=body.get_mass(plant_context)
+        body.SetMass(plant_context,mass+pair[1])
 
 def CartpoleEnv(observations="state", 
                 meshcat=None, 
@@ -350,5 +362,5 @@ def CartpoleEnv(observations="state",
     # expose parameters that could be useful for learning
     env.time_step=gym_time_step
     env.sim_time_step=sim_time_step
-    
+
     return env
