@@ -34,8 +34,14 @@ from pydrake.all import (
     RollPitchYaw,
     MakeRenderEngineVtk,
     RenderEngineVtkParams,
+    SpatialForce,
+    ExternallyAppliedSpatialForce_,
+    ExternallyAppliedSpatialForce,
+    PublishEvent,
     
 )
+from pydrake.common.value import Value
+from pydrake.common.cpp_param import List
 from pydrake.systems.drawing import plot_graphviz, plot_system_graphviz
 from drake_gym import DrakeGymEnv
 from scenarios import SetColor
@@ -66,7 +72,8 @@ def make_sim(generator,
             time_limit=5,
             debug=False,
             obs_noise=False,
-            monitoring_camera=False):
+            monitoring_camera=False,
+            add_disturbances=False):
     
     builder = DiagramBuilder()
     
@@ -214,6 +221,44 @@ def make_sim(generator,
                                   depth_camera=depth_camera))
         builder.Connect(scene_graph.get_query_output_port(),rgbd_camera.query_object_input_port())
         builder.ExportOutput(rgbd_camera.color_image_output_port(),"color_image")
+
+    class DisturbanceGenerator(LeafSystem):
+        def __init__(self,plant,force_mag,period):
+            # Applies a random force [-1,1] at the COM of the 
+            # Pole body in the x direction every {period} sec.
+            LeafSystem.__init__(self)
+            forces_cls=Value[List[ExternallyAppliedSpatialForce_[float]]]
+            self.DeclareAbstractOutputPort("spatial_forces", 
+                                            lambda: forces_cls(),
+                                            self.CalcDisturbances)
+            self.DeclarePeriodicEvent(period_sec=period, offset_sec=0, event=PublishEvent(
+                callback=self._on_per_step))
+            self.plant=plant
+            self.pole_body=self.plant.GetBodyByName("Pole")
+            self.F=SpatialForce(tau=[0,0,0],
+                                f=[0,0,0])   
+            self.force_mag=force_mag      
+            
+        def CalcDisturbances(self,context,spatial_forces_vector):
+            #apply force at COM of the Pole body.
+            force = ExternallyAppliedSpatialForce_[float]()
+            force.body_index = self.pole_body.index()
+            force.p_BoBq_B = self.pole_body.default_com()
+            force.F_Bq_W = self.F  
+            spatial_forces_vector.set_value([force])  
+            self.F=SpatialForce(tau=[0,0,0],
+                                f=[0,0,0])   
+            
+        def _on_per_step(self, context, event):
+           
+            self.F=SpatialForce(tau=[0,0,0],
+                                f=[np.random.uniform(low=-self.force_mag,high=self.force_mag),0,0])  
+
+    if add_disturbances:   
+        # applies a force of 1N every 1s at the COM of the Pole body.
+        disturbance_generator=builder.AddSystem(DisturbanceGenerator(plant=plant, force_mag=1, period=1))
+        builder.Connect(disturbance_generator.get_output_port(),
+                        plant.get_applied_spatial_force_input_port())
         
     diagram = builder.Build()
     simulator = Simulator(diagram)
@@ -320,7 +365,8 @@ def CartpoleEnv(observations="state",
                 time_limit=gym_time_limit, 
                 debug=False,
                 obs_noise=False,
-                monitoring_camera=False):
+                monitoring_camera=False,
+                add_disturbances=False):
     
     #Make simulation
     simulator = make_sim(RandomGenerator(),
@@ -328,7 +374,8 @@ def CartpoleEnv(observations="state",
                             time_limit=time_limit,
                             debug=debug,
                             obs_noise=obs_noise,
-                            monitoring_camera=monitoring_camera)
+                            monitoring_camera=monitoring_camera,
+                            add_disturbances=add_disturbances)
     
     plant = simulator.get_system().GetSubsystemByName("plant")
     

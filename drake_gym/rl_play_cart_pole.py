@@ -34,7 +34,8 @@ if __name__ == '__main__':
                     meshcat=meshcat, 
                     time_limit=7,
                     debug=args.debug,
-                    obs_noise=True)
+                    obs_noise=True,
+                    add_disturbances=True)
     
     if args.test:
         check_env(env)
