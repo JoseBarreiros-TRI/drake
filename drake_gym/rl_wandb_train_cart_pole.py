@@ -34,7 +34,7 @@ gym.envs.register(id="Cartpole-v0",
 
 config = {
         "policy_type": "MlpPolicy", 
-        "total_timesteps": 1e7,
+        "total_timesteps": 1e6,
         "env_name": "Cartpole-v0",
         "num_workers": 10,
         "env_time_limit": 7,
@@ -43,6 +43,7 @@ config = {
         "policy_kwargs": dict(activation_fn=th.nn.ReLU,
                      net_arch=[dict(pi=[64, 64, 64], vf=[64,64,64])]),
         "observation_noise": True,
+        "disturbances": True,
     }
 
 if __name__ == '__main__':
@@ -55,6 +56,7 @@ if __name__ == '__main__':
     policy_kwargs=config["policy_kwargs"] if not args.test else None
     eval_freq=config["model_save_freq"]
     obs_noise=config["observation_noise"]
+    add_disturbances=config["disturbances"]
 
     run = wandb.init(
         project="sb3_test",
@@ -72,6 +74,7 @@ if __name__ == '__main__':
                         env_kwargs={
                             'time_limit': time_limit,
                             'obs_noise': obs_noise,
+                            'add_disturbances': add_disturbances,
                         })
     else:
         meshcat = StartMeshcat()
@@ -96,8 +99,8 @@ if __name__ == '__main__':
                 monitoring_camera=True,
                 )
     eval_env = DummyVecEnv([lambda: eval_env])
-    #record a video every 2 evaluation rollouts
-    eval_env = VecVideoRecorder(eval_env, log_dir+f"videos/{run.id}", record_video_trigger=lambda x: x % 2 == 0, video_length=200)
+    #record a video every 3 evaluation rollouts
+    eval_env = VecVideoRecorder(eval_env, log_dir+f"videos/{run.id}", record_video_trigger=lambda x: x % 3 == 0, video_length=200)
     # Use deterministic actions for evaluation
     eval_callback = EvalCallback(eval_env, best_model_save_path=log_dir+f'eval_logs/{run.id}',
                                 log_path=log_dir+f'eval_logs/{run.id}', eval_freq=eval_freq,
