@@ -2,7 +2,7 @@
 <sdf version='1.7'>
   <model name='CartPoleBSA'>
     <!-- This sdf file produces a model based on Barto, Sutton, and Anderson
-         in  “Neuronlike Adaptive Elements That Can Solve Difficult Learning 
+         in “Neuronlike Adaptive Elements That Can Solve Difficult Learning
          Control Problem”. -->
     <link name='Cart'>
       <pose>0 0 0 0 0 0</pose>

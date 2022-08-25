@@ -19,6 +19,12 @@ except ImportError:
         "if you want to use Weights & Biases to track experiment, please install W&B via `pip install wandb`"
     )
 from wandb.integration.sb3 import WandbCallback
+import stable_baselines3
+
+print("torch version: ", th.__version__)
+print("wandb version: ", wandb.__version__)
+print("gym version: ", gym.__version__)
+print("stable_baselines3 version: ", stable_baselines3.__version__)
 
 gym.envs.register(id="Cartpole-v0",
                   entry_point="envs.cart_pole:CartpoleEnv")

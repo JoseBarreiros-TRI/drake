@@ -1,13 +1,11 @@
-# Note: My goal is to move this to it's own repo: See Drake issue #15508.
+from typing import Callable, Optional, Union
+import warnings
 
 import gym
 import numpy as np
-import pdb
-from typing import Callable, Union
-import warnings
-from pydrake.all import JointIndex
+
 from pydrake.common import RandomGenerator
-from pydrake.systems.sensors import ImageRgba8U
+from pydrake.systems.analysis import Simulator, SimulatorStatus
 from pydrake.systems.framework import (
     Context,
     InputPort,
@@ -17,12 +15,8 @@ from pydrake.systems.framework import (
     PortDataType,
     System,
 )
-from pydrake.common.containers import EqualToDict, namedview, NamedViewBase
-from utils import (FindResource, MakeNamedViewPositions, 
-        MakeNamedViewVelocities,
-        MakeNamedViewState,
-        MakeNamedViewActuation)
-from pydrake.systems.analysis import Simulator, SimulatorStatus
+from pydrake.systems.sensors import ImageRgba8U
+
 
 
 class DrakeGymEnv(gym.Env):
@@ -77,6 +71,17 @@ class DrakeGymEnv(gym.Env):
                 an `ImageRgba8U`; often the `color_image` port of Drake's
                 `RgbdSensor`.  When not `None`, this enables the environment
                 `render_mode` `rgb_array`.
+            set_home: A function that sets the home state (plant, and/or env.)
+                at reset(). The reset state can be specified in one of
+                the two ways:
+                (1) setting random context using a Drake random_generator
+                (e.g. joint.set_random_pose_distribution()),
+                (2) parssing a function set_home().
+            hardware: If True, it prevents from setting random context at
+                reset() when using random_generator, but it does execute
+                set_home() if given.
+
+
         Notes (using `env` as an instance of this class):
         - You may set simulator/integrator preferences by using `env.simulator`
           directly.
@@ -134,14 +139,13 @@ class DrakeGymEnv(gym.Env):
         self.render_rgb_port_id = render_rgb_port_id
 
         self.generator = RandomGenerator()
-
         self.set_home=set_home
         self.hardware=hardware
         self.plant_name=plant_name
 
         if self.simulator:
             self._setup()
-        
+
 
     def _setup(self):
         """Completes the setup once we have a self.simulator."""
@@ -185,12 +189,12 @@ class DrakeGymEnv(gym.Env):
                 PortDataType.kAbstractValued
             assert isinstance(self.render_rgb_port.Allocate().get_value(),
                               ImageRgba8U)
-        
+
         #(Maybe) expose plant and make NamedView
         if self.plant_name != None:
             self.plant = self.simulator.get_system().GetSubsystemByName(self.plant_name)
         #self.stateview=MakeNamedViewState(self.plant, "States")
-        
+
 
 
     def step(self, action):
@@ -228,30 +232,42 @@ class DrakeGymEnv(gym.Env):
         #state=self.stateview(observation)
         #info["NamedView"]=state
         #print(state)
-        
+
         #pdb.set_trace()
 
         return observation, reward, done, info
 
-    def reset(self):
+    def reset(self, *,
+              seed: Optional[int] = None,
+              return_info: bool = False,
+              options: Optional[dict] = None):
         """
         If a callable "simulator factory" was passed to the constructor, then a
         new simulator is created.  Otherwise this method simply resets the
         `simulator` and its Context.
         """
+        assert options is None  # No options supported yet.
+
+        if (seed is not None):
+            # TODO(ggould) This should not reset the generator if it was
+            # already explicitly seeded (see API spec), but we have no way to
+            # check that at the moment.
+            self.generator = RandomGenerator(seed)
+
         if self.make_simulator:
             self.simulator = self.make_simulator(self.generator)
             self._setup()
         #pdb.set_trace()
         context = self.simulator.get_mutable_context()
         context.SetTime(0)
-        self.simulator.get_system().SetRandomContext(context, self.generator)
         if self.set_home is not None:
-            self.set_home(self.simulator,context)
+            self.simulator.get_system().SetDefaultContext(context)
+            self.set_home(self.simulator, context)
         else:
             if not self.hardware:
-                self.simulator.get_system().SetRandomContext(context, self.generator)
-       
+                self.simulator.get_system().SetRandomContext(context,
+                                                             self.generator)
+
         self.simulator.Initialize()
 
         if self.hardware:
@@ -259,19 +275,8 @@ class DrakeGymEnv(gym.Env):
 
         # Note: The output port will be evaluated without fixing the input port.
         observations = self.observation_port.Eval(context)
-        #print('obs',observations)
-        # plant = self.simulator.get_system().GetSubsystemByName("plant")
-        # contextt=plant.CreateDefaultContext()
-        # for i in range(25):
-        #     joint=plant.get_joint(JointIndex(i))   
-        #     if not "_weld" in joint.name():
-        #         print(joint.get_default_angle())
-        #         print(joint.get_angle(contextt))
-        
-        #state=self.stateview(observations)
-        #print(state)
-        #input("Press Enter to continue...")
-        return observations
+
+        return observations if not return_info else (observations, dict())
 
     def render(self, mode='human'):
         """
