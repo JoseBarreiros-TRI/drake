@@ -16,8 +16,12 @@ from pydrake.all import (
     DiagramBuilder,
     EventStatus,
     InverseDynamicsController,
+    MakeRenderEngineVtk,
     LeafSystem,
     RotationMatrix,
+    RgbdSensor,
+    RenderCameraCore,
+    RenderEngineVtkParams,
     MeshcatVisualizer,
     MeshcatVisualizerCpp,
     MeshcatVisualizerParams,
@@ -35,11 +39,16 @@ from pydrake.all import (
     MultibodyPlantConfig,
     FindResourceOrThrow,
     Variable,
+    CameraInfo,
+    ClippingRange,
+    ColorRenderCamera,
+    DepthRange,
+    DepthRenderCamera,
 )
 
 from pydrake.systems.drawing import plot_graphviz, plot_system_graphviz
 from drake_gym import DrakeGymEnv
-from utils import (FindResource, MakeNamedViewPositions, 
+from utils import (FindResource, MakeNamedViewPositions,
         MakeNamedViewState,
         MakeNamedViewActuation)
 import pydrake.geometry as mut
@@ -85,7 +94,7 @@ def add_collision_filters(scene_graph, plant):
     for pair in body_pairs:
         parent=plant.GetBodyByName(pair[0])
         child=plant.GetBodyByName(pair[1])
-        
+
         set=mut.GeometrySet(
             plant.GetCollisionGeometriesForBody(parent)+
             plant.GetCollisionGeometriesForBody(child))
@@ -105,8 +114,8 @@ def make_sim(generator,
              add_disturbances=False,
              observation_type=["state"],
              reward_type=["sparse"],
-             termination_type=[]):                
-    
+             termination_type=[]):
+
     assert(task=="reach" or task=="push"),f'_{task}_ task not implemented. valid options are push, reach'
     builder = DiagramBuilder()
 
@@ -115,9 +124,9 @@ def make_sim(generator,
             station = builder.AddSystem(RlCitoStationHardwareInterface(has_optitrack=True))
         else:
             station = builder.AddSystem(RlCitoStationHardwareInterface(has_optitrack=True, optitrack_frame_transform=optitrack_pose_transform))
-        station.Connect(wait_for_optitrack=True)     
+        station.Connect(wait_for_optitrack=True)
         controller_plant=station.get_controller_plant()
-        plant=None   
+        plant=None
     else:
         station = builder.AddSystem(RlCitoStation(time_step=sim_time_step,contact_model=contact_model,contact_solver=contact_solver))
         station.SetupCitoRlStation()
@@ -127,16 +136,16 @@ def make_sim(generator,
                 + "optitrack_brick_v2.sdf",
                 RigidTransform(RotationMatrix.Identity(), [0.6, 0, table_heigth]),
                 "box")
-        
+
         controller_plant=station.get_controller_plant()
         plant=station.get_multibody_plant()
         scene_graph=station.get_scene_graph()
-        
-        if task=="push":
-            AddTargetVisual(plant)
+
+        #if task=="push":
+        AddTargetVisual(plant)
         station.Finalize()
 
-   
+
         class target_xyz_extractor(LeafSystem):
             def __init__(self):
                 LeafSystem.__init__(self)
@@ -144,14 +153,14 @@ def make_sim(generator,
                 self.DeclareVectorInputPort("target_state",Ns)
                 self.DeclareVectorOutputPort("target_xyz", 3, self.Extract_xyz)
                 self.state_view=MakeNamedViewState(plant, "States")
-            
+
             def Extract_xyz(self, context, output):
                 state = self.get_input_port(0).Eval(context)
                 s=self.state_view(state)
                 #pdb.set_trace()
                 xyz=[s.Cross_Slider_x_x,s.Cross_Slider_y_x,table_heigth]
                 output.set_value(xyz)
-        
+
         target_xyz_ext=builder.AddSystem(target_xyz_extractor())
         builder.Connect(station.GetOutputPort("plant_continuous_state"),target_xyz_ext.get_input_port())
 
@@ -198,11 +207,11 @@ def make_sim(generator,
         plot_graphviz(controller_plant.GetTopologyGraphvizString())
         plt.plot(1)
         plt.show(block=False)
-     
+
         print("\nState view: ", StateView(np.ones(Ns)))
         print("\nActuation view: ", ActuationView(np.ones(Na)))
-        print("\nPosition view: ",PositionView(np.ones(Np)))   
-        #pdb.set_trace()  
+        print("\nPosition view: ",PositionView(np.ones(Np)))
+        #pdb.set_trace()
 
     if hardware:
         action_passthrough=builder.AddSystem(PassThrough(Na))
@@ -224,7 +233,7 @@ def make_sim(generator,
             self.DeclareVectorInputPort("iiwa_torques_measured",self.Na)
             self.DeclareVectorInputPort("iiwa_position_commanded",self.Na)
             self.DeclareVectorInputPort("target_xyz",3)
-            
+
             self.robot = robot
             self.frame_EE = robot.GetFrameByName("iiwa_link_7")
             self.robot_context = robot.CreateDefaultContext()
@@ -242,38 +251,38 @@ def make_sim(generator,
             if "state" in self.obs_type:
                 # Obs: commanded_positions and velocities
                 self.obs_size += 2*self.Na
-            
+
             if "actions" in self.obs_type:
                 # Obs: commanded_positions
                 self.obs_size += self.Na
-            
+
             if "distances" in self.obs_type:
                 # Obs: distance_EE_to target, distance_EE_to_box, distance_EE_to_iiwabase.
                 self.obs_size += 3
-            
+
             if "EE_box_target_xyz" in self.obs_type:
                 # Obs: xyz position in the robot base frame for EE, target, box.
-                self.obs_size += 9    
+                self.obs_size += 9
 
             if "torques" in self.obs_type:
                 # Obs: measuared joint torques
-                self.obs_size += self.Na             
+                self.obs_size += self.Na
 
             self.DeclareVectorOutputPort(
-                "observations", 
-                self.obs_size*self.num_history, 
+                "observations",
+                self.obs_size*self.num_history,
                 self.CalcObs
                 )
 
             self.obs_buffer = np.array(
-                                self.num_history*[np.zeros(self.obs_size)])            
+                                self.num_history*[np.zeros(self.obs_size)])
 
         def CalcObs(self, context, output):
             try:
                 box_pose = self.get_input_port(0).Eval(context)
             except:
                 box_pose=RigidTransform.Identity()  #this might not be safe
-            
+
             # This assumes the robot base is centered at the world frame.
             box_xyz = box_pose.translation()
             box_rotation=box_pose.rotation().matrix()
@@ -283,7 +292,7 @@ def make_sim(generator,
             iiwa_torques_measured = self.get_input_port(3).Eval(context)
             iiwa_position_commanded = self.get_input_port(4).Eval(context)
             target_xyz = self.get_input_port(5).Eval(context)
-            
+
             #EE pose
             x = self.robot.GetMutablePositionsAndVelocities(
                 self.robot_context)
@@ -291,7 +300,7 @@ def make_sim(generator,
             EE_pose=self.robot.EvalBodyPoseInWorld(
                 self.robot_context, self.frame_EE.body())
             EE_xyz=EE_pose.translation()
-            
+
             #pdb.set_trace()
             observations=np.array([])
             if "state" in self.obs_type:
@@ -311,7 +320,7 @@ def make_sim(generator,
                 observations=np.concatenate((observations, EE_xyz, box_xyz, target_xyz))
 
             if "torques" in self.obs_type:
-                observations=np.concatenate((observations,iiwa_torques_measured))    
+                observations=np.concatenate((observations,iiwa_torques_measured))
 
             if self.noise:
                 observations += np.random.uniform(low=-0.01,
@@ -363,7 +372,7 @@ def make_sim(generator,
                 box_pose = self.get_input_port(0).Eval(context)
             except:
                 box_pose=RigidTransform.Identity()  #this might not be safe
-            
+
             # This assumes the robot base is centered at the world frame.
             box_xyz = box_pose.translation()
             box_rotation=box_pose.rotation().matrix()
@@ -392,7 +401,7 @@ def make_sim(generator,
                 distance_to_goal=EE_xyz-box_xyz
             elif task=="push":
                 # Distance box to target.
-                distance_to_goal=box_xyz-target_xyz      
+                distance_to_goal=box_xyz-target_xyz
             else:
                 raise ValueError(f"Task {task} not supported.")
 
@@ -410,9 +419,9 @@ def make_sim(generator,
             if "cost_effort" in self.reward_type:
                 reward-= cost_effort
             if "cost_energy" in self.reward_type:
-                reward-= cost_energy                          
+                reward-= cost_energy
             if "cost_collision" in self.reward_type:
-                reward-= cost_collision_w_table        
+                reward-= cost_collision_w_table
 
             if debug:
                 print(
@@ -443,7 +452,7 @@ def make_sim(generator,
 
     builder.ExportOutput(reward.get_output_port(), "reward")
 
-    if not hardware:
+    if not hardware and task=="push":
         # Set random state distributions.
         uniform_random_x = Variable(name="uniform_random_x",
                                 type=Variable.Type.RANDOM_UNIFORM)
@@ -455,10 +464,40 @@ def make_sim(generator,
             0.5 * (uniform_random_y - 0.5))
         target_joint_x = plant.GetJointByName("Cross_Slider_x")
         target_joint_x.set_random_translation_distribution(
-            1+0.5 + (uniform_random_x - 0.5))            
+            1+0.5 + (uniform_random_x - 0.5))
+
+    if monitoring_camera:
+        # Adds an overhead camera.
+        # This is useful for logging videos of rollout evaluation.
+        scene_graph.AddRenderer(
+            "renderer", MakeRenderEngineVtk(RenderEngineVtkParams()))
+        color_camera = ColorRenderCamera(
+            RenderCameraCore(
+                "renderer",
+                CameraInfo(
+                    width=640,
+                    height=480,
+                    fov_y=np.pi/4),
+                ClippingRange(0.01, 10.0),
+                RigidTransform()
+            ), False)
+        depth_camera = DepthRenderCamera(color_camera.core(),
+                                         DepthRange(0.01, 10.0))
+        parent_id = plant.GetBodyFrameIdIfExists(plant.world_body().index())
+        X_PB = RigidTransform(RollPitchYaw(np.pi/2, 0, 0),
+                              np.array([0, 1, 5]))
+        rgbd_camera = builder.AddSystem(RgbdSensor(parent_id=parent_id,
+                                                   X_PB=X_PB,
+                                                   color_camera=color_camera,
+                                                   depth_camera=depth_camera))
+        builder.Connect(scene_graph.get_query_output_port(),
+                        rgbd_camera.query_object_input_port())
+        builder.ExportOutput(
+            rgbd_camera.color_image_output_port(), "color_image")
 
     diagram = builder.Build()
     simulator = Simulator(diagram)
+
     if debug:
         simulator.set_target_realtime_rate(1)
         #visualize plant and diagram
@@ -486,8 +525,8 @@ def make_sim(generator,
         try:
             box_xyz=station.GetOutputPort("optitrack_manipuland_pose").Eval(station_context).translation()
         except:
-            box_xyz=RigidTransform.Identity().translation() 
-        
+            box_xyz=RigidTransform.Identity().translation()
+
         #EE pose
         controller_plant=station.get_controller_plant()
         robot_context = controller_plant.CreateDefaultContext()
@@ -502,18 +541,18 @@ def make_sim(generator,
             if box_xyz[0]<0.2 or box_xyz[2]<0.0 or box_xyz[0]>2.2 or np.abs(box_xyz[1])>1.0:
                 if debug:
                         print(f"\nTerminated. Box off the table. Box pose: {box_xyz}")
-                return EventStatus.ReachedTermination(diagram, "Box off the table.")         
+                return EventStatus.ReachedTermination(diagram, "Box off the table.")
 
         if "success" in ter_type:
             if task=="reach":
                 distance_to_goal=box_xyz-EE_xyz
-            elif task=="push": 
+            elif task=="push":
                 distance_to_goal=box_xyz-target_xyz
 
             if np.linalg.norm(distance_to_goal)<0.15:
                 if debug:
                     print("\nTerminated. Success. Goal reachead.\n")
-                return EventStatus.ReachedTermination(diagram, "Success. Goal reachead.")    
+                return EventStatus.ReachedTermination(diagram, "Success. Goal reachead.")
 
         if "collision_w_table" in ter_type:
             if EE_xyz[2]<0.005+table_heigth:
@@ -527,11 +566,11 @@ def make_sim(generator,
 
     return simulator
 
-def RlCitoStationBoxPushingEnv(meshcat=None, 
-                        time_limit=gym_time_limit, 
+def RlCitoStationBoxPushingEnv(meshcat=None,
+                        time_limit=gym_time_limit,
                         debug=False,
-                        hardware=False, 
-                        task="reach", 
+                        hardware=False,
+                        task="reach",
                         mock_hardware=False,
                         obs_noise=False,
                         monitoring_camera=False,
@@ -540,7 +579,7 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
                         reward_type=["sparse"],
                         termination_type=["out_of_range"],
                         reset_type=["home"]):
-    
+
     #Make simulation
     simulator = make_sim(RandomGenerator(),
                          meshcat=meshcat,
@@ -561,14 +600,14 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
     else:
         station = simulator.get_system().GetSubsystemByName("rl_cito_station")
     plant=station.get_controller_plant()
-    
+
     #Define Action space
     Na=plant.num_actuators()
     low = plant.GetPositionLowerLimits()
     high = plant.GetPositionUpperLimits()
     action_space = gym.spaces.Box(low=np.asarray(low, dtype="float64"), high=np.asarray(high, dtype="float64"),dtype=np.float64)
 
-    #Define observation space 
+    #Define observation space
     low=np.array([])
     high=np.array([])
     POSITION_LIMIT_TOLERANCE = np.full((Na,), 0.2)
@@ -577,10 +616,10 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
 
     if "state" in observation_type:
         low = np.concatenate((low,np.concatenate(
-            (plant.GetPositionLowerLimits()-POSITION_LIMIT_TOLERANCE, 
+            (plant.GetPositionLowerLimits()-POSITION_LIMIT_TOLERANCE,
             plant.GetVelocityLowerLimits()-VELOCITY_LIMIT_TOLERANCE))))
         high = np.concatenate((high,np.concatenate(
-            (plant.GetPositionUpperLimits()+POSITION_LIMIT_TOLERANCE, 
+            (plant.GetPositionUpperLimits()+POSITION_LIMIT_TOLERANCE,
             plant.GetVelocityUpperLimits()+VELOCITY_LIMIT_TOLERANCE))))
 
     if "actions" in observation_type:
@@ -592,7 +631,7 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
     if "distances" in observation_type:
         low = np.concatenate((low,np.array([-10]*3)))
         high = np.concatenate((high,np.array([10]*3)))
-        
+
     if "EE_box_target_xyz" in observation_type:
         low = np.concatenate((low,np.array([-10]*9)))
         high = np.concatenate((high,np.array([10]*9)))
@@ -609,7 +648,7 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
     elif "buffer_20" in observation_type:
         low = np.tile(low, 20)
         high = np.tile(high, 20)
-    
+
     observation_space = gym.spaces.Box(low=np.asarray(low, dtype="float64"),
                                        high=np.asarray(high, dtype="float64"),
                                        dtype=np.float64)
