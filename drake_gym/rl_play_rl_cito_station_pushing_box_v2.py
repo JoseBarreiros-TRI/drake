@@ -10,10 +10,6 @@ from stable_baselines3.common.vec_env import SubprocVecEnv
 from stable_baselines3.common.env_util import make_vec_env
 from pydrake.all import StartMeshcat
 from stable_baselines3.common.env_checker import check_env
-from utils import (FindResource, MakeNamedViewPositions, 
-        MakeNamedViewVelocities,
-        MakeNamedViewState,
-        MakeNamedViewActuation)
 
 gym.envs.register(id="RlCitoStationBoxPushing-v2",
                   entry_point="envs.rl_cito_station_pushing_box_v2:RlCitoStationBoxPushingEnv")
@@ -55,7 +51,7 @@ if __name__ == '__main__':
                    add_disturbances=True,
                    termination_type=["out_of_range"],
                    reward_type=["cost_goal"],
-                   observation_type=["actions", "distances"],
+                   observation_type=["distances","state","EE_box_target_xyz","torques","actions","buffer_10"],
                    reset_type=["random_positions", "random_velocities",
                                "random_mass"],
                    hardware=args.hardware,
@@ -64,6 +60,7 @@ if __name__ == '__main__':
                    )
 
     if args.test and not args.hardware:
+        #pdb.set_trace()
         check_env(env)
 
     env.simulator.set_target_realtime_rate(1.0)

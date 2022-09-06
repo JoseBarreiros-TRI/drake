@@ -34,7 +34,7 @@ from pydrake.all import (
     AddMultibodyPlant,
     MultibodyPlantConfig,
     FindResourceOrThrow,
-
+    Variable,
 )
 
 from pydrake.systems.drawing import plot_graphviz, plot_system_graphviz
@@ -124,7 +124,6 @@ def make_sim(generator,
 
         station.AddManipulandFromFile(
                 "drake/examples/rl_cito_station/models/"
-                # "drake/drake_gym/models/"
                 + "optitrack_brick_v2.sdf",
                 RigidTransform(RotationMatrix.Identity(), [0.6, 0, table_heigth]),
                 "box")
@@ -132,7 +131,9 @@ def make_sim(generator,
         controller_plant=station.get_controller_plant()
         plant=station.get_multibody_plant()
         scene_graph=station.get_scene_graph()
-        AddTargetVisual(plant)
+        
+        if task=="push":
+            AddTargetVisual(plant)
         station.Finalize()
 
    
@@ -147,8 +148,8 @@ def make_sim(generator,
             def Extract_xyz(self, context, output):
                 state = self.get_input_port(0).Eval(context)
                 s=self.state_view(state)
-                pdb.set_trace()
-                xyz=[s,s,table_heigth]
+                #pdb.set_trace()
+                xyz=[s.Cross_Slider_x_x,s.Cross_Slider_y_x,table_heigth]
                 output.set_value(xyz)
         
         target_xyz_ext=builder.AddSystem(target_xyz_extractor())
@@ -238,13 +239,13 @@ def make_sim(generator,
                 self.num_history = 1
 
             self.obs_size = 0
-            if "actions" in self.obs_type:
-                # Obs: commanded_positions
-                self.obs_size += self.Na
-
             if "state" in self.obs_type:
                 # Obs: commanded_positions and velocities
                 self.obs_size += 2*self.Na
+            
+            if "actions" in self.obs_type:
+                # Obs: commanded_positions
+                self.obs_size += self.Na
             
             if "distances" in self.obs_type:
                 # Obs: distance_EE_to target, distance_EE_to_box, distance_EE_to_iiwabase.
@@ -290,7 +291,8 @@ def make_sim(generator,
             EE_pose=self.robot.EvalBodyPoseInWorld(
                 self.robot_context, self.frame_EE.body())
             EE_xyz=EE_pose.translation()
-
+            
+            #pdb.set_trace()
             observations=np.array([])
             if "state" in self.obs_type:
                 observations=np.concatenate((observations,iiwa_positions_measured,iiwa_velocities_measured))
@@ -299,9 +301,9 @@ def make_sim(generator,
                 observations=np.concatenate((observations,iiwa_position_commanded))
 
             if "distances" in self.obs_type:
-                distance_EE_to_target=np.norm(EE_xyz-target_xyz)
-                distance_EE_to_box=np.norm(EE_xyz-box_xyz)
-                distance_EE_to_iiwabase=np.norm(EE_xyz)
+                distance_EE_to_target=np.linalg.norm(EE_xyz-target_xyz)
+                distance_EE_to_box=np.linalg.norm(EE_xyz-box_xyz)
+                distance_EE_to_iiwabase=np.linalg.norm(EE_xyz)
                 observations=np.concatenate((observations,
                                     [distance_EE_to_target, distance_EE_to_box, distance_EE_to_iiwabase]))
 
@@ -351,6 +353,7 @@ def make_sim(generator,
             self.DeclareVectorOutputPort("reward", 1, self.CalcReward)
             self.DeclareVectorInputPort("target_xyz",3)
 
+            self.robot=robot
             self.frame_EE = robot.GetFrameByName("iiwa_link_7")
             self.robot_context = robot.CreateDefaultContext()
             self.reward_type=rew_type
@@ -379,9 +382,9 @@ def make_sim(generator,
             EE_xyz=EE_pose.translation()
 
             # Approximation of effort based on positions
-            cost_effort = 0.5*iiwa_positions*iiwa_positions
+            cost_effort = iiwa_positions.dot(iiwa_positions)
             # Approximation of energy based on velocities
-            cost_energy = iiwa_velocities*iiwa_velocities
+            cost_energy = iiwa_velocities.dot(iiwa_velocities)
 
             # coast to reach the goal
             if task=="reach":
@@ -396,7 +399,7 @@ def make_sim(generator,
             cost_goal=distance_to_goal.dot(distance_to_goal)
 
             # cost of collision with table
-            if EE_xyz<0.01:
+            if EE_xyz[2]<0.01:
                 cost_collision_w_table=2
             else:
                 cost_collision_w_table=0
@@ -413,15 +416,15 @@ def make_sim(generator,
 
             if debug:
                 print(
-                    f"EE_xyz: {EE_xyz},"
-                    "box_xyz: {box_xyz},"
-                    "target_xyz: {target_xyz}")
+                    f"EE_xyz: {EE_xyz}, "
+                    f"box_xyz: {box_xyz}, "
+                    f"target_xyz: {target_xyz}")
                 print(
-                    f"cost_goal: {cost_goal},"
-                    "cost_energy: {cost_energy},"
-                    "cost_effort: {cost_effort},"
-                    "cost_collision: {cost_collision},"
-                    "reward: {reward}")
+                    f"cost_goal: {cost_goal}, "
+                    f"cost_energy: {cost_energy}, "
+                    f"cost_effort: {cost_effort}, "
+                    f"cost_collision: {cost_collision_w_table}, "
+                    f"reward: {reward}")
 
             #pdb.set_trace()
             output[0] = reward
@@ -439,7 +442,21 @@ def make_sim(generator,
     builder.Connect(target_xyz_ext.get_output_port(),reward.get_input_port(4))
 
     builder.ExportOutput(reward.get_output_port(), "reward")
-    
+
+    if not hardware:
+        # Set random state distributions.
+        uniform_random_x = Variable(name="uniform_random_x",
+                                type=Variable.Type.RANDOM_UNIFORM)
+        uniform_random_y = Variable(name="uniform_random_y",
+                                type=Variable.Type.RANDOM_UNIFORM)
+        #pdb.set_trace()
+        target_joint_y = plant.GetJointByName("Cross_Slider_y")
+        target_joint_y.set_random_translation_distribution(
+            0.5 * (uniform_random_y - 0.5))
+        target_joint_x = plant.GetJointByName("Cross_Slider_x")
+        target_joint_x.set_random_translation_distribution(
+            1+0.5 + (uniform_random_x - 0.5))            
+
     diagram = builder.Build()
     simulator = Simulator(diagram)
     if debug:
@@ -452,7 +469,7 @@ def make_sim(generator,
         plot_system_graphviz(diagram, max_depth=2)
         plt.plot(1)
         plt.show(block=False)
-        pdb.set_trace()
+        #pdb.set_trace()
 
     simulator.Initialize()
 
@@ -498,7 +515,7 @@ def make_sim(generator,
                     print("\nTerminated. Success. Goal reachead.\n")
                 return EventStatus.ReachedTermination(diagram, "Success. Goal reachead.")    
 
-        if "collison_w_table" in ter_type:
+        if "collision_w_table" in ter_type:
             if EE_xyz[2]<0.005+table_heigth:
                 if debug:
                     print(f"Terminated. EE collided with table. EE_xyz: {EE_xyz}")
@@ -509,7 +526,6 @@ def make_sim(generator,
     simulator.set_monitor(monitor)
 
     return simulator
-
 
 def RlCitoStationBoxPushingEnv(meshcat=None, 
                         time_limit=gym_time_limit, 
@@ -548,31 +564,52 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
     
     #Define Action space
     Na=plant.num_actuators()
-    low = plant.GetPositionLowerLimits()[:Na]
-    high = plant.GetPositionUpperLimits()[:Na]
-    #pdb.set_trace()
-    # StateView=MakeNamedViewState(plant, "States")
-    # PositionView=MakeNamedViewPositions(plant, "Position")
-    # ActuationView=MakeNamedViewActuation(plant, "Actuation")
+    low = plant.GetPositionLowerLimits()
+    high = plant.GetPositionUpperLimits()
     action_space = gym.spaces.Box(low=np.asarray(low, dtype="float64"), high=np.asarray(high, dtype="float64"),dtype=np.float64)
-     
+
     #Define observation space 
-    # low = np.concatenate(
-    #     (plant.GetPositionLowerLimits(), plant.GetVelocityLowerLimits(),np.array([-np.inf]*6)))
-    # high = np.concatenate(
-    #     (plant.GetPositionUpperLimits(), plant.GetVelocityUpperLimits(),np.array([np.inf]*6)))
+    low=np.array([])
+    high=np.array([])
+    POSITION_LIMIT_TOLERANCE = np.full((Na,), 0.2)
+    VELOCITY_LIMIT_TOLERANCE = np.full((Na,), 20)
+    ACTUATION_LIMIT_TOLERANCE = np.full((Na,), 300)
 
-    low = np.concatenate(
-        (np.array([-2*np.pi]*Na), np.array([-100]*Na),np.array([-10]*9)))
-    high = np.concatenate(
-        (np.array([2*np.pi]*Na), np.array([100]*Na),np.array([10]*9)))
+    if "state" in observation_type:
+        low = np.concatenate((low,np.concatenate(
+            (plant.GetPositionLowerLimits()-POSITION_LIMIT_TOLERANCE, 
+            plant.GetVelocityLowerLimits()-VELOCITY_LIMIT_TOLERANCE))))
+        high = np.concatenate((high,np.concatenate(
+            (plant.GetPositionUpperLimits()+POSITION_LIMIT_TOLERANCE, 
+            plant.GetVelocityUpperLimits()+VELOCITY_LIMIT_TOLERANCE))))
 
-    # low = np.concatenate(
-    #     (plant.GetPositionLowerLimits(), plant.GetVelocityLowerLimits()))
-    # high = np.concatenate(
-    #     (plant.GetPositionUpperLimits(), plant.GetVelocityUpperLimits()))
+    if "actions" in observation_type:
+        low = np.concatenate((low,
+                    plant.GetPositionLowerLimits()-POSITION_LIMIT_TOLERANCE))
+        high = np.concatenate((high,
+                    plant.GetPositionUpperLimits()+POSITION_LIMIT_TOLERANCE))
 
+    if "distances" in observation_type:
+        low = np.concatenate((low,np.array([-10]*3)))
+        high = np.concatenate((high,np.array([10]*3)))
+        
+    if "EE_box_target_xyz" in observation_type:
+        low = np.concatenate((low,np.array([-10]*9)))
+        high = np.concatenate((high,np.array([10]*9)))
 
+    if "torques" in observation_type:
+        low = np.concatenate((low,
+                    plant.GetEffortLowerLimits()-ACTUATION_LIMIT_TOLERANCE))
+        high = np.concatenate((high,
+                    plant.GetEffortUpperLimits()+ACTUATION_LIMIT_TOLERANCE))
+
+    if "buffer_10" in observation_type:
+        low = np.tile(low, 10)
+        high = np.tile(high, 10)
+    elif "buffer_20" in observation_type:
+        low = np.tile(low, 20)
+        high = np.tile(high, 20)
+    
     observation_space = gym.spaces.Box(low=np.asarray(low, dtype="float64"),
                                        high=np.asarray(high, dtype="float64"),
                                        dtype=np.float64)
