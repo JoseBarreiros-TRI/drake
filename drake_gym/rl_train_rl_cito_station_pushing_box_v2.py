@@ -43,7 +43,7 @@ config = {
     "env_time_limit": 7,
     "local_log_dir":
         args.log_path if args.log_path is not None else os.environ['HOME']+"/rl/tmp/RlCitoStationBoxPushing_v2/",
-    "model_save_freq": 1e5 if not args.train_single_env else 1e4,
+    "model_save_freq": 1e5 if not args.train_single_env else 1e3,
     "policy_kwargs": dict(activation_fn=th.nn.ReLU,
                     net_arch=[dict(pi=[128, 128,128], vf=[128,128,128])]),
     "observation_noise": True,
@@ -130,9 +130,9 @@ if __name__ == '__main__':
         if args.debug:
             env.simulator.set_target_realtime_rate(1.0)
         input("Open meshcat (optional). Press Enter to continue...")
-    
+
     if args.test:
-        model = PPO(policy_type, env, n_steps=4, n_epochs=2, 
+        model = PPO(policy_type, env, n_steps=4, n_epochs=2,
                     batch_size=8, policy_kwargs=policy_kwargs)
     else:
         model = PPO(policy_type, env, n_steps=int(2048/num_env), n_epochs=10,
