@@ -50,14 +50,14 @@ config = {
     "disturbances": True,
     # valid observation types are:
     # "state", or "distances" and any (or none) of the following: "buffer_10", "buffer_20"
-    "observation_type": ["actions","distances"],
+    "observation_type": ["state"],
     # valid reward types are:
     # "sparse", or any combination of the following: "rew_success","cost_goal","cost_effort","cost_energy"
-    "reward_type": ["cost_goal","cost_energy"],
+    "reward_type": ["cost_goal"],
     "eval_reward_type": ["cost_goal"],
     #valid termination types are:
     # 'out_of_range', "success"
-    "termination_type": ["out_of_range"],
+    "termination_type": ["box_off_table","success","collision_w_table" ],
     # valid reset types are:
     # "home" or a combination of the following "random_positions",
     # "random_velocities", "random_mass","random_friction"
@@ -93,7 +93,7 @@ if __name__ == '__main__':
         run = wandb.init(mode="disabled")
     else:
         run = wandb.init(
-            project="sb3_tactile",
+            project="sb3_tactile_RlCitoStation",
             config=config,
             sync_tensorboard=True,  # Auto-upload sb3's tensorboard metrics.
             monitor_gym=True,  # Auto-upload the videos of agents playing.
