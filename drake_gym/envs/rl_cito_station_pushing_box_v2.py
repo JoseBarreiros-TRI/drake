@@ -73,6 +73,7 @@ contact_solver='sap'#ContactSolver.kSap#kTamsi # kTamsi
 
 ##
 optitrack_pose_transform=np.array([[1,0,0],[0,1,0],[0,0,1]])
+cross_xyz=np.array([0,0.5,0])
 
 def AddTargetVisual(plant):
     parser = Parser(plant)
@@ -147,12 +148,12 @@ def make_sim(generator,
 
 
         class target_xyz_extractor(LeafSystem):
-            def __init__(self):
+            def __init__(self,state_view):
                 LeafSystem.__init__(self)
                 Ns=plant.num_multibody_states()
                 self.DeclareVectorInputPort("target_state",Ns)
                 self.DeclareVectorOutputPort("target_xyz", 3, self.Extract_xyz)
-                self.state_view=MakeNamedViewState(plant, "States")
+                self.state_view=state_view
 
             def Extract_xyz(self, context, output):
                 state = self.get_input_port(0).Eval(context)
@@ -161,7 +162,8 @@ def make_sim(generator,
                 xyz=[s.Cross_Slider_x_x,s.Cross_Slider_y_x,table_heigth]
                 output.set_value(xyz)
 
-        target_xyz_ext=builder.AddSystem(target_xyz_extractor())
+        PlantStateView=MakeNamedViewState(plant, "States")
+        target_xyz_ext=builder.AddSystem(target_xyz_extractor(state_view=PlantStateView))
         builder.Connect(station.GetOutputPort("plant_continuous_state"),target_xyz_ext.get_input_port())
 
         if meshcat:
@@ -249,7 +251,7 @@ def make_sim(generator,
 
             self.obs_size = 0
             if "state" in self.obs_type:
-                # Obs: commanded_positions and velocities
+                # Obs: measured_positions and velocities
                 self.obs_size += 2*self.Na
 
             if "actions" in self.obs_type:
@@ -257,11 +259,12 @@ def make_sim(generator,
                 self.obs_size += self.Na
 
             if "distances" in self.obs_type:
-                # Obs: distance_EE_to target, distance_EE_to_box, distance_EE_to_iiwabase.
+                # Obs: distance_EE_to_target, distance_EE_to_box, distance_EE_to_iiwabase.
                 self.obs_size += 3
 
             if "EE_box_target_xyz" in self.obs_type:
-                # Obs: xyz position in the robot base frame for EE, target, box.
+                # Obs: xyz positions of end effector,
+                # target, and box in the robot base frame.
                 self.obs_size += 9
 
             if "torques" in self.obs_type:
@@ -347,7 +350,11 @@ def make_sim(generator,
     builder.Connect(station.GetOutputPort("iiwa_velocity_estimated"),obs_pub.get_input_port(2))
     builder.Connect(station.GetOutputPort("iiwa_torque_measured"),obs_pub.get_input_port(3))
     builder.Connect(station.GetOutputPort("iiwa_position_commanded"),obs_pub.get_input_port(4))
-    builder.Connect(target_xyz_ext.get_output_port(),obs_pub.get_input_port(5))
+    if not hardware:
+        builder.Connect(target_xyz_ext.get_output_port(),obs_pub.get_input_port(5))
+    else:
+        target_hardware=builder.AddSystem(ConstantVectorSource(cross_xyz))
+        builder.Connect(target_hardware.get_output_port(),obs_pub.get_input_port(5))
 
     builder.ExportOutput(obs_pub.get_output_port(), "observations")
 
@@ -398,30 +405,54 @@ def make_sim(generator,
             # coast to reach the goal
             if task=="reach":
                 # Distance EE to box.
-                distance_to_goal=EE_xyz-box_xyz
+                Z_BOX_OFFSET=0.15
+                distance_to_goal=EE_xyz-(box_xyz+np.array([0,0,Z_BOX_OFFSET]))
             elif task=="push":
                 # Distance box to target.
                 distance_to_goal=box_xyz-target_xyz
             else:
                 raise ValueError(f"Task {task} not supported.")
 
-            cost_goal=distance_to_goal.dot(distance_to_goal)
+            if np.linalg.norm(distance_to_goal)<0.05:
+                bonus_success=1
+            else:
+                bonus_success=0
 
             # cost of collision with table
             if EE_xyz[2]<0.01:
-                cost_collision_w_table=2
+                cost_collision_w_table=1
             else:
                 cost_collision_w_table=0
 
             reward=0
             if "cost_goal" in self.reward_type:
-                reward-= cost_goal
+                cost_goal=distance_to_goal.dot(distance_to_goal)
+                reward-= 10*cost_goal
+            if "cost_goal_normalized" in self.reward_type:
+                MAX_DISTANCE=3
+                ALPHA=2
+                cost_goal_n=np.power(
+                                np.linalg.norm(distance_to_goal)/MAX_DISTANCE,
+                                ALPHA)
+                reward-= 10*cost_goal_n
+            if "cost_paper" in self.reward_type:
+                MAX_DISTANCE=1.5
+                ALPHA=1
+                cost_goal_n=np.power(
+                                np.linalg.norm(distance_to_goal)/MAX_DISTANCE,
+                                ALPHA)
+                reward+= 1.0*(1-cost_goal_n)*(1-(context.get_time()/time_limit))
+                #pdb.set_trace()
+            if "time_decay" in self.reward_type:
+                reward-= (context.get_time()/time_limit)
             if "cost_effort" in self.reward_type:
                 reward-= cost_effort
+            if "bonus_success" in self.reward_type:
+                reward+= 10* bonus_success
             if "cost_energy" in self.reward_type:
-                reward-= cost_energy
+                reward-= 1e-4*cost_energy
             if "cost_collision" in self.reward_type:
-                reward-= cost_collision_w_table
+                reward-= 20*cost_collision_w_table
 
             if debug:
                 print(
@@ -448,12 +479,17 @@ def make_sim(generator,
     builder.Connect(station.GetOutputPort("iiwa_position_measured"),reward.get_input_port(1))
     builder.Connect(station.GetOutputPort("iiwa_velocity_estimated"),reward.get_input_port(2))
     builder.Connect(station.GetOutputPort("iiwa_torque_measured"),reward.get_input_port(3))
-    builder.Connect(target_xyz_ext.get_output_port(),reward.get_input_port(4))
+    if not hardware:
+        builder.Connect(target_xyz_ext.get_output_port(),reward.get_input_port(4))
+    else:
+        builder.Connect(target_hardware.get_output_port(),reward.get_input_port(4))
+
+
 
     builder.ExportOutput(reward.get_output_port(), "reward")
 
     if not hardware and task=="push":
-        # Set random state distributions.
+        # Set random state distributions for target.
         uniform_random_x = Variable(name="uniform_random_x",
                                 type=Variable.Type.RANDOM_UNIFORM)
         uniform_random_y = Variable(name="uniform_random_y",
@@ -476,7 +512,7 @@ def make_sim(generator,
                 "renderer",
                 CameraInfo(
                     width=640,
-                    height=480,
+                    height=640,
                     fov_y=np.pi/4),
                 ClippingRange(0.01, 10.0),
                 RigidTransform()
@@ -484,19 +520,22 @@ def make_sim(generator,
         depth_camera = DepthRenderCamera(color_camera.core(),
                                          DepthRange(0.01, 10.0))
         parent_id = plant.GetBodyFrameIdIfExists(plant.world_body().index())
-        X_PB = RigidTransform(RollPitchYaw(np.pi/2, 0, 0),
-                              np.array([0, 1, 5]))
+        X_PB = RigidTransform(RollPitchYaw(np.pi, 0.15, 0),
+                              np.array([1.35, 0, 3.7]))
         rgbd_camera = builder.AddSystem(RgbdSensor(parent_id=parent_id,
                                                    X_PB=X_PB,
                                                    color_camera=color_camera,
                                                    depth_camera=depth_camera))
-        builder.Connect(scene_graph.get_query_output_port(),
+        builder.Connect(station.GetOutputPort("query_object"),
                         rgbd_camera.query_object_input_port())
         builder.ExportOutput(
             rgbd_camera.color_image_output_port(), "color_image")
 
     diagram = builder.Build()
     simulator = Simulator(diagram)
+
+    if monitoring_camera:
+        simulator.set_target_realtime_rate(1.0)
 
     if debug:
         simulator.set_target_realtime_rate(1)
@@ -512,13 +551,18 @@ def make_sim(generator,
 
     simulator.Initialize()
 
-    # Termination conditions:
-    def monitor(context, ter_type=termination_type):
 
+    # Termination conditions:
+    VEL_TOLERANCE=3.0
+    vel_low = controller_plant.GetPositionLowerLimits()-VEL_TOLERANCE
+    vel_high = controller_plant.GetPositionUpperLimits()+VEL_TOLERANCE
+
+    def monitor(context, state_view=PlantStateView, ter_type=termination_type):
         # terminate from time and box out of reach
         if context.get_time() > time_limit:
+            #pdb.set_trace()
             if debug:
-                print(f"Terminated. Time limit reached at {context.get_time()}")
+                print(f"\nTerminated. Time limit reached at {context.get_time()}")
             return EventStatus.ReachedTermination(diagram, "Episode reached time limit.")
 
         station_context=diagram.GetMutableSubsystemContext(station,context)
@@ -536,11 +580,19 @@ def make_sim(generator,
         frame_EE_=controller_plant.GetFrameByName("iiwa_link_7")
         EE_pose=controller_plant.EvalBodyPoseInWorld(robot_context, frame_EE_.body())
         EE_xyz=EE_pose.translation()
+        if hardware:
+            target_xyz=cross_xyz
+        else:
+            plant=station.get_multibody_plant()
+            plant_context = plant.GetMyContextFromRoot(context)
+            state = plant.GetOutputPort("continuous_state").Eval(plant_context)
+            s=state_view(state)
+            target_xyz=np.array([s.Cross_Slider_x_x,s.Cross_Slider_y_x,table_heigth])
 
         if "box_off_table" in ter_type:
             if box_xyz[0]<0.2 or box_xyz[2]<0.0 or box_xyz[0]>2.2 or np.abs(box_xyz[1])>1.0:
                 if debug:
-                        print(f"\nTerminated. Box off the table. Box pose: {box_xyz}")
+                    print(f"\nTerminated. Box off the table. Box pose: {box_xyz}")
                 return EventStatus.ReachedTermination(diagram, "Box off the table.")
 
         if "success" in ter_type:
@@ -549,7 +601,7 @@ def make_sim(generator,
             elif task=="push":
                 distance_to_goal=box_xyz-target_xyz
 
-            if np.linalg.norm(distance_to_goal)<0.15:
+            if np.linalg.norm(distance_to_goal)<0.05:
                 if debug:
                     print("\nTerminated. Success. Goal reachead.\n")
                 return EventStatus.ReachedTermination(diagram, "Success. Goal reachead.")
@@ -557,8 +609,19 @@ def make_sim(generator,
         if "collision_w_table" in ter_type:
             if EE_xyz[2]<0.005+table_heigth:
                 if debug:
-                    print(f"Terminated. EE collided with table. EE_xyz: {EE_xyz}")
+                    print(f"\nTerminated. EE collided with table. EE_xyz: {EE_xyz}")
                 return EventStatus.ReachedTermination(diagram, "EE collided with table")
+
+        if "velocity_limits" in ter_type:
+            #pdb.set_trace()
+            velocities=station.GetOutputPort("iiwa_velocity_estimated").Eval(station_context)
+            #print("vel: ",velocities)
+            if np.any(velocities<vel_low) or np.any(velocities>vel_high):
+                #pdb.set_trace()
+                if debug:
+                    print(f"\nTerminated. Outside joint velocity limits. vel: {velocities}")
+                return EventStatus.ReachedTermination(diagram, "Terminated. Outside joint velocity limits.")
+
 
         return EventStatus.Succeeded()
 
@@ -577,7 +640,7 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
                         add_disturbances=False,
                         observation_type=["state"],
                         reward_type=["sparse"],
-                        termination_type=["out_of_range"],
+                        termination_type=["box_off_table","collision_w_table"],
                         reset_type=["home"]):
 
     #Make simulation
@@ -661,5 +724,6 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
                       action_port_id="actions",
                       observation_port_id="observations",
                       set_home=None,
-                      hardware=hardware)
+                      hardware=hardware,
+                      render_rgb_port_id="color_image" if monitoring_camera else None)
     return env

@@ -28,12 +28,12 @@ args = parser.parse_args()
 if args.model_path is not None:
     zip = args.model_path
 else:
-    zip = "./rl/tmp/RlCitoStationBoxPushing_v2/models/{model_id}/model.zip"
+    zip = os.environ['HOME']+"/rl/tmp/RlCitoStationBoxPushing_v2/models/{model_id}/model.zip"
 
 if args.log_path is None:
     log = args.log_path
 else:
-    log = "./rl/tmp/RlCitoStationBoxPushing_v2/play_runs/"
+    log = os.environ['HOME']+"/rl/tmp/RlCitoStationBoxPushing_v2/play_runs/"
 
 if __name__ == '__main__':
 
@@ -49,11 +49,10 @@ if __name__ == '__main__':
                    debug=args.debug,
                    obs_noise=True,
                    add_disturbances=True,
-                   termination_type=["out_of_range"],
+                   termination_type=["box_off_table","success","collision_w_table","velocity_limits"],
                    reward_type=["cost_goal"],
-                   observation_type=["distances","state","EE_box_target_xyz","torques","actions","buffer_10"],
-                   reset_type=["random_positions", "random_velocities",
-                               "random_mass"],
+                   observation_type=["state","EE_box_target_xyz","distances"],
+                   reset_type=[],
                    hardware=args.hardware,
                    task=args.task,
                    mock_hardware=args.mock_hardware,
@@ -76,7 +75,7 @@ if __name__ == '__main__':
             # Plays a random policy.
             action = env.action_space.sample()
         else:
-            action, _state = model.predict(obs, deterministic=True)
+            action, _ = model.predict(obs, deterministic=True)
 
         obs, reward, done, info = env.step(action)
 

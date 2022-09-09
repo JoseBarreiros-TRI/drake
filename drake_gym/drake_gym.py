@@ -299,6 +299,8 @@ class DrakeGymEnv(gym.Env):
         elif mode == 'rgb_array':
             assert self.render_rgb_port, \
                 "You must set render_rgb_port in the constructor"
+            #import pdb
+            #pdb.set_trace()
             return self.render_rgb_port.Eval(
                 self.simulator.get_context()).data[:, :, :3]
         else:
