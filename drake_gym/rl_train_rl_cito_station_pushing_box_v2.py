@@ -46,16 +46,17 @@ config = {
         "/rl/tmp/RlCitoStationBoxPushing_v2/",
     "model_save_freq": 1e3 if not args.train_single_env else 1e3,
     "policy_kwargs": dict(activation_fn=th.nn.ReLU,
-                    net_arch=[dict(pi=[128, 128,128], vf=[128,128,128])]),
+                    net_arch=[0, dict(pi=[128, 128,128], vf=[128,128,128])]),
     "observation_noise": True,
     "disturbances": True,
-    "control_mode": "EE_delta_pose",
+    "control_mode": "EE_pose",
     # valid observation types are:
     # "state", "actions", "distances","EE_box_target_xyz",
     # "torques", and any (or none) of the following:
     # "buffer_10", "buffer_20" for a history
     # of observations (n= 10, 20).
     "observation_type": ["state",
+                        "actions",
                         "EE_box_target_xyz",
                         "distances",
                         ],
@@ -163,7 +164,8 @@ if __name__ == '__main__':
         model = PPO(policy_type, env, n_steps=4, n_epochs=2,
                     batch_size=8, policy_kwargs=policy_kwargs)
     else:
-        model = PPO(policy_type, env, n_steps=int(2048/num_env), n_epochs=10,
+        model = PPO(policy_type, env, n_steps=int(2048*2/num_env),
+                    n_epochs=10,
                     # In SB3, this is the mini-batch size.
                     # https://github.com/DLR-RM/stable-baselines3/blob/master/docs/modules/ppo.rst
                     batch_size=80,#*num_env,

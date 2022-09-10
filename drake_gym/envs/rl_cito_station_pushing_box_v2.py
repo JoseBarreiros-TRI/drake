@@ -234,7 +234,9 @@ def make_sim(generator,
             pass
     else:
         if control_mode=="joint_positions":
-            builder.ExportInput(station.GetInputPort("iiwa_position"),"actions")
+            action_passthrough=builder.AddSystem(PassThrough(Na))
+            builder.Connect(action_passthrough.get_output_port(),station.GetInputPort("iiwa_position"))
+            #builder.ExportInput(station.GetInputPort("iiwa_position"),"actions")
         elif control_mode=="EE_pose" or control_mode=="EE_delta_pose":
             params = DifferentialInverseKinematicsParameters(controller_plant.num_positions(),
                                                             controller_plant.num_velocities())
@@ -252,16 +254,20 @@ def make_sim(generator,
 
             builder.Connect(differential_ik.GetOutputPort("joint_position_desired"),
                             station.GetInputPort("iiwa_position"))
-            # filter = builder.AddSystem(
-            #     FirstOrderLowPassFilter(time_constant=0.1, size=6))
-            # builder.Connect(filter.get_output_port(0),
-            #         differential_ik.GetInputPort("rpy_xyz_desired"))
-            # builder.ExportInput(filter.get_input_port(0),"actions")
+            filter = builder.AddSystem(
+                FirstOrderLowPassFilter(time_constant=0.1, size=6))
+            builder.Connect(filter.get_output_port(0),
+                    differential_ik.GetInputPort("rpy_xyz_desired"))
             differential_ik.set_name("diffIK")
+            filter.set_name("diffIK_filter")
 
 
         if control_mode=="EE_pose":
-            builder.ExportInput(differential_ik.get_input_port(0),"actions")
+            action_passthrough=builder.AddSystem(PassThrough(6))
+            builder.Connect(action_passthrough.get_output_port(),filter.get_input_port(0))
+            #builder.ExportInput(filter.get_input_port(0),"actions")
+            #builder.ExportInput(differential_ik.get_input_port(0),"actions")
+
         elif control_mode=="EE_delta_pose":
 
             class EEPoseAdder(LeafSystem):
@@ -295,10 +301,14 @@ def make_sim(generator,
                     output.set_value(np.concatenate((new_EE_rpy,new_EE_xyz)))
 
             delta_adder=builder.AddSystem(EEPoseAdder(robot=controller_plant,differential_ik=differential_ik))
-            builder.Connect(delta_adder.get_output_port(),differential_ik.get_input_port(0))
+            builder.Connect(delta_adder.get_output_port(),filter.get_input_port(0))
+            # builder.Connect(delta_adder.get_output_port(),differential_ik.get_input_port(0))
             builder.Connect(station.GetOutputPort("iiwa_position_measured"),delta_adder.get_input_port(0))
-            builder.ExportInput(delta_adder.get_input_port(1),"actions")
+            #builder.ExportInput(delta_adder.get_input_port(1),"actions")
+            action_passthrough=builder.AddSystem(PassThrough(6))
+            builder.Connect(action_passthrough.get_output_port(),delta_adder.get_input_port(1))
 
+        builder.ExportInput(action_passthrough.get_input_port(),"actions")
     class observation_publisher(LeafSystem):
 
         def __init__(self, robot, obs_type, noise=False):
@@ -311,6 +321,8 @@ def make_sim(generator,
             self.DeclareVectorInputPort("iiwa_torques_measured",self.Na)
             self.DeclareVectorInputPort("iiwa_position_commanded",self.Na)
             self.DeclareVectorInputPort("target_xyz",3)
+            if control_mode=="EE_pose" or control_mode=="EE_delta_pose":
+                self.DeclareVectorInputPort("EE_rpyxyz",6)
 
             self.robot = robot
             self.frame_EE = robot.GetFrameByName("iiwa_link_7")
@@ -332,7 +344,10 @@ def make_sim(generator,
 
             if "actions" in self.obs_type:
                 # Obs: commanded_positions
-                self.obs_size += self.Na
+                if control_mode=="joint_positions":
+                    self.obs_size += self.Na
+                elif control_mode=="EE_pose" or control_mode=="EE_delta_pose":
+                    self.obs_size += 6
 
             if "distances" in self.obs_type:
                 # Obs: distance_EE_to_target, distance_EE_to_box, distance_EE_to_iiwabase.
@@ -371,6 +386,8 @@ def make_sim(generator,
             iiwa_torques_measured = self.get_input_port(3).Eval(context)
             iiwa_position_commanded = self.get_input_port(4).Eval(context)
             target_xyz = self.get_input_port(5).Eval(context)
+            if control_mode=="EE_pose" or control_mode=="EE_delta_pose":
+                actions = self.get_input_port(6).Eval(context)
 
             #EE pose
             x = self.robot.GetMutablePositionsAndVelocities(
@@ -386,7 +403,12 @@ def make_sim(generator,
                 observations=np.concatenate((observations,iiwa_positions_measured,iiwa_velocities_measured))
 
             if "actions" in self.obs_type:
-                observations=np.concatenate((observations,iiwa_position_commanded))
+                if control_mode=="joint_positions":
+                    observations=np.concatenate((observations,iiwa_position_commanded))
+                elif control_mode=="EE_pose":
+                    observations=np.concatenate((observations,actions))
+                elif control_mode=="EE_delta_pose":
+                    observations=np.concatenate((observations,actions))
 
             if "distances" in self.obs_type:
                 distance_EE_to_target=np.linalg.norm(EE_xyz-target_xyz)
@@ -431,6 +453,9 @@ def make_sim(generator,
     else:
         target_hardware=builder.AddSystem(ConstantVectorSource(cross_xyz))
         builder.Connect(target_hardware.get_output_port(),obs_pub.get_input_port(5))
+
+    if control_mode=="EE_pose" or control_mode=="EE_delta_pose":
+        builder.Connect(action_passthrough.get_output_port(),obs_pub.get_input_port(6))
 
     builder.ExportOutput(obs_pub.get_output_port(), "observations")
 
@@ -893,6 +918,7 @@ def set_home(simulator, diagram_context, set_type=["home"]):
     # init diffIK with updated state
 
     differential_ik = diagram.GetSubsystemByName("diffIK")
+    filter = diagram.GetSubsystemByName("diffIK_filter")
     #differential_ik.Reset()
     station_context=diagram.GetMutableSubsystemContext(station,diagram_context)
     q0 = station.GetOutputPort("iiwa_position_measured").Eval(
@@ -900,6 +926,16 @@ def set_home(simulator, diagram_context, set_type=["home"]):
     differential_ik.parameters.set_nominal_joint_position(q0)
     diff_ik_context=diagram.GetMutableSubsystemContext(differential_ik, simulator.get_context())#diagram_context)
     differential_ik.SetPositions(diff_ik_context, q0)
+    filter_context=diagram.GetMutableSubsystemContext(filter, simulator.get_context())#diagram_co
+    EE_init_pose=differential_ik.ForwardKinematics(q0)
+    EE_init_rpy=RollPitchYaw(EE_init_pose.rotation())
+    EE_rpyxyz=np.concatenate((
+        np.array(
+            [EE_init_rpy.roll_angle(),
+            EE_init_rpy.pitch_angle(),
+            EE_init_rpy.yaw_angle()]),
+        EE_init_pose.translation()))
+    filter.set_initial_output_value(filter_context,EE_rpyxyz)
 
 def RlCitoStationBoxPushingEnv(meshcat=None,
                         time_limit=gym_time_limit,
@@ -952,8 +988,9 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
         high_a=np.array([2*np.pi,2*np.pi,2*np.pi,0.8,0.7,0.6])
     elif control_mode=="EE_delta_pose":
         #rpyxyz
-        low_a=2*np.array([-0.1,-0.1,-0.1,-0.025,-0.025,-0.025])
-        high_a=2*np.array([0.1,0.1,0.1,0.025,0.025,0.025])
+        factor_a=6
+        low_a=factor_a*np.array([-0.1,-0.1,-0.1,-0.025,-0.025,-0.025])
+        high_a=factor_a*np.array([0.1,0.1,0.1,0.025,0.025,0.025])
 
     action_space = gym.spaces.Box(
         low=np.asarray(low_a, dtype="float64"),
@@ -965,7 +1002,6 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
     high=np.array([])
     POSITION_LIMIT_TOLERANCE = np.full((Na,), 0.2)
     VELOCITY_LIMIT_TOLERANCE = np.full((Na,), 20)
-    ACTUATION_LIMIT_TOLERANCE = np.full((Na,), 300)
 
     if "state" in observation_type:
         low = np.concatenate((low,np.concatenate(
@@ -981,9 +1017,19 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
                         plant.GetPositionLowerLimits()-POSITION_LIMIT_TOLERANCE))
             high = np.concatenate((high,
                         plant.GetPositionUpperLimits()+POSITION_LIMIT_TOLERANCE))
-        else:
-            #TODO
-            pass
+        elif control_mode=="EE_pose":
+            ACTUATION_LIMIT_TOLERANCE=np.array([0.1,0.1,0.1,0.5,0.5,0.5])
+            low=np.concatenate((low,
+                np.array([-2*np.pi,-2*np.pi,-2*np.pi,0.2,-0.7,0])-ACTUATION_LIMIT_TOLERANCE))
+            high=np.concatenate((high,
+                np.array([2*np.pi,2*np.pi,2*np.pi,0.8,0.7,0.6])+ACTUATION_LIMIT_TOLERANCE))
+        elif control_mode=="EE_delta_pose":
+            ACTUATION_LIMIT_TOLERANCE=np.array([0.1]*6)
+            low=np.concatenate((low,
+                factor_a*np.array([-0.1,-0.1,-0.1,-0.025,-0.025,-0.025])-ACTUATION_LIMIT_TOLERANCE))
+            high=np.concatenate((high,
+                factor_a*np.array([0.1,0.1,0.1,0.025,0.025,0.025])+ACTUATION_LIMIT_TOLERANCE))
+
     if "distances" in observation_type:
         low = np.concatenate((low,np.array([-10]*3)))
         high = np.concatenate((high,np.array([10]*3)))
@@ -993,6 +1039,7 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
         high = np.concatenate((high,np.array([10]*9)))
 
     if "torques" in observation_type:
+        ACTUATION_LIMIT_TOLERANCE = np.full((Na,), 300)
         low = np.concatenate((low,
                     plant.GetEffortLowerLimits()-ACTUATION_LIMIT_TOLERANCE))
         high = np.concatenate((high,
@@ -1005,6 +1052,7 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
         low = np.tile(low, 20)
         high = np.tile(high, 20)
 
+    #pdb.set_trace()
     observation_space = gym.spaces.Box(low=np.asarray(low, dtype="float64"),
                                        high=np.asarray(high, dtype="float64"),
                                        dtype=np.float64)
