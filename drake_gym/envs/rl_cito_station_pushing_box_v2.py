@@ -1,5 +1,6 @@
 from functools import partial
 from ast import excepthandler
+from http.client import ResponseNotReady
 from re import S
 import gym
 import pdb
@@ -69,8 +70,6 @@ from drake.examples.rl_cito_station.differential_ik import DifferentialIK
 sim_time_step=0.005
 gym_time_step=0.05
 gym_time_limit=5
-# modes=["IDC","torque"]
-# control_mode=modes[0]
 table_heigth =0.
 box_size=[ 0.075,#0.2+0.1*(np.random.random()-0.5),
         0.05,#0.2+0.1*(np.random.random()-0.5),
@@ -127,7 +126,7 @@ def make_sim(generator,
              control_mode=["joint_positions"]):
 
     assert(task=="reach" or task=="push"),f'_{task}_ task not implemented. valid options are push, reach'
-    assert(control_mode=="joint_position" or control_mode=="EE_pose"),f'_{control_mode}_ control mode not implemented. valid options are joint_positions, EE_pose'
+    assert(control_mode=="joint_position" or control_mode=="EE_pose" or control_mode=="EE_delta_pose"),f'_{control_mode}_ control mode not implemented. valid options are joint_positions, EE_pose'
 
     builder = DiagramBuilder()
 
@@ -236,7 +235,7 @@ def make_sim(generator,
     else:
         if control_mode=="joint_positions":
             builder.ExportInput(station.GetInputPort("iiwa_position"),"actions")
-        elif control_mode=="EE_pose":
+        elif control_mode=="EE_pose" or control_mode=="EE_delta_pose":
             params = DifferentialInverseKinematicsParameters(controller_plant.num_positions(),
                                                             controller_plant.num_velocities())
             time_step = 0.005
@@ -249,7 +248,7 @@ def make_sim(generator,
             params.set_joint_velocity_limits((-factor*iiwa14_velocity_limits,
                                             factor*iiwa14_velocity_limits))
             differential_ik = builder.AddSystem(DifferentialIK(
-                controller_plant, controller_plant.GetFrameByName("iiwa_link_7"), params, time_step))
+                controller_plant, controller_plant.GetFrameByName("iiwa_link_7"), params, time_step, debug))
 
             builder.Connect(differential_ik.GetOutputPort("joint_position_desired"),
                             station.GetInputPort("iiwa_position"))
@@ -258,8 +257,47 @@ def make_sim(generator,
             # builder.Connect(filter.get_output_port(0),
             #         differential_ik.GetInputPort("rpy_xyz_desired"))
             # builder.ExportInput(filter.get_input_port(0),"actions")
-            builder.ExportInput(differential_ik.get_input_port(0),"actions")
             differential_ik.set_name("diffIK")
+
+
+        if control_mode=="EE_pose":
+            builder.ExportInput(differential_ik.get_input_port(0),"actions")
+        elif control_mode=="EE_delta_pose":
+
+            class EEPoseAdder(LeafSystem):
+                def __init__(self, robot,differential_ik):
+                    LeafSystem.__init__(self)
+                    self.Na= robot.num_actuators()
+                    self.robot=robot
+                    self.differential_ik=differential_ik
+                    self.DeclareVectorInputPort("iiwa_positions_measured",self.Na)
+                    self.DeclareVectorInputPort("deltaEE_rpyxyz",6)
+                    self.DeclareVectorOutputPort("EE_pose",6,self.CalcOutput)
+
+                def CalcOutput(self, context, output):
+                    iiwa_positions_measured = self.get_input_port(0).Eval(context)
+                    deltaEE_rpyxyz = self.get_input_port(1).Eval(context)
+                    current_EE_pose=self.differential_ik.ForwardKinematics(iiwa_positions_measured)
+                    rpy=RollPitchYaw(current_EE_pose.rotation())
+                    #pdb.set_trace()
+                    current_EE_rpy=np.array([rpy.roll_angle(),
+                                    rpy.pitch_angle(),
+                                    rpy.yaw_angle()])
+
+                    new_EE_rpy=np.clip(current_EE_rpy+deltaEE_rpyxyz[:3],
+                                    -2*np.pi,
+                                    2*np.pi)
+                    new_EE_xyz=np.clip(current_EE_pose.translation()+deltaEE_rpyxyz[3:],
+                                    [0.2,-0.7,0],
+                                    [0.8,0.7,0.6])
+                    #TODO grap rpy
+
+                    output.set_value(np.concatenate((new_EE_rpy,new_EE_xyz)))
+
+            delta_adder=builder.AddSystem(EEPoseAdder(robot=controller_plant,differential_ik=differential_ik))
+            builder.Connect(delta_adder.get_output_port(),differential_ik.get_input_port(0))
+            builder.Connect(station.GetOutputPort("iiwa_position_measured"),delta_adder.get_input_port(0))
+            builder.ExportInput(delta_adder.get_input_port(1),"actions")
 
     class observation_publisher(LeafSystem):
 
@@ -572,7 +610,7 @@ def make_sim(generator,
     diagram = builder.Build()
     simulator = Simulator(diagram)
 
-    if monitoring_camera:
+    if monitoring_camera and control_mode!="EE_delta_pose":
         simulator.set_target_realtime_rate(1.0)
 
     if debug:
@@ -734,6 +772,28 @@ def set_home(simulator, diagram_context, set_type=["home"]):
             np.random.uniform(low=-0.5, high=0.5),
             0.03])
             ]
+    elif "random_positions_diffik" in set_type:
+        # Randomize the initial position of the joints.
+        home_positions = [
+            ('iiwa_joint_1', np.random.uniform(low=-0.5, high=0.5)),
+            ('iiwa_joint_2', np.random.uniform(low=0.2, high=0.5)),
+            ('iiwa_joint_3', np.random.uniform(low=-0.2, high=0.2)),
+            ('iiwa_joint_4', np.random.uniform(low=-2, high=-1.5)),
+            ('iiwa_joint_5', np.random.uniform(low=-1.0, high=1.0)),
+            ('iiwa_joint_6', np.random.uniform(low=.0, high=0.1)),
+            ('iiwa_joint_7', np.random.uniform(low=-.1, high=.1)),
+        ]
+        home_free_body_pose= [
+            #rpyxyz
+            ('box',
+            'base_link',
+            [0,
+            0,
+            np.random.uniform(low=0, high=2*np.pi),
+            np.random.uniform(low=0.3, high=1.0),
+            np.random.uniform(low=-0.5, high=0.5),
+            0.03])
+            ]
 
     if "random_target_position" in set_type:
         # Randomize the initial position of the joints.
@@ -759,15 +819,6 @@ def set_home(simulator, diagram_context, set_type=["home"]):
 
     diagram = simulator.get_system()
     station = diagram.GetSubsystemByName("rl_cito_station")
-
-    # init diffIK
-    differential_ik = diagram.GetSubsystemByName("diffIK")
-    station_context=diagram.GetMutableSubsystemContext(station,diagram_context)
-    q0 = station.GetOutputPort("iiwa_position_measured").Eval(
-        station_context)
-    differential_ik.parameters.set_nominal_joint_position(q0)
-    diff_ik_context=diagram.GetMutableSubsystemContext(differential_ik, diagram_context)
-    differential_ik.SetPositions(diff_ik_context, q0)
 
     # set random states
     plant = station.get_multibody_plant()
@@ -838,6 +889,17 @@ def set_home(simulator, diagram_context, set_type=["home"]):
                 )
         plant.SetFreeBodyPose(plant_context,body,body_pose)
 
+    #pdb.set_trace()
+    # init diffIK with updated state
+
+    differential_ik = diagram.GetSubsystemByName("diffIK")
+    #differential_ik.Reset()
+    station_context=diagram.GetMutableSubsystemContext(station,diagram_context)
+    q0 = station.GetOutputPort("iiwa_position_measured").Eval(
+        station_context)
+    differential_ik.parameters.set_nominal_joint_position(q0)
+    diff_ik_context=diagram.GetMutableSubsystemContext(differential_ik, simulator.get_context())#diagram_context)
+    differential_ik.SetPositions(diff_ik_context, q0)
 
 def RlCitoStationBoxPushingEnv(meshcat=None,
                         time_limit=gym_time_limit,
@@ -886,8 +948,12 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
         high_a = plant.GetPositionUpperLimits()
     elif control_mode=="EE_pose":
         #rpyxyz
-        low_a=np.array([-2*np.pi,-2*np.pi,-2*np.pi,-0.6,-0.8,0])
-        high_a=np.array([2*np.pi,2*np.pi,2*np.pi,0.8,0.3,1.1])
+        low_a=np.array([-2*np.pi,-2*np.pi,-2*np.pi,0.2,-0.7,0])
+        high_a=np.array([2*np.pi,2*np.pi,2*np.pi,0.8,0.7,0.6])
+    elif control_mode=="EE_delta_pose":
+        #rpyxyz
+        low_a=2*np.array([-0.1,-0.1,-0.1,-0.025,-0.025,-0.025])
+        high_a=2*np.array([0.1,0.1,0.1,0.025,0.025,0.025])
 
     action_space = gym.spaces.Box(
         low=np.asarray(low_a, dtype="float64"),

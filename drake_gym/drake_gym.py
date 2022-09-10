@@ -257,7 +257,7 @@ class DrakeGymEnv(gym.Env):
         if self.make_simulator:
             self.simulator = self.make_simulator(self.generator)
             self._setup()
-        #pdb.set_trace()
+
         context = self.simulator.get_mutable_context()
         context.SetTime(0)
         if self.set_home is not None:

@@ -44,12 +44,12 @@ config = {
     "local_log_dir":
         args.log_path if args.log_path is not None else os.environ['HOME']+
         "/rl/tmp/RlCitoStationBoxPushing_v2/",
-    "model_save_freq": 5e2 if not args.train_single_env else 1e3,
+    "model_save_freq": 1e3 if not args.train_single_env else 1e3,
     "policy_kwargs": dict(activation_fn=th.nn.ReLU,
                     net_arch=[dict(pi=[128, 128,128], vf=[128,128,128])]),
     "observation_noise": True,
     "disturbances": True,
-    "control_mode": "EE_pose",
+    "control_mode": "EE_delta_pose",
     # valid observation types are:
     # "state", "actions", "distances","EE_box_target_xyz",
     # "torques", and any (or none) of the following:
@@ -80,8 +80,8 @@ config = {
     # valid reset types are:
     # "home" or a combination of the following "random_positions",
     # "random_velocities", "random_mass","random_friction"
-    "reset_type": ["random_positions_limited"],
-    "eval_reset_type": ["random_positions_limited"],
+    "reset_type": ["random_positions_diffik"],
+    "eval_reset_type": ["random_positions_diffik"],
     "notes": args.notes,
     }
 
@@ -152,6 +152,7 @@ if __name__ == '__main__':
                        reset_type=reset_type,
                        termination_type=termination_type,
                        control_mode=control_mode,
+                       monitoring_camera=False,
                        )
         check_env(env)
         if args.debug:
@@ -170,7 +171,10 @@ if __name__ == '__main__':
                     f"runs/{run.id}", policy_kwargs=policy_kwargs)
 
     # Separate evaluation env.
+    #eval_meshcat = StartMeshcat()
+    eval_meshcat=None
     eval_env = gym.make(env_name,
+                        meshcat=eval_meshcat,
                         time_limit=time_limit,
                         task=task,
                         obs_noise=obs_noise,
@@ -183,6 +187,7 @@ if __name__ == '__main__':
                         reset_type=eval_reset_type,
                         )
     eval_env = DummyVecEnv([lambda: eval_env])
+
     # Record a video every 1 evaluation rollouts.
     eval_env = VecVideoRecorder(
                         eval_env,
@@ -209,12 +214,13 @@ if __name__ == '__main__':
 
     model.learn(
         total_timesteps=total_timesteps,
-        callback=[WandbCallback(
+        callback=[
+            WandbCallback(
             gradient_save_freq=1e3,
             model_save_path=log_dir+f"models/{run.id}",
             verbose=2,
             model_save_freq=config["model_save_freq"],
             ),
-            eval_callback]
+        eval_callback]
     )
     run.finish()

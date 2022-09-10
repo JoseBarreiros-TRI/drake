@@ -22,7 +22,7 @@ class DifferentialIK(LeafSystem):
         output_ports:
         - joint_position_desired
     """
-    def __init__(self, robot, frame_E, parameters, time_step):
+    def __init__(self, robot, frame_E, parameters, time_step, debug=False):
         """
         @param robot is a reference to a MultibodyPlant.
         @param frame_E is a multibody::Frame on the robot.
@@ -36,6 +36,7 @@ class DifferentialIK(LeafSystem):
         self.parameters = parameters
         self.parameters.set_timestep(time_step)
         self.time_step = time_step
+        self.debug=debug
         # Note that this context is NOT the context of the DifferentialIK
         # system, but rather a context for the multibody plant that is used
         # to pass the configuration into the DifferentialInverseKinematics
@@ -56,6 +57,9 @@ class DifferentialIK(LeafSystem):
         # Provide the output as desired positions.
         self.DeclareStateOutputPort("joint_position_desired",
                                     position_state_index)
+
+    def Reset(self):
+        self.robot_context = self.robot.CreateDefaultContext()
 
     def SetPositions(self, context, q):
         #pdb.set_trace()
@@ -89,17 +93,23 @@ class DifferentialIK(LeafSystem):
         x = self.robot.GetMutablePositionsAndVelocities(
             self.robot_context)
         x[:self.robot.num_positions()] = q_last
+
         result = DoDifferentialInverseKinematics(self.robot,
                                                  self.robot_context,
                                                  X_WE_desired, self.frame_E,
                                                  self.parameters)
 
         if (result.status != result.status.kSolutionFound):
-            print("Differential IK could not find a solution.")
+            if self.debug:
+                print("Differential IK could not find a solution.")
+                print("rpy_xyz_desired: ", rpy_xyz_desired)
+                print("q_last: ", q_last)
+                print("x: ",x)
             q_new=q_last
+            #pdb.set_trace()
 
         else:
             q_new=q_last + self.time_step * result.joint_velocities
         discrete_state.set_value(q_new)
 
-        print("q_new: ",q_new)
+        #print("q_new: ",q_new)

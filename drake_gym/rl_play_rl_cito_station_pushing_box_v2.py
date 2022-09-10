@@ -56,7 +56,7 @@ if __name__ == '__main__':
                    hardware=args.hardware,
                    task=args.task,
                    mock_hardware=args.mock_hardware,
-                   control_mode="EE_pose",
+                   control_mode="EE_delta_pose",
                    )
 
     if args.test and not args.hardware:

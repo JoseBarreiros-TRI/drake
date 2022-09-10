@@ -77,7 +77,7 @@ class EndEffectorTeleop(LeafSystem):
             value=self._X.default)
 
         self.meshcat.AddSlider(
-            name=self._Y.name, min=-0.8, max=0.3, step=0.01,
+            name=self._Y.name, min=-0.8, max=0.8, step=0.01,
             value=self._Y.default)
         self.meshcat.AddSlider(
             name=self._Z.name, min=0.0, max=1.1, step=0.01,
