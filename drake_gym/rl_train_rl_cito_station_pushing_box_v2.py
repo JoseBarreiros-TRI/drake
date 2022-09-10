@@ -49,6 +49,7 @@ config = {
                     net_arch=[dict(pi=[128, 128,128], vf=[128,128,128])]),
     "observation_noise": True,
     "disturbances": True,
+    "control_mode": "EE_pose",
     # valid observation types are:
     # "state", "actions", "distances","EE_box_target_xyz",
     # "torques", and any (or none) of the following:
@@ -60,8 +61,10 @@ config = {
                         ],
     # valid reward types are:
     # "cost_goal", "cost_goal_normalized",
-    # "cost_effort","cost_energy","cost_collision"
+    # "cost_effort","cost_energy","cost_collision",
+    # "bonus_success"
     "reward_type": ["cost_paper",
+                    "bonus_success",
                     ],
     "eval_reward_type": ["cost_goal",
                     ],
@@ -77,7 +80,8 @@ config = {
     # valid reset types are:
     # "home" or a combination of the following "random_positions",
     # "random_velocities", "random_mass","random_friction"
-    "reset_type": [],
+    "reset_type": ["random_positions_limited"],
+    "eval_reset_type": ["random_positions_limited"],
     "notes": args.notes,
     }
 
@@ -102,8 +106,10 @@ if __name__ == '__main__':
     rew_type=config["reward_type"]
     eval_rew_type=config["eval_reward_type"]
     reset_type=config["reset_type"]
+    eval_reset_type=config["eval_reset_type"]
     termination_type=config["termination_type"]
     eval_termination_type=config["eval_termination_type"]
+    control_mode=config["control_mode"]
 
     if args.test:
         run = wandb.init(mode="disabled")
@@ -130,6 +136,7 @@ if __name__ == '__main__':
                                'reward_type': rew_type,
                                'reset_type': reset_type,
                                'termination_type': termination_type,
+                               "control_mode":control_mode,
                         })
     else:
         meshcat = StartMeshcat()
@@ -144,6 +151,7 @@ if __name__ == '__main__':
                        reward_type=rew_type,
                        reset_type=reset_type,
                        termination_type=termination_type,
+                       control_mode=control_mode,
                        )
         check_env(env)
         if args.debug:
@@ -171,6 +179,8 @@ if __name__ == '__main__':
                         reward_type=eval_rew_type,
                         monitoring_camera=True,
                         termination_type=eval_termination_type,
+                        control_mode=control_mode,
+                        reset_type=eval_reset_type,
                         )
     eval_env = DummyVecEnv([lambda: eval_env])
     # Record a video every 1 evaluation rollouts.

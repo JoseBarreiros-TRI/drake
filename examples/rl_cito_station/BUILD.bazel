@@ -160,8 +160,17 @@ drake_cc_googletest(
 drake_py_library(
     name = "differential_ik",
     srcs = ["differential_ik.py"],
-    visibility = ["//visibility:private"],
+    visibility = ["//visibility:public"],
     deps = [
+        "//bindings/pydrake",
+    ],
+)
+
+drake_py_binary(
+    name = "end_effector_teleop_sliders",
+    srcs = ["end_effector_teleop_sliders.py"],
+    deps = [
+        ":differential_ik",
         "//bindings/pydrake",
     ],
 )

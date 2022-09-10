@@ -5,7 +5,7 @@ from pydrake.manipulation.planner import DoDifferentialInverseKinematics
 from pydrake.math import RigidTransform, RollPitchYaw
 from pydrake.systems.framework import BasicVector, LeafSystem, PortDataType
 
-
+import pdb
 # TODO(russt): Clean this up and move it to C++.
 class DifferentialIK(LeafSystem):
     """
@@ -58,7 +58,8 @@ class DifferentialIK(LeafSystem):
                                     position_state_index)
 
     def SetPositions(self, context, q):
-        context.SetDiscreteState(0, q)
+        #pdb.set_trace()
+        context.SetDiscreteState(q)
 
     def ForwardKinematics(self, q):
         x = self.robot.GetMutablePositionsAndVelocities(
@@ -82,6 +83,8 @@ class DifferentialIK(LeafSystem):
         X_WE_desired = RigidTransform(RollPitchYaw(rpy_xyz_desired[:3]),
                                       rpy_xyz_desired[-3:])
         q_last = context.get_discrete_state_vector().get_value()
+        # print("q_last_before: ",q_last)
+        # pdb.set_trace()
 
         x = self.robot.GetMutablePositionsAndVelocities(
             self.robot_context)
@@ -93,7 +96,10 @@ class DifferentialIK(LeafSystem):
 
         if (result.status != result.status.kSolutionFound):
             print("Differential IK could not find a solution.")
-            discrete_state.set_value(q_last)
+            q_new=q_last
+
         else:
-            discrete_state.set_value(
-                q_last + self.time_step * result.joint_velocities)
+            q_new=q_last + self.time_step * result.joint_velocities
+        discrete_state.set_value(q_new)
+
+        print("q_new: ",q_new)

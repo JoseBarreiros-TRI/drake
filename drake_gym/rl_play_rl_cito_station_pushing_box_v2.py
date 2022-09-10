@@ -49,18 +49,20 @@ if __name__ == '__main__':
                    debug=args.debug,
                    obs_noise=True,
                    add_disturbances=True,
-                   termination_type=["box_off_table","success","collision_w_table","velocity_limits"],
+                   termination_type=["box_off_table","success","collision_w_table"],
                    reward_type=["cost_goal"],
                    observation_type=["state","EE_box_target_xyz","distances"],
-                   reset_type=[],
+                   reset_type=["random_positions_limited"],
                    hardware=args.hardware,
                    task=args.task,
                    mock_hardware=args.mock_hardware,
+                   control_mode="EE_pose",
                    )
 
     if args.test and not args.hardware:
         #pdb.set_trace()
         check_env(env)
+        #pass
 
     env.simulator.set_target_realtime_rate(1.0)
     max_num_episodes = 1e5 if args.test else 1e3
@@ -76,7 +78,7 @@ if __name__ == '__main__':
             action = env.action_space.sample()
         else:
             action, _ = model.predict(obs, deterministic=True)
-
+        #pdb.set_trace()
         obs, reward, done, info = env.step(action)
 
         if args.debug:

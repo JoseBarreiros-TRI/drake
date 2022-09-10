@@ -15,8 +15,8 @@ if sys.platform == "darwin":
 import numpy as np
 
 from pydrake.examples import (
-    ManipulationStation, ManipulationStationHardwareInterface,
-    CreateClutterClearingYcbObjectList, SchunkCollisionModel)
+    RlCitoStation, RlCitoStationHardwareInterface,
+    CreateClutterClearingYcbObjectList)
 from pydrake.geometry import DrakeVisualizer, Meshcat, MeshcatVisualizer
 from pydrake.manipulation.planner import (
     DifferentialInverseKinematicsParameters)
@@ -28,9 +28,7 @@ from pydrake.systems.lcm import LcmPublisherSystem
 from pydrake.systems.primitives import FirstOrderLowPassFilter, VectorLogSink
 from pydrake.systems.sensors import ImageToLcmImageArrayT, PixelType
 
-from drake.examples.manipulation_station.differential_ik import DifferentialIK
-from drake.examples.manipulation_station.schunk_wsg_buttons import \
-    SchunkWsgButtons
+from drake.examples.rl_cito_station.differential_ik import DifferentialIK
 
 from drake import lcmt_image_array
 
@@ -51,38 +49,36 @@ class EndEffectorTeleop(LeafSystem):
     _Y = SliderDefault("Y", 0.0)
     _Z = SliderDefault("Z", 0.0)
 
-    def __init__(self, meshcat, planar=False):
+    def __init__(self, meshcat):
         """
         @param meshcat The already created pydrake.geometry.Meshcat instance.
-        @param planar if True, the GUI will not have Pitch, Yaw, or Y-axis
-                      sliders and default values will be returned.
+
         """
 
         LeafSystem.__init__(self)
         self.DeclareVectorOutputPort("rpy_xyz", 6, self.DoCalcOutput)
         self.meshcat = meshcat
-        self.planar = planar
 
         # Rotation control sliders.
         self.meshcat.AddSlider(
             name=self._ROLL.name, min=-2.0 * np.pi, max=2.0 * np.pi, step=0.01,
             value=self._ROLL.default)
-        if not self.planar:
-            self.meshcat.AddSlider(
-                name=self._PITCH.name, min=-2.0 * np.pi, max=2.0 * np.pi,
-                step=0.01, value=self._PITCH.default)
-            self.meshcat.AddSlider(
-                name=self._YAW.name, min=-2.0 * np.pi, max=2.0 * np.pi,
-                step=0.01, value=self._YAW.default)
+
+        self.meshcat.AddSlider(
+            name=self._PITCH.name, min=-2.0 * np.pi, max=2.0 * np.pi,
+            step=0.01, value=self._PITCH.default)
+        self.meshcat.AddSlider(
+            name=self._YAW.name, min=-2.0 * np.pi, max=2.0 * np.pi,
+            step=0.01, value=self._YAW.default)
 
         # Position control sliders.
         self.meshcat.AddSlider(
             name=self._X.name, min=-0.6, max=0.8, step=0.01,
             value=self._X.default)
-        if not self.planar:
-            self.meshcat.AddSlider(
-                name=self._Y.name, min=-0.8, max=0.3, step=0.01,
-                value=self._Y.default)
+
+        self.meshcat.AddSlider(
+            name=self._Y.name, min=-0.8, max=0.3, step=0.01,
+            value=self._Y.default)
         self.meshcat.AddSlider(
             name=self._Z.name, min=0.0, max=1.1, step=0.01,
             value=self._Z.default)
@@ -101,32 +97,27 @@ class EndEffectorTeleop(LeafSystem):
         @param rpy is a RollPitchYaw object
         """
         self.meshcat.SetSliderValue(self._ROLL.name, rpy.roll_angle())
-        if not self.planar:
-            self.meshcat.SetSliderValue(self._PITCH.name, rpy.pitch_angle())
-            self.meshcat.SetSliderValue(self._YAW.name, rpy.yaw_angle())
+
+        self.meshcat.SetSliderValue(self._PITCH.name, rpy.pitch_angle())
+        self.meshcat.SetSliderValue(self._YAW.name, rpy.yaw_angle())
 
     def SetXYZ(self, xyz):
         """
         @param xyz is a 3 element vector of x, y, z.
         """
         self.meshcat.SetSliderValue(self._X.name, xyz[0])
-        if not self.planar:
-            self.meshcat.SetSliderValue(self._Y.name, xyz[1])
+        self.meshcat.SetSliderValue(self._Y.name, xyz[1])
         self.meshcat.SetSliderValue(self._Z.name, xyz[2])
 
     def DoCalcOutput(self, context, output):
         roll = self.meshcat.GetSliderValue(self._ROLL.name)
-        if not self.planar:
-            pitch = self.meshcat.GetSliderValue(self._PITCH.name)
-            yaw = self.meshcat.GetSliderValue(self._YAW.name)
-        else:
-            pitch = self._PITCH.default
-            yaw = self._YAW.default
+
+        pitch = self.meshcat.GetSliderValue(self._PITCH.name)
+        yaw = self.meshcat.GetSliderValue(self._YAW.name)
+
         x = self.meshcat.GetSliderValue(self._X.name)
-        if not self.planar:
-            y = self.meshcat.GetSliderValue(self._Y.name)
-        else:
-            y = self._Y.default
+
+        y = self.meshcat.GetSliderValue(self._Y.name)
         z = self.meshcat.GetSliderValue(self._Z.name)
 
         output.SetAtIndex(0, roll)
@@ -148,7 +139,7 @@ def main():
         help="Desired duration of the simulation in seconds.")
     parser.add_argument(
         "--hardware", action='store_true',
-        help="Use the ManipulationStationHardwareInterface instead of an "
+        help="Use the RlCitoStationHardwareInterface instead of an "
              "in-process simulation.")
     parser.add_argument(
         "--test", action='store_true',
@@ -165,13 +156,9 @@ def main():
              "Note: The pre-defined velocity limits are specified by "
              "iiwa14_velocity_limits, found in this python file.")
     parser.add_argument(
-        '--setup', type=str, default='manipulation_class',
+        '--setup', type=str, default='cito_rl',
         help="The manipulation station setup to simulate. ",
-        choices=['manipulation_class', 'clutter_clearing', 'planar'])
-    parser.add_argument(
-        '--schunk_collision_model', type=str, default='box',
-        help="The Schunk collision model to use for simulation. ",
-        choices=['box', 'box_plus_fingertip_spheres'])
+        choices=['cito_rl'])
     parser.add_argument(
         "-w", "--open-window", dest="browser_new",
         action="store_const", const=1, default=None,
@@ -191,36 +178,16 @@ def main():
     meshcat = Meshcat()
 
     if args.hardware:
-        station = builder.AddSystem(ManipulationStationHardwareInterface())
-        station.Connect(wait_for_cameras=False)
+        station = builder.AddSystem(RlCitoStationHardwareInterface())
+        station.Connect()
     else:
-        station = builder.AddSystem(ManipulationStation())
-
-        if args.schunk_collision_model == "box":
-            schunk_model = SchunkCollisionModel.kBox
-        elif args.schunk_collision_model == "box_plus_fingertip_spheres":
-            schunk_model = SchunkCollisionModel.kBoxPlusFingertipSpheres
+        station = builder.AddSystem(RlCitoStation())
 
         # Initializes the chosen station type.
-        if args.setup == 'manipulation_class':
-            station.SetupManipulationClassStation(
-                schunk_model=schunk_model)
+        if args.setup == 'cito_rl':
+            station.SetupCitoRlStation()
             station.AddManipulandFromFile(
-                "drake/examples/manipulation_station/models/"
-                + "061_foam_brick.sdf",
-                RigidTransform(RotationMatrix.Identity(), [0.6, 0, 0]),
-                "brick")
-        elif args.setup == 'clutter_clearing':
-            station.SetupClutterClearingStation(
-                schunk_model=schunk_model)
-            ycb_objects = CreateClutterClearingYcbObjectList()
-            for model_file, X_WObject in ycb_objects:
-                station.AddManipulandFromFile(model_file, X_WObject)
-        elif args.setup == 'planar':
-            station.SetupPlanarIiwaStation(
-                schunk_model=schunk_model)
-            station.AddManipulandFromFile(
-                "drake/examples/manipulation_station/models/"
+                "drake/examples/rl_cito_station/models/"
                 + "061_foam_brick.sdf",
                 RigidTransform(RotationMatrix.Identity(), [0.6, 0, 0]),
                 "brick")
@@ -238,35 +205,11 @@ def main():
             query_object_port=geometry_query_port,
             meshcat=meshcat)
 
-        # Configure the planar visualization.
-        if args.setup == 'planar':
-            meshcat.Set2dRenderMode()
+
 
         # Connect and publish to drake visualizer.
         DrakeVisualizer.AddToBuilder(builder, geometry_query_port)
-        image_to_lcm_image_array = builder.AddSystem(
-            ImageToLcmImageArrayT())
-        image_to_lcm_image_array.set_name("converter")
-        for name in station.get_camera_names():
-            cam_port = (
-                image_to_lcm_image_array
-                .DeclareImageInputPort[PixelType.kRgba8U](
-                    "camera_" + name))
-            builder.Connect(
-                station.GetOutputPort("camera_" + name + "_rgb_image"),
-                cam_port)
 
-        image_array_lcm_publisher = builder.AddSystem(
-            LcmPublisherSystem.Make(
-                channel="DRAKE_RGBD_CAMERA_IMAGES",
-                lcm_type=lcmt_image_array,
-                lcm=None,
-                publish_period=0.1,
-                use_cpp_serializer=True))
-        image_array_lcm_publisher.set_name("rgbd_publisher")
-        builder.Connect(
-            image_to_lcm_image_array.image_array_t_msg_output_port(),
-            image_array_lcm_publisher.get_input_port(0))
 
     if args.browser_new is not None:
         url = meshcat.web_url()
@@ -281,11 +224,7 @@ def main():
     # True velocity limits for the IIWA14 (in rad, rounded down to the first
     # decimal)
     iiwa14_velocity_limits = np.array([1.4, 1.4, 1.7, 1.3, 2.2, 2.3, 2.3])
-    if args.setup == 'planar':
-        # Extract the 3 joints that are not welded in the planar version.
-        iiwa14_velocity_limits = iiwa14_velocity_limits[1:6:2]
-        # The below constant is in body frame.
-        params.set_end_effector_velocity_gain([1, 0, 0, 0, 1, 1])
+
     # Stay within a small fraction of those limits for this teleop demo.
     factor = args.velocity_limit_factor
     params.set_joint_velocity_limits((-factor*iiwa14_velocity_limits,
@@ -297,19 +236,13 @@ def main():
                     station.GetInputPort("iiwa_position"))
 
     teleop = builder.AddSystem(EndEffectorTeleop(
-        meshcat, args.setup == 'planar'))
+        meshcat))
     filter = builder.AddSystem(
         FirstOrderLowPassFilter(time_constant=args.filter_time_const, size=6))
 
     builder.Connect(teleop.get_output_port(0), filter.get_input_port(0))
     builder.Connect(filter.get_output_port(0),
                     differential_ik.GetInputPort("rpy_xyz_desired"))
-
-    wsg_buttons = builder.AddSystem(SchunkWsgButtons(meshcat=meshcat))
-    builder.Connect(wsg_buttons.GetOutputPort("position"),
-                    station.GetInputPort("wsg_position"))
-    builder.Connect(wsg_buttons.GetOutputPort("force_limit"),
-                    station.GetInputPort("wsg_force_limit"))
 
     # When in regression test mode, log our joint velocities to later check
     # that they were sufficiently quiet.

@@ -260,6 +260,7 @@ drake_py_binary(
     deps = [
       "drake_gym_py",
       "//bindings/pydrake",
+      "//examples/rl_cito_station:differential_ik",
 
     ],
 )
@@ -310,6 +311,7 @@ drake_py_binary(
     deps = [
       "drake_gym_py",
       "//bindings/pydrake",
+      "//examples/rl_cito_station:differential_ik",
 
     ],
 )

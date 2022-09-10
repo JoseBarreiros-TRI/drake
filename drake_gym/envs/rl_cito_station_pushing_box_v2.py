@@ -1,3 +1,4 @@
+from functools import partial
 from ast import excepthandler
 from re import S
 import gym
@@ -44,7 +45,13 @@ from pydrake.all import (
     ColorRenderCamera,
     DepthRange,
     DepthRenderCamera,
+    CoulombFriction,
+    RoleAssign,
 )
+
+from pydrake.systems.primitives import FirstOrderLowPassFilter
+from pydrake.manipulation.planner import (
+    DifferentialInverseKinematicsParameters)
 
 from pydrake.systems.drawing import plot_graphviz, plot_system_graphviz
 from drake_gym import DrakeGymEnv
@@ -56,6 +63,7 @@ import pydrake.geometry as mut
 from pydrake.examples import (
     RlCitoStation,
     RlCitoStationHardwareInterface)
+from drake.examples.rl_cito_station.differential_ik import DifferentialIK
 
 ## Gym parameters
 sim_time_step=0.005
@@ -115,9 +123,12 @@ def make_sim(generator,
              add_disturbances=False,
              observation_type=["state"],
              reward_type=["sparse"],
-             termination_type=[]):
+             termination_type=[],
+             control_mode=["joint_positions"]):
 
     assert(task=="reach" or task=="push"),f'_{task}_ task not implemented. valid options are push, reach'
+    assert(control_mode=="joint_position" or control_mode=="EE_pose"),f'_{control_mode}_ control mode not implemented. valid options are joint_positions, EE_pose'
+
     builder = DiagramBuilder()
 
     if hardware:
@@ -142,7 +153,6 @@ def make_sim(generator,
         plant=station.get_multibody_plant()
         scene_graph=station.get_scene_graph()
 
-        #if task=="push":
         AddTargetVisual(plant)
         station.Finalize()
 
@@ -216,12 +226,40 @@ def make_sim(generator,
         #pdb.set_trace()
 
     if hardware:
-        action_passthrough=builder.AddSystem(PassThrough(Na))
-        builder.Connect(action_passthrough.get_output_port(),station.GetInputPort("iiwa_position"))
-        builder.ExportInput(action_passthrough.get_input_port(),"actions")
+        if control_mode=="joint_positions":
+            action_passthrough=builder.AddSystem(PassThrough(Na))
+            builder.Connect(action_passthrough.get_output_port(),station.GetInputPort("iiwa_position"))
+            builder.ExportInput(action_passthrough.get_input_port(),"actions")
+        elif control_mode=="EE_pose":
+            # TODO
+            pass
     else:
-        builder.ExportInput(station.GetInputPort("iiwa_position"),"actions")
+        if control_mode=="joint_positions":
+            builder.ExportInput(station.GetInputPort("iiwa_position"),"actions")
+        elif control_mode=="EE_pose":
+            params = DifferentialInverseKinematicsParameters(controller_plant.num_positions(),
+                                                            controller_plant.num_velocities())
+            time_step = 0.005
+            params.set_timestep(time_step)
+            # True velocity limits for the IIWA14 (in rad, rounded down to the first
+            # decimal)
+            iiwa14_velocity_limits = np.array([1.4, 1.4, 1.7, 1.3, 2.2, 2.3, 2.3])
+            # Stay within a small fraction of those limits for this teleop demo.
+            factor = 1.0
+            params.set_joint_velocity_limits((-factor*iiwa14_velocity_limits,
+                                            factor*iiwa14_velocity_limits))
+            differential_ik = builder.AddSystem(DifferentialIK(
+                controller_plant, controller_plant.GetFrameByName("iiwa_link_7"), params, time_step))
 
+            builder.Connect(differential_ik.GetOutputPort("joint_position_desired"),
+                            station.GetInputPort("iiwa_position"))
+            # filter = builder.AddSystem(
+            #     FirstOrderLowPassFilter(time_constant=0.1, size=6))
+            # builder.Connect(filter.get_output_port(0),
+            #         differential_ik.GetInputPort("rpy_xyz_desired"))
+            # builder.ExportInput(filter.get_input_port(0),"actions")
+            builder.ExportInput(differential_ik.get_input_port(0),"actions")
+            differential_ik.set_name("diffIK")
 
     class observation_publisher(LeafSystem):
 
@@ -406,14 +444,14 @@ def make_sim(generator,
             if task=="reach":
                 # Distance EE to box.
                 Z_BOX_OFFSET=0.15
-                distance_to_goal=EE_xyz-(box_xyz+np.array([0,0,Z_BOX_OFFSET]))
+                vector_to_goal=EE_xyz-(box_xyz+np.array([0,0,Z_BOX_OFFSET]))
             elif task=="push":
                 # Distance box to target.
-                distance_to_goal=box_xyz-target_xyz
+                vector_to_goal=box_xyz-target_xyz
             else:
                 raise ValueError(f"Task {task} not supported.")
 
-            if np.linalg.norm(distance_to_goal)<0.05:
+            if np.linalg.norm(vector_to_goal)<0.05:
                 bonus_success=1
             else:
                 bonus_success=0
@@ -426,20 +464,20 @@ def make_sim(generator,
 
             reward=0
             if "cost_goal" in self.reward_type:
-                cost_goal=distance_to_goal.dot(distance_to_goal)
+                cost_goal=vector_to_goal.dot(vector_to_goal)
                 reward-= 10*cost_goal
             if "cost_goal_normalized" in self.reward_type:
-                MAX_DISTANCE=3
+                MAX_DISTANCE=1.5
                 ALPHA=2
                 cost_goal_n=np.power(
-                                np.linalg.norm(distance_to_goal)/MAX_DISTANCE,
+                                np.linalg.norm(vector_to_goal)/MAX_DISTANCE,
                                 ALPHA)
                 reward-= 10*cost_goal_n
             if "cost_paper" in self.reward_type:
                 MAX_DISTANCE=1.5
-                ALPHA=1
+                ALPHA=3
                 cost_goal_n=np.power(
-                                np.linalg.norm(distance_to_goal)/MAX_DISTANCE,
+                                np.linalg.norm(vector_to_goal)/MAX_DISTANCE,
                                 ALPHA)
                 reward+= 1.0*(1-cost_goal_n)*(1-(context.get_time()/time_limit))
                 #pdb.set_trace()
@@ -629,6 +667,178 @@ def make_sim(generator,
 
     return simulator
 
+
+def set_home(simulator, diagram_context, set_type=["home"]):
+
+    home_positions = []
+    home_velocities = []
+    home_body_mass_offset = []
+    home_u_friction = []
+    home_free_body_pose= []
+
+    if "home" in set_type:
+        home_positions = [
+            ('iiwa_joint_1',0.0),
+            ('iiwa_joint_2',0.0),
+            ('iiwa_joint_3',0.0),
+            ('iiwa_joint_4',0.0),
+            ('iiwa_joint_5',0.0),
+            ('iiwa_joint_6',0.0),
+            ('iiwa_joint_7',0.0),
+        ]
+        home_free_body_pose= [
+            #rpyxyz
+            ('box','base_link',[0,0,0,1,0,0.03])
+        ]
+    elif "random_positions" in set_type:
+        # Randomize the initial position of the joints.
+        home_positions = [
+            ('iiwa_joint_1', np.random.uniform(low=-1.0, high=1.0)),
+            ('iiwa_joint_2', np.random.uniform(low=-0.8, high=0.8)),
+            ('iiwa_joint_3', np.random.uniform(low=-1.0, high=1.0)),
+            ('iiwa_joint_4', np.random.uniform(low=-1.5, high=1.0)),
+            ('iiwa_joint_5', np.random.uniform(low=-1.5, high=1.5)),
+            ('iiwa_joint_6', np.random.uniform(low=-1.5, high=1.5)),
+            ('iiwa_joint_7', np.random.uniform(low=-2.0, high=2.0)),
+        ]
+        home_free_body_pose= [
+            #rpyxyz
+            ('box',
+            'base_link',
+            [0,
+            0,
+            np.random.uniform(low=0, high=2*np.pi),
+            np.random.uniform(low=0.3, high=1.0),
+            np.random.uniform(low=-0.5, high=0.5),
+            0.03])
+            ]
+    elif "random_positions_limited" in set_type:
+        # Randomize the initial position of the joints.
+        home_positions = [
+            ('iiwa_joint_1', np.random.uniform(low=-1.0, high=1.0)),
+            ('iiwa_joint_2', np.random.uniform(low=0.0, high=0.8)),
+            ('iiwa_joint_3', np.random.uniform(low=-0.2, high=0.2)),
+            ('iiwa_joint_4', np.random.uniform(low=-1.5, high=0.0)),
+            ('iiwa_joint_5', np.random.uniform(low=-1.0, high=1.0)),
+            ('iiwa_joint_6', np.random.uniform(low=-1.0, high=1.0)),
+            ('iiwa_joint_7', np.random.uniform(low=-2.0, high=2.0)),
+        ]
+        home_free_body_pose= [
+            #rpyxyz
+            ('box',
+            'base_link',
+            [0,
+            0,
+            np.random.uniform(low=0, high=2*np.pi),
+            np.random.uniform(low=0.3, high=1.0),
+            np.random.uniform(low=-0.5, high=0.5),
+            0.03])
+            ]
+
+    if "random_target_position" in set_type:
+        # Randomize the initial position of the joints.
+        home_positions = [
+            ('Cross_Slider_x', np.random.uniform(low=1.1, high=1.5)),
+            ('Cross_Slider_y', np.random.uniform(low=-0.6, high=0.6)),
+        ]
+
+    if "random_mass" in set_type:
+        # Randomize the mass of a body by adding a mass offset.
+        # (instance_name, body_name, value)
+        home_body_mass_offset = [
+            ('box', 'base_link',
+                np.random.uniform(low=-0.05, high=0.05))
+        ]
+
+    if "random_friction" in set_type:
+        # Randomize the mass the friction of a body.
+        # (instance_name, body_name, value)
+        home_u_friction = [
+            ('table', 'table', np.random.uniform(low=0.1, high=1.0))
+        ]
+
+    diagram = simulator.get_system()
+    station = diagram.GetSubsystemByName("rl_cito_station")
+
+    # init diffIK
+    differential_ik = diagram.GetSubsystemByName("diffIK")
+    station_context=diagram.GetMutableSubsystemContext(station,diagram_context)
+    q0 = station.GetOutputPort("iiwa_position_measured").Eval(
+        station_context)
+    differential_ik.parameters.set_nominal_joint_position(q0)
+    diff_ik_context=diagram.GetMutableSubsystemContext(differential_ik, diagram_context)
+    differential_ik.SetPositions(diff_ik_context, q0)
+
+    # set random states
+    plant = station.get_multibody_plant()
+    plant_context = diagram.GetMutableSubsystemContext(plant,
+                                                       diagram_context)
+    #pdb.set_trace()
+    scene_graph = station.get_scene_graph()#diagram.GetSubsystemByName("scene_graph")
+    scene_graph_context = diagram.GetMutableSubsystemContext(
+        scene_graph, diagram_context)
+
+    for pair in home_positions:
+        joint = plant.GetJointByName(pair[0])
+        if joint.type_name()=="revolute":
+            joint.set_angle(plant_context,
+                        np.clip(pair[1],
+                            joint.position_lower_limit(),
+                            joint.position_upper_limit()
+                            )
+                        )
+        if joint.type_name()=="prismatic":
+            joint.set_translation(plant_context,
+                        np.clip(pair[1],
+                            joint.position_lower_limit(),
+                            joint.position_upper_limit()
+                            )
+                        )
+    for pair in home_velocities:
+        joint = plant.GetJointByName(pair[0])
+        if joint.type_name() == "revolute":
+            joint.set_angular_rate(plant_context,
+                                       np.clip(pair[1],
+                                               joint.velocity_lower_limit(),
+                                               joint.velocity_upper_limit()
+                                               )
+                                       )
+
+    for pair in home_body_mass_offset:
+        instance = plant.GetModelInstanceByName(pair[0])
+        body = plant.GetBodyByName(name=pair[1], model_instance=instance)
+        mass = body.get_mass(plant.CreateDefaultContext())
+        body.SetMass(plant_context, mass+pair[2])
+
+    for pair in home_u_friction:
+        instance = plant.GetModelInstanceByName(pair[0])
+        body = plant.GetBodyByName(name=pair[1], model_instance=instance)
+        geom_id = plant.GetCollisionGeometriesForBody(body)[0]
+        props = scene_graph.model_inspector().GetProximityProperties(
+            geom_id)
+        props.UpdateProperty("material",
+                             "coulomb_friction",
+                             CoulombFriction(pair[2], pair[2]))
+
+        scene_graph.AssignRole(context=scene_graph_context,
+                               source_id=plant.get_source_id(),
+                               geometry_id=geom_id,
+                               properties=props,
+                               assign=RoleAssign.kReplace
+                               )
+
+    for pair in home_free_body_pose:
+        instance = plant.GetModelInstanceByName(pair[0])
+        body = plant.GetBodyByName(name=pair[1],model_instance=instance)
+        rpy=pair[2][:3]
+        xyz=pair[2][3:]
+        body_pose = RigidTransform(
+                RollPitchYaw(rpy[0],rpy[1],rpy[2]),
+                np.array(xyz)
+                )
+        plant.SetFreeBodyPose(plant_context,body,body_pose)
+
+
 def RlCitoStationBoxPushingEnv(meshcat=None,
                         time_limit=gym_time_limit,
                         debug=False,
@@ -641,7 +851,8 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
                         observation_type=["state"],
                         reward_type=["sparse"],
                         termination_type=["box_off_table","collision_w_table"],
-                        reset_type=["home"]):
+                        reset_type=["home"],
+                        control_mode=["joint_positions"]):
 
     #Make simulation
     simulator = make_sim(RandomGenerator(),
@@ -656,19 +867,32 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
                          add_disturbances=add_disturbances,
                          observation_type=observation_type,
                          reward_type=reward_type,
-                         termination_type=termination_type)
+                         termination_type=termination_type,
+                         control_mode=control_mode)
     #pdb.set_trace()
     if hardware:
         station = simulator.get_system().GetSubsystemByName("rl_cito_station_hardware_interface")
     else:
         station = simulator.get_system().GetSubsystemByName("rl_cito_station")
-    plant=station.get_controller_plant()
 
+
+
+
+    plant=station.get_controller_plant()
     #Define Action space
     Na=plant.num_actuators()
-    low = plant.GetPositionLowerLimits()
-    high = plant.GetPositionUpperLimits()
-    action_space = gym.spaces.Box(low=np.asarray(low, dtype="float64"), high=np.asarray(high, dtype="float64"),dtype=np.float64)
+    if control_mode=="joint_positions":
+        low_a = plant.GetPositionLowerLimits()
+        high_a = plant.GetPositionUpperLimits()
+    elif control_mode=="EE_pose":
+        #rpyxyz
+        low_a=np.array([-2*np.pi,-2*np.pi,-2*np.pi,-0.6,-0.8,0])
+        high_a=np.array([2*np.pi,2*np.pi,2*np.pi,0.8,0.3,1.1])
+
+    action_space = gym.spaces.Box(
+        low=np.asarray(low_a, dtype="float64"),
+        high=np.asarray(high_a, dtype="float64"),
+        dtype=np.float64)
 
     #Define observation space
     low=np.array([])
@@ -686,11 +910,14 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
             plant.GetVelocityUpperLimits()+VELOCITY_LIMIT_TOLERANCE))))
 
     if "actions" in observation_type:
-        low = np.concatenate((low,
-                    plant.GetPositionLowerLimits()-POSITION_LIMIT_TOLERANCE))
-        high = np.concatenate((high,
-                    plant.GetPositionUpperLimits()+POSITION_LIMIT_TOLERANCE))
-
+        if control_mode=="joint_positions":
+            low = np.concatenate((low,
+                        plant.GetPositionLowerLimits()-POSITION_LIMIT_TOLERANCE))
+            high = np.concatenate((high,
+                        plant.GetPositionUpperLimits()+POSITION_LIMIT_TOLERANCE))
+        else:
+            #TODO
+            pass
     if "distances" in observation_type:
         low = np.concatenate((low,np.array([-10]*3)))
         high = np.concatenate((high,np.array([10]*3)))
@@ -716,6 +943,9 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
                                        high=np.asarray(high, dtype="float64"),
                                        dtype=np.float64)
 
+    # parse the reset type to set_home()
+    reset_handler = partial(set_home, set_type=reset_type)
+
     env = DrakeGymEnv(simulator=simulator,
                       time_step=gym_time_step,
                       action_space=action_space,
@@ -723,7 +953,9 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
                       reward="reward",
                       action_port_id="actions",
                       observation_port_id="observations",
-                      set_home=None,
+                      set_home=reset_handler,
                       hardware=hardware,
                       render_rgb_port_id="color_image" if monitoring_camera else None)
+
+
     return env
