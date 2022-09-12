@@ -37,7 +37,7 @@ gym.envs.register(id="RlCitoStationBoxPushing-v2",
 config = {
     "task": "reach",
     "policy_type": "MlpPolicy",
-    "total_timesteps": 1e8,
+    "total_timesteps": 5e8,
     "env_name": "RlCitoStationBoxPushing-v2",
     "num_workers": 80,
     "env_time_limit": 7,
@@ -46,7 +46,8 @@ config = {
         "/rl/tmp/RlCitoStationBoxPushing_v2/",
     "model_save_freq": 1e3 if not args.train_single_env else 1e3,
     "policy_kwargs": dict(activation_fn=th.nn.ReLU,
-                    net_arch=[0, dict(pi=[128, 128,128], vf=[128,128,128])]),
+                    net_arch=[dict(pi=[128, 128,128], vf=[128,128,128])]),
+                    #net_arch=[128,dict(pi=[128, 128], vf=[128,128])]),
     "observation_noise": True,
     "disturbances": True,
     "control_mode": "EE_pose",
@@ -164,11 +165,12 @@ if __name__ == '__main__':
         model = PPO(policy_type, env, n_steps=4, n_epochs=2,
                     batch_size=8, policy_kwargs=policy_kwargs)
     else:
-        model = PPO(policy_type, env, n_steps=int(2048*2/num_env),
+        n_steps=int(2048*2/num_env)
+        model = PPO(policy_type, env, n_steps=n_steps,
                     n_epochs=10,
                     # In SB3, this is the mini-batch size.
                     # https://github.com/DLR-RM/stable-baselines3/blob/master/docs/modules/ppo.rst
-                    batch_size=80,#*num_env,
+                    batch_size=80*2,#*num_env, n_steps * n_envs
                     verbose=1, tensorboard_log=log_dir +
                     f"runs/{run.id}", policy_kwargs=policy_kwargs)
 

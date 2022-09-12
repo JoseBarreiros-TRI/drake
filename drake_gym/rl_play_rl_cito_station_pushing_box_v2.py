@@ -51,12 +51,12 @@ if __name__ == '__main__':
                    add_disturbances=True,
                    termination_type=["box_off_table","success","collision_w_table"],
                    reward_type=["cost_goal"],
-                   observation_type=["state","EE_box_target_xyz","distances"],
+                   observation_type=["state","EE_box_target_xyz","distances","actions"],
                    reset_type=["random_positions_limited"],
                    hardware=args.hardware,
                    task=args.task,
                    mock_hardware=args.mock_hardware,
-                   control_mode="EE_delta_pose",
+                   control_mode="EE_pose",
                    )
 
     if args.test and not args.hardware:

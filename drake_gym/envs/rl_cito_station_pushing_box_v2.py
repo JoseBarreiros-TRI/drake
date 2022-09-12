@@ -808,6 +808,12 @@ def set_home(simulator, diagram_context, set_type=["home"]):
             ('iiwa_joint_6', np.random.uniform(low=.0, high=0.1)),
             ('iiwa_joint_7', np.random.uniform(low=-.1, high=.1)),
         ]
+
+        #sample a point inside the circular workspace of iiwa
+        r = 0.8 * np.sqrt(np.random.random())
+        theta = np.random.uniform(low=-np.pi/2, high=np.pi/2)
+        x = r * np.cos(theta)
+        y = r * np.sin(theta)
         home_free_body_pose= [
             #rpyxyz
             ('box',
@@ -815,8 +821,8 @@ def set_home(simulator, diagram_context, set_type=["home"]):
             [0,
             0,
             np.random.uniform(low=0, high=2*np.pi),
-            np.random.uniform(low=0.3, high=1.0),
-            np.random.uniform(low=-0.5, high=0.5),
+            x, #np.random.uniform(low=0.3, high=1.0),
+            y, #np.random.uniform(low=-0.5, high=0.5),
             0.03])
             ]
 
@@ -984,13 +990,13 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
         high_a = plant.GetPositionUpperLimits()
     elif control_mode=="EE_pose":
         #rpyxyz
-        low_a=np.array([-2*np.pi,-2*np.pi,-2*np.pi,0.2,-0.7,0])
-        high_a=np.array([2*np.pi,2*np.pi,2*np.pi,0.8,0.7,0.6])
+        low_a=np.array([np.pi-0.005,-0.05,-0.05,0.2,-0.7,0.05]) #0.05 rpy -np.pi 0.2 -0.01
+        high_a=np.array([np.pi+0.005,0.05,0.05,0.8,0.7,0.6])
     elif control_mode=="EE_delta_pose":
         #rpyxyz
         factor_a=6
-        low_a=factor_a*np.array([-0.1,-0.1,-0.1,-0.025,-0.025,-0.025])
-        high_a=factor_a*np.array([0.1,0.1,0.1,0.025,0.025,0.025])
+        low_a=factor_a*np.array([-1e-9,-1e-9,-1e-9,-0.025,-0.025,-0.025])
+        high_a=factor_a*np.array([1e-9,1e-9,1e-9,0.025,0.025,0.025])
 
     action_space = gym.spaces.Box(
         low=np.asarray(low_a, dtype="float64"),

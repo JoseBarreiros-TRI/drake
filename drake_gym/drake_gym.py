@@ -208,7 +208,6 @@ class DrakeGymEnv(gym.Env):
 
         context = self.simulator.get_context()
         time = context.get_time()
-
         self.action_port.FixValue(context, action)
         catch = False
         try:
