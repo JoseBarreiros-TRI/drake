@@ -20,7 +20,7 @@ import torch as th
 import wandb
 from wandb.integration.sb3 import WandbCallback
 
-from stable_baselines3 import HerReplayBuffer, DDPG, DQN, SAC, TD3
+from stable_baselines3 import DDPG,  SAC, TD3
 
 parser = argparse.ArgumentParser(
     description=' ')
