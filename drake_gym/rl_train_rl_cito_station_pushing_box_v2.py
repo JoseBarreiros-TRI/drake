@@ -20,6 +20,7 @@ import torch as th
 import wandb
 from wandb.integration.sb3 import WandbCallback
 
+from stable_baselines3 import HerReplayBuffer, DDPG, DQN, SAC, TD3
 
 parser = argparse.ArgumentParser(
     description=' ')
@@ -27,12 +28,21 @@ parser.add_argument('--test', action='store_true')
 parser.add_argument('--train_single_env', action='store_true')
 parser.add_argument('--debug', action='store_true')
 parser.add_argument('--log_path', help="path to the logs directory.")
+parser.add_argument('--algo', help="training algorithm.  Valid options are [PPO, DDPG, SAC, TD3]")
 parser.add_argument('--notes', help="log extra notes to wandb.")
 args = parser.parse_args()
 
 gym.envs.register(id="RlCitoStationBoxPushing-v2",
                   entry_point="envs.rl_cito_station_pushing_box_v2:RlCitoStationBoxPushingEnv")
 
+
+
+if args.algo=="PPO":
+    network_architecture= dict(activation_fn=th.nn.ReLU,
+                    net_arch=[dict(pi=[128, 128,128], vf=[128,128,128])])
+else:
+    network_architecture= dict(activation_fn=th.nn.ReLU,
+                    net_arch=dict(pi=[128, 128,128], qf=[128,128,128]))
 
 config = {
     "task": "reach",
@@ -45,9 +55,7 @@ config = {
         args.log_path if args.log_path is not None else os.environ['HOME']+
         "/rl/tmp/RlCitoStationBoxPushing_v2/",
     "model_save_freq": 1e3 if not args.train_single_env else 1e3,
-    "policy_kwargs": dict(activation_fn=th.nn.ReLU,
-                    net_arch=[dict(pi=[128, 128,128], vf=[128,128,128])]),
-                    #net_arch=[128,dict(pi=[128, 128], vf=[128,128])]),
+    "policy_kwargs": network_architecture,
     "observation_noise": True,
     "disturbances": True,
     "control_mode": "EE_pose",
@@ -92,15 +100,15 @@ if __name__ == '__main__':
     env_name = config["env_name"]
     if args.test:
         num_env = 2
-    elif args.train_single_env:
+    elif args.train_single_env or args.algo=="DDPG" or args.algo=="TD3":
         num_env = 1
     else:
         num_env = config["num_workers"]
     time_limit = config["env_time_limit"] if not args.test else 0.5
     log_dir = config["local_log_dir"]
     policy_type = config["policy_type"]
-    total_timesteps = config["total_timesteps"] if not args.test else 5
-    policy_kwargs = config["policy_kwargs"] if not args.test else None
+    total_timesteps = config["total_timesteps"] if not args.test else 100
+    policy_kwargs = config["policy_kwargs"]
     eval_freq = config["model_save_freq"]
     obs_noise = config["observation_noise"]
     add_disturbances = config["disturbances"]
@@ -124,23 +132,7 @@ if __name__ == '__main__':
             save_code=True,
         )
 
-    if not args.train_single_env:
-        env = make_vec_env(env_name,
-                           n_envs=num_env,
-                           seed=0,
-                           vec_env_cls=SubprocVecEnv,
-                           env_kwargs={
-                               'time_limit': time_limit,
-                               'task': task,
-                               'obs_noise': obs_noise,
-                               'add_disturbances': add_disturbances,
-                               'observation_type': obs_type,
-                               'reward_type': rew_type,
-                               'reset_type': reset_type,
-                               'termination_type': termination_type,
-                               "control_mode":control_mode,
-                        })
-    else:
+    if args.train_single_env:
         meshcat = StartMeshcat()
         env = gym.make(env_name,
                        meshcat=meshcat,
@@ -160,19 +152,68 @@ if __name__ == '__main__':
         if args.debug:
             env.simulator.set_target_realtime_rate(1.0)
         input("Open meshcat (optional). Press Enter to continue...")
+    else:
+        env = make_vec_env(env_name,
+                           n_envs=num_env,
+                           seed=0,
+                           vec_env_cls=SubprocVecEnv,
+                           env_kwargs={
+                               'time_limit': time_limit,
+                               'task': task,
+                               'obs_noise': obs_noise,
+                               'add_disturbances': add_disturbances,
+                               'observation_type': obs_type,
+                               'reward_type': rew_type,
+                               'reset_type': reset_type,
+                               'termination_type': termination_type,
+                               "control_mode":control_mode,
+                        })
+
+    # Create model
+    if args.algo=="PPO":
+        model_class=PPO
+    else:
+        if args.algo=="DDPG":
+            model_class=DDPG
+        elif args.algo=="TD3":
+            model_class=TD3
+        elif args.algo=="SAC":
+            model_class=SAC
+
+        # Available strategies (cf paper): future, final, episode
+        goal_selection_strategy = 'future' # equivalent to GoalSelectionStrategy.FUTURE
+        # If True the HER transitions will get sampled online
+        online_sampling = True
 
     if args.test:
-        model = PPO(policy_type, env, n_steps=4, n_epochs=2,
-                    batch_size=8, policy_kwargs=policy_kwargs)
+        if args.algo=="PPO":
+            model = model_class(policy_type, env, n_steps=4, n_epochs=2,
+                        batch_size=8, policy_kwargs=policy_kwargs)
+        else:
+            model = model_class(
+                policy_type,
+                env,
+                policy_kwargs= policy_kwargs,
+            )
+
     else:
-        n_steps=int(2048*2/num_env)
-        model = PPO(policy_type, env, n_steps=n_steps,
-                    n_epochs=10,
-                    # In SB3, this is the mini-batch size.
-                    # https://github.com/DLR-RM/stable-baselines3/blob/master/docs/modules/ppo.rst
-                    batch_size=80*2,#*num_env, n_steps * n_envs
-                    verbose=1, tensorboard_log=log_dir +
-                    f"runs/{run.id}", policy_kwargs=policy_kwargs)
+        if args.algo=="PPO":
+            n_steps=int(2048*2/num_env)
+            model = model_class(policy_type,
+                                env,
+                                n_steps=n_steps,
+                                n_epochs=10,
+                                # In SB3, this is the mini-batch size.
+                                # https://github.com/DLR-RM/stable-baselines3/blob/master/docs/modules/ppo.rst
+                                batch_size=80*2,#*num_env, n_steps * n_envs
+                                verbose=1, tensorboard_log=log_dir +
+                                f"runs/{run.id}", policy_kwargs=policy_kwargs)
+        else:
+            model = model_class(policy_type,
+                                env,
+                                verbose=1,
+                                tensorboard_log=log_dir +f"runs/{run.id}",
+                                policy_kwargs=policy_kwargs)
 
     # Separate evaluation env.
     #eval_meshcat = StartMeshcat()
@@ -225,6 +266,7 @@ if __name__ == '__main__':
             verbose=2,
             model_save_freq=config["model_save_freq"],
             ),
-        eval_callback]
+        eval_callback,
+        ]
     )
     run.finish()

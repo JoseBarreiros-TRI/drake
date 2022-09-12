@@ -730,6 +730,20 @@ def make_sim(generator,
 
     return simulator
 
+def sample_target_xy():
+        #sample a point inside the overlaping region of
+        # the circular workspace of iiwa and the table.
+        success_sampling=False
+        x_min=0.3 #table starts at x_min
+        kuka_radial_reach=0.7
+        while success_sampling!=True:
+            r = kuka_radial_reach * np.sqrt(np.random.uniform(low=x_min/kuka_radial_reach, high=1))
+            theta = np.random.uniform(low=-np.pi/2, high=np.pi/2)
+            x = r * np.cos(theta)
+            y = r * np.sin(theta)
+            if x>=x_min:
+                success_sampling=True
+        return x,y
 
 def set_home(simulator, diagram_context, set_type=["home"]):
 
@@ -764,6 +778,11 @@ def set_home(simulator, diagram_context, set_type=["home"]):
             ('iiwa_joint_6', np.random.uniform(low=-1.5, high=1.5)),
             ('iiwa_joint_7', np.random.uniform(low=-2.0, high=2.0)),
         ]
+
+        #sample a point inside the overlaping region of
+        # the circular workspace of iiwa and the table.
+        x,y=sample_target_xy()
+
         home_free_body_pose= [
             #rpyxyz
             ('box',
@@ -771,8 +790,8 @@ def set_home(simulator, diagram_context, set_type=["home"]):
             [0,
             0,
             np.random.uniform(low=0, high=2*np.pi),
-            np.random.uniform(low=0.3, high=1.0),
-            np.random.uniform(low=-0.5, high=0.5),
+            x,
+            y,
             0.03])
             ]
     elif "random_positions_limited" in set_type:
@@ -786,6 +805,11 @@ def set_home(simulator, diagram_context, set_type=["home"]):
             ('iiwa_joint_6', np.random.uniform(low=-1.0, high=1.0)),
             ('iiwa_joint_7', np.random.uniform(low=-2.0, high=2.0)),
         ]
+
+        #sample a point inside the overlaping region of
+        # the circular workspace of iiwa and the table.
+        x,y=sample_target_xy()
+
         home_free_body_pose= [
             #rpyxyz
             ('box',
@@ -793,8 +817,8 @@ def set_home(simulator, diagram_context, set_type=["home"]):
             [0,
             0,
             np.random.uniform(low=0, high=2*np.pi),
-            np.random.uniform(low=0.3, high=1.0),
-            np.random.uniform(low=-0.5, high=0.5),
+            x,
+            y,
             0.03])
             ]
     elif "random_positions_diffik" in set_type:
@@ -809,11 +833,10 @@ def set_home(simulator, diagram_context, set_type=["home"]):
             ('iiwa_joint_7', np.random.uniform(low=-.1, high=.1)),
         ]
 
-        #sample a point inside the circular workspace of iiwa
-        r = 0.8 * np.sqrt(np.random.random())
-        theta = np.random.uniform(low=-np.pi/2, high=np.pi/2)
-        x = r * np.cos(theta)
-        y = r * np.sin(theta)
+        #sample a point inside the overlaping region of
+        # the circular workspace of iiwa and the table.
+        x,y=sample_target_xy()
+
         home_free_body_pose= [
             #rpyxyz
             ('box',
@@ -999,9 +1022,9 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
         high_a=factor_a*np.array([1e-9,1e-9,1e-9,0.025,0.025,0.025])
 
     action_space = gym.spaces.Box(
-        low=np.asarray(low_a, dtype="float64"),
-        high=np.asarray(high_a, dtype="float64"),
-        dtype=np.float64)
+        low=np.asarray(low_a),
+        high=np.asarray(high_a),
+        dtype=np.float32)
 
     #Define observation space
     low=np.array([])
@@ -1059,8 +1082,8 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
         high = np.tile(high, 20)
 
     #pdb.set_trace()
-    observation_space = gym.spaces.Box(low=np.asarray(low, dtype="float64"),
-                                       high=np.asarray(high, dtype="float64"),
+    observation_space = gym.spaces.Box(low=np.asarray(low),
+                                       high=np.asarray(high),
                                        dtype=np.float64)
 
     # parse the reset type to set_home()
