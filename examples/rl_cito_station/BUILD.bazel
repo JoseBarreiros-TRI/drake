@@ -131,6 +131,25 @@ drake_cc_binary(
     ],
 )
 
+drake_py_library(
+    name = "trajectory_planner",
+    srcs = ["trajectory_planner.py"],
+    visibility = ["//visibility:private"],
+    deps = [
+        "//bindings/pydrake",
+        "//bindings/pydrake/solvers",
+    ],
+)
+
+drake_py_binary(
+    name = "trajectory_execution",
+    srcs = ["trajectory_execution.py"],
+    deps = [
+        ":differential_ik",
+        ":trajectory_planner",
+        "//bindings/pydrake",
+    ],
+)
 # Tests
 
 drake_cc_googletest(

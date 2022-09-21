@@ -1100,5 +1100,5 @@ def RlCitoStationBoxPushingEnv(meshcat=None,
                       hardware=hardware,
                       render_rgb_port_id="color_image" if monitoring_camera else None)
 
-
+    env.gym_time_step=gym_time_step
     return env

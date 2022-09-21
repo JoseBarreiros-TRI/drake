@@ -30,6 +30,7 @@ load("//bindings/pydrake:pydrake.bzl", "add_lint_tests_pydrake")
 
 package(default_visibility = [
     "//bindings/pydrake:__subpackages__",
+    "//examples/rl_cito_station:__subpackages__",
 ])
 
 # This determines how `PYTHONPATH` is configured, and how to install the
