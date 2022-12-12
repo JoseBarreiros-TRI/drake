@@ -1451,6 +1451,13 @@ PYBIND11_MODULE(plant, m) {
               return self->GetBodyId(geometry_id);
             },
             py::arg("geometry_id"), cls_doc.GetBodyId.doc_1args_geometry_id)
+        .def(
+            "SetWallBoundaryCondition",
+            &Class::SetWallBoundaryCondition,
+            py::arg("id"),
+            py::arg("p_WQ"),
+            py::arg("n_W"),
+            cls_doc.SetWallBoundaryCondition.doc)
         .def("vertex_positions_port", &Class::vertex_positions_port,
             py_rvp::reference_internal, cls_doc.vertex_positions_port.doc);
   }
