@@ -1,0 +1,62 @@
+# -*- mode: python -*-
+# vi: set ft=python :
+
+load("//tools/lint:lint.bzl", "add_lint_tests")
+load(
+    "@drake//tools/skylark:py.bzl",
+    "py_binary",
+    "py_library",
+    "py_test",
+)
+
+py_library(
+    name = "scenario_helpers",
+    srcs = ["scenario_helpers.py"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//bindings/pydrake",
+    ],
+)
+
+py_library(
+    name = "box_flipup",
+    srcs = ["envs/box_flipup/box_flipup.py"],
+    data = [
+        "//bindings/pydrake/examples/gym/models",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":scenario_helpers",
+        "//bindings/pydrake",
+    ],
+)
+
+py_binary(
+    name = "train_box_flipup",
+    srcs = ["train_box_flipup.py"],
+    data = [
+        "//bindings/pydrake/examples/gym/models",
+    ],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//bindings/pydrake",
+        "@gym_py",
+        "@stable_baselines3_internal//:stable_baselines3",
+    ],
+)
+
+# Get some test coverage on the example; `--test` limits its time
+# and CPU budget.
+py_test(
+    name = "train_box_flipup_test",
+    srcs = ["train_box_flipup.py"],
+    args = ["--test"],
+    main = "train_box_flipup.py",
+    deps = [
+        "//bindings/pydrake/examples/gym:box_flipup",
+        "//bindings/pydrake/gym",
+        "@stable_baselines3_internal//:stable_baselines3",
+    ],
+)
+
+add_lint_tests()
