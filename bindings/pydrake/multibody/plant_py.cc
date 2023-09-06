@@ -714,6 +714,9 @@ void DoScalarDependentDefinitions(py::module m, T) {
         .def("get_joint_actuator", &Class::get_joint_actuator,
             py::arg("actuator_index"), py_rvp::reference_internal,
             cls_doc.get_joint_actuator.doc)
+        .def("get_mutable_joint_actuator", &Class::get_mutable_joint_actuator,
+            py::arg("joint_actuator_index"), py_rvp::reference_internal,
+            cls_doc.get_mutable_joint_actuator.doc)
         .def("get_frame", &Class::get_frame, py::arg("frame_index"),
             py_rvp::reference_internal, cls_doc.get_frame.doc)
         .def("gravity_field", &Class::gravity_field, py_rvp::reference_internal,
